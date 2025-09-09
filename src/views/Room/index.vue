@@ -7,6 +7,11 @@
       :multiple="isBingoBp || (isBingoStandard && gameStore.gameStatus === GameStatus.COUNT_DOWN)"
     >
       <template #left>
+        <div
+          :class="{ 'page-icon': playerASide === 0, 'page-icon-reverse': playerASide === 1 }"
+          v-if="isDualBoard"
+          @click="switchDualBoardSide"
+        ></div>
         <score-board
           class="change-card"
           v-if="isBingoStandard"
@@ -31,6 +36,11 @@
       </template>
 
       <template #right>
+        <div
+          :class="{ 'page-icon': playerBSide === 0, 'page-icon-reverse': playerBSide === 1 }"
+          v-if="isDualBoard"
+          @click="switchDualBoardSide"
+        ></div>
         <score-board
           class="change-card"
           v-if="isBingoStandard"
@@ -59,6 +69,9 @@
           <bingo-link-effect :route-a="routeA" :route-b="routeB" />
         </div> -->
         <game-bp v-if="isBpPhase" v-model="bpCode"></game-bp>
+        <div :class="{ page: gameStore.currentBoard === 0, 'page-reverse': gameStore.currentBoard === 1 }"
+             v-if = "isDualBoard"
+        ></div>
       </template>
 
       <template #widget>
@@ -187,23 +200,24 @@
           </template>
         </template>
       </template>
-
-      <template #button-right-2>
-        <template v-if="inGame && roomStore.roomConfig.dual_board > 0 && roomStore.roomConfig.type == BingoType.STANDARD">
-          <!-- 选手如果已经有选择/暂停期间，不允许切换视角 -->
-          <el-button type="primary" :disabled="spellCardSelected || selectedSpellIndex >= 0 || (isPlayer && gameStore.gameStatus == GameStatus.PAUSED)"
+      <!--
+            <template #button-right-2>
+              <template v-if="inGame && isDualBoard && roomStore.roomConfig.type == BingoType.STANDARD">
+                选手如果已经有选择/暂停期间，不允许实际切换盘面（仍可以本地切换），但是倒计时期间仍可以观察。
+          <el-button type="primary" :disabled="!inGame"
                      @click="switchDualBoardSide">
             {{
-              isInFreelySwitchStatus() ?
-                (gameStore.currentBoard == 0 ? "(A) 切换到B":"(B) 切换到A") :
+              boardNotDecided() ?
+                (gameStore.currentBoard == 0 ? "(A) 切换到B" : "(B) 切换到A") :
                 (isOnCurrentBoard() ?
-                    (gameStore.currentBoard == 0 ? "(A) 查看B":"(B) 查看A"):
-                    (gameStore.currentBoard == 0 ? "(A) 返回B":"(B) 返回A")
+                    (gameStore.currentBoard == 0 ? "(A) 查看B" : "(B) 查看A") :
+                    (gameStore.currentBoard == 0 ? "(A) 返回B" : "(B) 返回A")
                 )
-              }}
+            }}
           </el-button>
         </template>
       </template>
+      -->
     </room-layout>
   </div>
 </template>
@@ -247,6 +261,10 @@ const inMatch = computed(() => roomStore.inMatch);
 const isBingoStandard = computed(() => roomStore.roomData.type === BingoType.STANDARD);
 const isBingoBp = computed(() => roomStore.roomData.type === BingoType.BP);
 const isBingoLink = computed(() => roomStore.roomData.type === BingoType.LINK);
+
+const isDualBoard = computed(() => roomStore.roomConfig.dual_board > 0 );
+const playerASide = computed(() => isDualBoard.value ? gameStore.normalGameData.which_board_a : 0);
+const playerBSide = computed(() => isDualBoard.value ? gameStore.normalGameData.which_board_b : 0);
 
 const playerACanBP = computed(
   () =>
@@ -659,7 +677,12 @@ const decideStandard = (status) => {
 
   if (soloMode.value && isPlayerA.value && winFlag.value !== 0) {
     // if (trainingMode.value) Mit.emit("ai_game_over");
-    confirmWinner();
+    //confirmWinner();
+    if (winFlag.value !== 0) {
+      layoutRef.value?.showAlert("已满足胜利条件，等待左侧玩家判断胜负", "red");
+    } else {
+      layoutRef.value?.hideAlert();
+    }
   }
   if (!soloMode.value && !isHost.value) {
     if (winFlag.value !== 0) {
@@ -979,8 +1002,10 @@ const confirmSelect = () => {
   gameStore.selectSpell(selectedSpellIndex.value).then(() => {
     selectedSpellIndex.value = -1;
   });
+  if(isDualBoard.value) switchToSelfPage();
 };
 const confirmAttained = () => {
+  if(isDualBoard.value) switchToSelfPage()
   gameStore.finishSpell(isPlayerA.value ? playerASelectedIndex.value : playerBSelectedIndex.value);
 };
 const warnPlayer = (name) => {
@@ -1020,24 +1045,24 @@ const removeChangeCardCount = (index: number) => {
 
 const switchDualBoardSide = () => {
   gameStore.currentBoard = 1 - gameStore.currentBoard;
-  //仅倒计时期间允许实际的盘面转换
-  if (isPlayer.value && gameStore.gameStatus === GameStatus.COUNT_DOWN) {
+  //仅倒计时期间且未实际选择时允许实际的盘面转换
+  if (boardNotDecided()) {
     ws.send(WebSocketActionType.NORMAL_DUAL_BOARD_CHANGE, {player: isPlayerA.value ? 0:1, to: gameStore.currentBoard});
   }
 };
-//不是选手，始终自由
-//是选手，只有倒计时期间有自由进行实际的切换
-const isInFreelySwitchStatus = () => {
-  return !isPlayer.value || (isPlayer.value && gameStore.gameStatus === GameStatus.COUNT_DOWN)
+const switchToSelfPage = () =>{
+  if(!boardNotDecided()){
+    gameStore.currentBoard = isPlayerA.value ? playerASide.value : playerBSide.value;
+  }
 }
-//非选手不记录实际盘面
-//倒计时期间允许自由切换，此时以本地实际盘面为准
+//不是选手，始终为查看模式
+//是选手，只有倒计时期间且未实际选卡才有自由进行实际的切换，其余情况以服务器为准
+const boardNotDecided = () => {
+  return isPlayer.value && gameStore.gameStatus === GameStatus.COUNT_DOWN && !spellCardSelected.value
+}
 //在不允许自由切换的时候，判断选手是否与服务器最近返回的数据相符
 const isOnCurrentBoard = () => {
-  if(!isPlayer.value){
-    return true;
-  }
-  if(gameStore.gameStatus === GameStatus.COUNT_DOWN){
+  if(!boardNotDecided()){
     return true;
   }
   if(isPlayerA.value){
@@ -1048,6 +1073,7 @@ const isOnCurrentBoard = () => {
   }
 }
 //如果点了卡，但显示盘面与实际盘面不符，则立即踢回去
+/*
 watch(
   selectedSpellIndex,
   (value) => {
@@ -1061,6 +1087,7 @@ watch(
     immediate: true,
   }
 );
+ */
 </script>
 
 <style lang="scss" scoped>
@@ -1070,5 +1097,42 @@ watch(
   left: 0;
   pointer-events: none;
   z-index: 99;
+}
+.page-icon {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #000;
+  background-color: var(--bg-color);
+  cursor: pointer;
+}
+.page-icon-reverse {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #000;
+  background-color: var(--bg-color-reverse);
+  cursor: pointer;
+}
+.page {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 95%, var(--bg-color)),
+  linear-gradient(180deg, transparent 95%, var(--bg-color)), linear-gradient(270deg, transparent 95%, var(--bg-color)),
+  linear-gradient(360deg, transparent 95%, var(--bg-color));
+}
+.page-reverse {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 95%, var(--bg-color-reverse)),
+  linear-gradient(180deg, transparent 95%, var(--bg-color-reverse)),
+  linear-gradient(270deg, transparent 95%, var(--bg-color-reverse)),
+  linear-gradient(360deg, transparent 95%, var(--bg-color-reverse));
 }
 </style>

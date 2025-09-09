@@ -52,9 +52,17 @@
                   <el-button v-if="isPlayer" type="primary" @click="standUp" :disabled="inGame">成为观众</el-button>
                 </template>
                 <el-button type="primary" @click="leaveRoom" :disabled="inGame && !isWatcher">退出房间</el-button>
+
+                <el-button
+                  type="primary"
+                  @click="downloadGameLog"
+                  :disabled="isLogButtonDisabled || inGame || !inRoom"
+                  style="margin-top: 10px;"
+                >
+                  下载上局记录
+                </el-button>
               </div>
             </div>
-            <div class="room-info-none" v-if="!inRoom">目前尚未加入房间</div>
           </el-scrollbar>
         </el-tab-pane>
         <el-tab-pane label="房间设置" :name="1" class="tab-content">
@@ -309,7 +317,7 @@
                     :min="1"
                     @change="roomStore.updateRoomConfig('games')"
                   >
-                    <el-checkbox v-for="(item, index) in gameList" :value="item.code" :key="index">{{
+                    <el-checkbox v-for="(item, index) in gameList" :value="item.code" :key="index" :disabled="inGame">{{
                         item.name
                       }}</el-checkbox>
                   </el-checkbox-group>
@@ -321,7 +329,7 @@
                     :min="1"
                     @change="roomStore.updateRoomConfig('ranks')"
                   >
-                    <el-checkbox v-for="(item, index) in rankList" :value="item" :key="index">{{ item }}</el-checkbox>
+                    <el-checkbox v-for="(item, index) in rankList" :value="item" :key="index" :disabled="inGame">{{ item }}</el-checkbox>
                   </el-checkbox-group>
                 </el-form-item>
                 <el-form-item label="bingo难度：">
@@ -433,6 +441,24 @@
                 />
                 <span class="input-number-text">秒</span>
               </el-form-item>
+              <el-form-item label="盘面背景：" v-if="roomStore.roomConfig.dual_board > 0">
+                <el-color-picker
+                  v-model="roomSettings.backgroundColor"
+                  size="small"
+                  color-format="hsl"
+                  show-alpha
+                  :predefine="predefineColors"
+                  @change="saveRoomSettings"
+                />
+                <el-color-picker
+                  v-model="roomSettings.backgroundColorReverse"
+                  size="small"
+                  color-format="hsl"
+                  show-alpha
+                  :predefine="predefineColors"
+                  @change="saveRoomSettings"
+                />
+              </el-form-item>
             </el-form>
           </el-scrollbar>
         </el-tab-pane>
@@ -534,7 +560,7 @@ const blindTypeList = [
 
 const spellVersionList = [
   {
-    name: "S6前瞻卡池",
+    name: "S6卡池",
     type: 1
   },
   {
@@ -678,6 +704,22 @@ watch(
     });
   }
 );
+const isLogButtonDisabled = ref(false);
+
+const downloadGameLog = () => {
+  if (isLogButtonDisabled.value) return;
+
+  isLogButtonDisabled.value = true;
+  ElMessage.info("正在生成对局记录...");
+
+  gameStore.fetchAndProcessGameLog().catch(() => {
+    ElMessage.error("生成记录失败，请重试");
+  });
+
+  setTimeout(() => {
+    isLogButtonDisabled.value = false;
+  }, 10000); // 10秒内禁用
+};
 </script>
 
 <style scoped lang="scss">
@@ -731,8 +773,17 @@ watch(
 .info-button {
   width: 100%;
   text-align: center;
-  height: 40px;
+  /* 调整 info-button 样式以容纳新按钮 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px; /* 按钮之间的间距 */
   margin-top: 20px;
+
+  .el-button {
+    margin-left: 0 !important; /* 覆盖 element-plus 的默认 margin */
+    width: 120px; /* 可以统一按钮宽度 */
+  }
 }
 
 .label-with-button {

@@ -4,6 +4,7 @@ import { useRoomStore } from "./RoomStore";
 import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStatus } from "@/types";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
+import Config from "@/config"
 
 interface GameLog {
   index: number;
@@ -14,6 +15,33 @@ interface GameLog {
   failCountB?: number;
   getOnWhichBoard?: number;
 }
+
+interface PlayerAction {
+  playerName: string;
+  actionType: string;
+  spellIndex: number;
+  spellName: string;
+  timestamp: number;
+  spell?: Spell; // 附加一个spell对象，方便处理
+}
+
+interface GameLogData {
+  roomConfig: RoomConfig;
+  players: string[];
+  spells: Spell[];
+  spells2: Spell[] | null;
+  normalData: {
+    which_board_a: number;
+    which_board_b: number;
+    is_portal_a: number[];
+    is_portal_b: number[];
+    get_on_which_board: number[];
+  } | null;
+  actions: PlayerAction[];
+  gameStartTimestamp: number;
+  score: number[];
+}
+
 
 export const useGameStore = defineStore("game", () => {
   const roomStore = useRoomStore();
@@ -430,6 +458,293 @@ export const useGameStore = defineStore("game", () => {
     }
   );
 
+  const fetchAndProcessGameLog = async () => {
+    try {
+      const serializedLog = await ws.send(WebSocketActionType.PRINT_LOG);
+      if (typeof serializedLog !== 'string') {
+        throw new Error("收到的日志格式不正确");
+      }
+      const logData: GameLogData = JSON.parse(serializedLog);
+
+      // 将spells对象附加到actions上，方便后续处理
+      logData.actions.forEach(action => {
+        if (action.spellIndex >= 0) {
+          // 注意：这里假设spellIndex对应的是spells数组。
+          // 如果一个动作可能对应spells2，逻辑需要更复杂。
+          // 但从后端代码看，logAction只记录了主盘的spell。
+          action.spell = logData.spells[action.spellIndex];
+        }
+      });
+
+      const formattedLog = formatLogForDownload(logData);
+      triggerDownload(formattedLog, logData);
+
+    } catch (error) {
+      console.error("获取或处理游戏日志失败:", error);
+      // 可以使用 ElMessage 提示用户
+      // ElMessage.error("获取游戏日志失败");
+    }
+  };
+
+  const triggerDownload = (content: string, logData: GameLogData) => {
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    // 7. 文件命名加入时分信息
+    const date = new Date(logData.gameStartTimestamp);
+    const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+    const timeStr = `${date.getHours().toString().padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}`;
+    a.download = `BingoLog_${dateStr}_${timeStr}_${logData.players[0]}_vs_${logData.players[1]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+
+// 替换旧的 formatLogForDownload 方法
+  const formatLogForDownload = (logData: GameLogData): string => {
+    const { roomConfig, players, score, spells, spells2, actions, gameStartTimestamp, normalData } = logData;
+    const output: string[] = [];
+
+    // 辅助函数
+    const formatTimestamp = (ms: number) => {
+      const totalSeconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+      const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+      return `${minutes}:${seconds}`;
+    };
+
+    const customPadEnd = (str: string, targetLength: number, padString = ' '): string => {
+      const wideCharRegex = /[\u4e00-\u9fa5\uff00-\uffef]/g;
+      const visualLength = str.replace(wideCharRegex, '  ').length;
+      const paddingLength = targetLength - visualLength;
+      if (paddingLength <= 0) {
+        return str;
+      }
+      return str + padString.repeat(paddingLength);
+    };
+
+    // 1. 基础信息
+    output.push(`东方Bingo对战日志`);
+    output.push(`对局开始时间: ${new Date(gameStartTimestamp).toLocaleString()}`);
+    output.push(`玩家: ${players[0]} vs ${players[1]}`);
+    output.push(`最终比分: ${score[0]} - ${score[1]}`);
+    output.push('---');
+
+    // 2. 游戏设置
+    output.push('【游戏设置】');
+    output.push(`模式: ${Config.gameTypeList.find(g => g.type === roomConfig.type)?.name || '未知'}`);
+    output.push(`时长: ${roomConfig.game_time}分钟, 倒计时: ${roomConfig.countdown}秒, cd： ${roomConfig.cd_time}秒`);
+    // 1. 添加符卡来源与游戏难度
+    const gameNames = roomConfig.games.map(code => Config.gameOptionList.find(g => g.code === code)?.name).filter(Boolean).join(', ');
+    output.push(`作品来源: ${gameNames || '未指定'}`);
+    output.push(`符卡难度: ${roomConfig.ranks.join(', ') || '未指定'}`);
+    const difficultyName = Config.difficultyList.find(d => d.value === roomConfig.difficulty)?.name;
+    output.push(`盘面难度: ${difficultyName || '未知'}`);
+    if(roomConfig.blind_setting > 1){
+      output.push(`盲盒设定: 模式${roomConfig.blind_setting-1}, 揭示等级${roomConfig.blind_reveal_level}`);
+    }
+    if(roomConfig.dual_board > 0) {
+      output.push(`双重盘面: ${roomConfig.dual_board > 0 ? `开启 (转换格: ${roomConfig.portal_count}, 差异等级: ${roomConfig.diff_level})` : '关闭'}`);
+    }
+    if(roomConfig.use_ai){
+      output.push(`AI参数：Lv.${roomConfig.ai_base_power} / Lv.${roomConfig.ai_experience} 策略等级：${roomConfig.ai_strategy_level}`)
+    }
+    output.push('---');
+
+    // 3. 盘面符卡
+    const formatBoard = (boardSpells: Spell[], portals: number[] | undefined, title: string) => {
+      output.push(title);
+      const CELL_WIDTH = 32; // 定义每个单元格的视觉宽度
+      for (let i = 0; i < 5; i++) {
+        let row = customPadEnd(`${i + 1} | `, 5);
+        for (let j = 0; j < 5; j++) {
+          const index = i * 5 + j;
+          const spell = boardSpells[index];
+          const isPortal = portals && portals[index] === 1 ? ' (P)' : '';
+          const cellContent = `${spell.name.trim()}${isPortal}`;
+          row += customPadEnd(cellContent, CELL_WIDTH);
+        }
+        output.push(row);
+      }
+    };
+    formatBoard(spells, normalData?.is_portal_a, '【盘面A】');
+    if (roomConfig.dual_board > 0 && spells2) {
+      output.push('');
+      formatBoard(spells2, normalData?.is_portal_b, '【盘面B】');
+    }
+    output.push('---');
+
+    // 4. 游戏进程
+    output.push('【游戏进程】');
+    const playerBoards: { [key: string]: number } = { [players[0]]: 0, [players[1]]: 0 };
+    // 预处理，为每个玩家的 select 动作找到对应的 finish
+    const playerSelectHistory: { [key: string]: PlayerAction[] } = { [players[0]]: [], [players[1]]: [] };
+
+    actions.forEach(action => {
+      // 4. 时间格式化 & 添加行列信息
+      const timeStr = `[${formatTimestamp(action.timestamp)}]`;
+      let logLine = `${timeStr} `;
+      const boardInfo = roomConfig.dual_board > 0 ? `(盘面${playerBoards[action.playerName] === 0 ? 'A' : 'B'}) ` : '';
+      const spellLocation = action.spellIndex >= 0 ? `(${Math.floor(action.spellIndex / 5) + 1}, ${action.spellIndex % 5 + 1}) ` : '';
+
+      if (action.actionType === 'pause') {
+        logLine += `${action.playerName} 暂停了游戏。`;
+      } else if (action.actionType === 'resume') {
+        logLine += `${action.playerName} 恢复了游戏。`;
+      } else if (action.actionType.startsWith('set-')) {
+        logLine += `${action.playerName} 将 "${action.spellName}" 设置为 ${action.actionType.split('-')[1]} 状态。`;
+      } else {
+        logLine += `玩家 ${action.playerName} ${boardInfo}`;
+        switch (action.actionType) {
+          case 'select':
+            logLine += `选择了符卡 ${spellLocation}"${action.spellName}"。`;
+            playerSelectHistory[action.playerName].push(action);
+            break;
+          case 'finish':
+          case 'contest_win':
+            const verb = action.actionType === 'contest_win' ? '抢了' : '收取了';
+            logLine += `${verb}符卡 ${spellLocation}"${action.spellName}"。`;
+
+            // 4. 计算并显示用时
+            const lastSelect = playerSelectHistory[action.playerName].pop();
+            if (lastSelect) {
+              const startTime = lastSelect.timestamp;
+              const endTime = action.timestamp;
+              let pauseDurationInInterval = 0;
+              let pStart = 0;
+              actions.forEach(pAction => {
+                if (pAction.timestamp > startTime && pAction.timestamp < endTime) {
+                  if (pAction.actionType === 'pause') pStart = pAction.timestamp;
+                  if (pAction.actionType === 'resume' && pStart > 0) {
+                    pauseDurationInInterval += pAction.timestamp - pStart;
+                    pStart = 0;
+                  }
+                }
+              });
+              const duration = endTime - startTime - pauseDurationInInterval;
+              if (duration > 0) {
+                logLine += ` (用时: ${(duration / 1000).toFixed(2)}s)`;
+              }
+            }
+            break;
+        }
+
+        // 处理双盘面翻转
+        if (roomConfig.dual_board > 0 && normalData && (action.actionType === 'finish' || action.actionType === 'contest_win')) {
+          const currentBoard = playerBoards[action.playerName];
+          const portals = currentBoard === 0 ? normalData.is_portal_a : normalData.is_portal_b;
+          if (portals && portals[action.spellIndex] === 1) {
+            playerBoards[action.playerName] = 1 - currentBoard;
+            logLine += ` (切换至盘面${playerBoards[action.playerName] === 0 ? 'A' : 'B'})`;
+          }
+        }
+      }
+      output.push(logLine);
+    });
+    output.push('---');
+
+    // 5. 评价汇总
+    output.push('【数据分析】');
+    const countdownMs = roomConfig.countdown * 1000;
+
+    players.forEach(player => {
+      output.push(`[玩家: ${player}]`);
+      const playerActions = actions.filter(a => a.playerName === player);
+      const opponent = players.find(p => p !== player)!;
+
+      const selectStack: PlayerAction[] = [];
+      let totalTime = 0;
+      let totalFastest = 0;
+      const totalStars: number[] = [0,0,0,0,0];
+      const completedTasks: string[] = [];
+      let untrackedFinishes = 0;
+      let stolenCount = 0;
+
+      // 7. dual_board 模式下正确查找符卡
+      const getSpellForAction = (action: PlayerAction): Spell | undefined => {
+        if (!roomConfig.dual_board || !normalData || !spells2) {
+          return spells[action.spellIndex];
+        }
+        // getOnWhichBoard: 0x1: Left/A, 0x2: Left/B, 0x10: Right/A, 0x20: Right/B
+        const getInfo = normalData.get_on_which_board[action.spellIndex];
+        const playerIndex = players.indexOf(player);
+        const boardFlag = playerIndex === 0 ? (getInfo & 0x0F) : (getInfo >> 4);
+
+        if (boardFlag === 1) return spells[action.spellIndex]; // 在盘面A收取
+        if (boardFlag === 2) return spells2[action.spellIndex]; // 在盘面B收取
+
+        // 如果没有收取信息（比如只是select），则无法确定，默认返回盘面A
+        return spells[action.spellIndex];
+      };
+
+      for (const action of actions) {
+        if (action.playerName === player) {
+          if (action.actionType === 'select') {
+            selectStack.push(action);
+          } else if (action.actionType === 'finish' || action.actionType === 'contest_win') {
+            const lastSelect = selectStack.pop();
+            if (lastSelect) {
+              const spell = getSpellForAction(action);
+              if (!spell) continue;
+
+              const startTime = Math.max(lastSelect.timestamp, countdownMs);
+              const endTime = action.timestamp;
+              let pauseDurationInInterval = 0;
+              let pStart = 0;
+              actions.forEach(pAction => {
+                if (pAction.timestamp > startTime && pAction.timestamp < endTime) {
+                  if (pAction.actionType === 'pause') pStart = pAction.timestamp;
+                  if (pAction.actionType === 'resume' && pStart > 0) {
+                    pauseDurationInInterval += pAction.timestamp - pStart;
+                    pStart = 0;
+                  }
+                }
+              });
+              const duration = endTime - startTime - pauseDurationInInterval;
+              if (duration > 0) {
+                totalTime += duration;
+                totalFastest += spell.fastest;
+                totalStars[spell.star-1] += 1;
+                completedTasks.push(`- "${spell.name}": ${(duration / 1000).toFixed(2)}s`);
+              }
+            } else {
+              untrackedFinishes++;
+            }
+          }
+        } else if (action.playerName === opponent) {
+          // 5. 处理被抢情况
+          if (action.actionType === 'contest_win') {
+            // 如果对手抢卡，检查我方是否有对同一张卡的选择
+            const myLastSelect = selectStack[selectStack.length - 1];
+            if (myLastSelect && myLastSelect.spellIndex === action.spellIndex) {
+              selectStack.pop(); // 移除这个被抢的选择
+              stolenCount++;
+            }
+          }
+        }
+      }
+
+      output.push(...completedTasks);
+      if (untrackedFinishes > 0) {
+        output.push(`(有 ${untrackedFinishes} 次收取操作因无前置选择而未计入效率统计)`);
+      }
+      if (stolenCount > 0) {
+        output.push(`(有 ${stolenCount} 张选择的符卡被对手抢走)`);
+      }
+      // 2. 添加星级分布
+      output.push(`总计收取 ${completedTasks.length} 张符卡，等级分布: [${totalStars[0]},${totalStars[1]},${totalStars[2]},${totalStars[3]},${totalStars[4]}]`);
+      output.push(`总用时: ${formatTimestamp(totalTime)}`);
+      const efficiency = totalTime > 0 ? ((totalFastest * 1000) / totalTime * 100).toFixed(2) : 'N/A';
+      output.push(`全局效率: ${efficiency}%`);
+      output.push('');
+    });
+
+    return output.join('\n');
+  };
+
   return {
     spells,
     spellStatus,
@@ -459,5 +774,6 @@ export const useGameStore = defineStore("game", () => {
     bpGameBanPick,
     bpGameNextRound,
     refreshSpell,
+    fetchAndProcessGameLog,
   };
 });

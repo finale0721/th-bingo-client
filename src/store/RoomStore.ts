@@ -72,6 +72,8 @@ export const useRoomStore = defineStore("room", () => {
       delay: 5,
       changeCardCount: 2,
     },
+    backgroundColor: "hsl(58, 63%, 79%)",
+    backgroundColorReverse: "hsl(258, 100%, 77%)",
     blind_setting: 1,
     spell_version: 1,
     dual_board: 0,

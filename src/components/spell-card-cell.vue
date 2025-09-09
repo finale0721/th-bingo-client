@@ -364,28 +364,9 @@ const onClick = () => {
     }
   }
 
-  &.A-selected-other-board.B-selected-other-board {
-    &::before {
-      transform: skew(-0.89rad) translateX(0%);
-      left: -50%;
-    }
-    &::after {
-      transform: skew(-0.89rad) translateX(0%);
-      left: 50%;
-    }
-  }
-
-  &.A-selected-other-board.B-selected {
-    &::before {
-      transform: skew(-0.89rad) translateX(0%);
-      left: -50%;
-    }
-    &::after {
-      transform: skew(-0.89rad) translateX(0%);
-      left: 50%;
-    }
-  }
-
+  &.A-attained-other-board.B-attained-other-board,
+  &.A-selected-other-board.B-selected-other-board,
+  &.A-selected-other-board.B-selected,
   &.A-selected.B-selected-other-board {
     &::before {
       transform: skew(-0.89rad) translateX(0%);
@@ -408,17 +389,6 @@ const onClick = () => {
     &::after {
       background-image: linear-gradient(var(--B-color) 60%, var(--B-color-dark));
       opacity: 0.5;
-    }
-  }
-
-  &.A-attained-other-board.B-attained-other-board {
-    &::before {
-      transform: skew(-0.89rad) translateX(0%);
-      left: -50%;
-    }
-    &::after {
-      transform: skew(-0.89rad) translateX(0%);
-      left: 50%;
     }
   }
 
