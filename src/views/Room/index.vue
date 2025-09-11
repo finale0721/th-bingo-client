@@ -675,11 +675,18 @@ const decideStandard = (status) => {
     winFlag.value = 13;
   }
 
-  if (soloMode.value && isPlayerA.value && winFlag.value !== 0) {
+  if (soloMode.value && winFlag.value !== 0) {
     // if (trainingMode.value) Mit.emit("ai_game_over");
     //confirmWinner();
+    //如果没有导播...
     if (winFlag.value !== 0) {
-      layoutRef.value?.showAlert("已满足胜利条件，等待左侧玩家判断胜负", "red");
+      //单人练习模式允许关闭胜利判定
+      if(roomStore.practiceMode && roomSettings.value.noWinningDeclaration){
+        layoutRef.value?.hideAlert();
+      }else {
+        //否则由左侧玩家决定胜利
+        layoutRef.value?.showAlert("已满足胜利条件，等待左侧玩家判断胜负", "red");
+      }
     } else {
       layoutRef.value?.hideAlert();
     }
@@ -1022,7 +1029,11 @@ const onCountDownComplete = () => {
     }
   } else if (gameStore.gameStatus === GameStatus.STARTED) {
     gameStore.gameStatus = GameStatus.ENDED;
-    if (!isHost.value) layoutRef.value?.showAlert("游戏时间到，等待房主判断胜负", "red");
+    if (!isHost.value){
+      layoutRef.value?.showAlert("游戏时间到，等待房主判断胜负", "red");
+    } else{
+      layoutRef.value?.showAlert("游戏时间到，等待左侧玩家判断胜负", "red");
+    }
   }
 };
 const resetRoom = () => {

@@ -283,7 +283,7 @@
                   <el-input-number
                     class="input-number"
                     v-model="roomSettings.diff_level"
-                    :min="0"
+                    :min="-1"
                     :max="5"
                     :step="1"
                     :disabled="inGame"
@@ -458,6 +458,9 @@
                   :predefine="predefineColors"
                   @change="saveRoomSettings"
                 />
+              </el-form-item>
+              <el-form-item label="单人练习不判定胜利：">
+                <el-checkbox v-model="roomSettings.noWinningDeclaration" @change="saveRoomSettings" :disabled="inGame"></el-checkbox>
               </el-form-item>
             </el-form>
           </el-scrollbar>

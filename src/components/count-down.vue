@@ -24,7 +24,7 @@ const gameStore = useGameStore();
 
 const props = withDefaults(
   defineProps<{
-    mode?: "countdown" | "stopwatch"; //countdown为倒计时模式，stopwatch为秒表模式。秒表模式仅link赛使用
+    mode?: "countdown" | "stopwatch";
     size?: number;
   }>(),
   {
@@ -40,30 +40,36 @@ const hour = ref(0);
 const minute = ref(0);
 const second = ref(0);
 
+// 新增：用于存储倒计时的目标结束时间戳
+let endTime = 0;
+
 const start = () => {
   if (timer.value) {
     window.clearInterval(timer.value);
     timer.value = 0;
   }
   if (props.mode === "countdown") {
-    if (gameStore.gameStatus !== GameStatus.PAUSED) {
+    if (gameStore.gameStatus !== GameStatus.PAUSED && gameStore.leftTime > 0) {
+      // 核心改动 1：计算并记录倒计时的结束时间戳
+      // endTime = 当前时间的时间戳 + 剩余的毫秒数
+      endTime = Date.now() + gameStore.leftTime;
+
       timer.value = window.setInterval(() => {
-        gameStore.leftTime -= 1000;
-        if (gameStore.leftTime <= 0) {
+        // 核心改动 2：不再是简单地减去1000ms
+        // 而是用未来的结束时间减去当前时间，得到精确的剩余时间
+        const remainingTime = endTime - Date.now();
+
+        if (remainingTime <= 0) {
+          gameStore.leftTime = 0; // 确保时间归零
           stop();
           emits("complete");
+        } else {
+          gameStore.leftTime = remainingTime;
         }
-      }, 1000);
+      }, 1000); // 定时器仍然每秒触发一次，用于刷新UI
     }
   } else if (props.mode === "stopwatch") {
-    // remaining.value = GameTime.main;
-    // timer.value = window.setInterval(() => {
-    //   remaining.value = GameTime.main;
-    //   if (remaining.value <= 0) {
-    //     stop();
-    //     emits("complete");
-    //   }
-    // }, 1000);
+    // 秒表模式的逻辑（如果需要）
   }
 };
 const pause = () => {
@@ -74,9 +80,7 @@ const pause = () => {
 };
 const stop = () => {
   pause();
-  hour.value = 0;
-  minute.value = 0;
-  second.value = 0;
+  // stop时不需要重置 hour, minute, second, 因为 watch 会处理
   gameStore.leftTime = 0;
 };
 const format = (number: number): string => {
@@ -86,19 +90,24 @@ const format = (number: number): string => {
 watch(
   () => gameStore.leftTime,
   (value) => {
-    if (value < 0) {
+    if (value <= 0) {
       second.value = 0;
       minute.value = 0;
       hour.value = 0;
       return;
     }
-    value = Math.ceil(value / 1000);
-    second.value = value % 60;
-    if (value >= 3600000) {
-      hour.value = Math.floor(value / 3600);
-      minute.value = Math.floor(value / 60) % 60;
+    // 注意：这里不再需要 Math.ceil，因为我们的时间戳计算是精确的
+    const totalSeconds = Math.floor(value / 1000);
+    second.value = totalSeconds % 60;
+
+    // 这里的逻辑稍微调整以避免旧代码中的一个潜在计算错误
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    if (totalMinutes >= 60) {
+      hour.value = Math.floor(totalMinutes / 60);
+      minute.value = totalMinutes % 60;
     } else {
-      minute.value = Math.floor(value / 60);
+      hour.value = 0; // 确保小时在不需要时为0
+      minute.value = totalMinutes;
     }
   },
   { immediate: true }
