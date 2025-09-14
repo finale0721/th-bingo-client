@@ -112,6 +112,35 @@ const gameTypeList = [
   },
 ];
 
+const spellVersionList = [
+  {
+    name: "S6卡池",
+    type: 1
+  },
+  {
+    name: "S5卡池",
+    type: 3
+  },
+  {
+    name: "S3卡池",
+    type: 4
+  },
+  {
+    name: "史卡池（你确定吗）",
+    type: 5
+  },
+  {
+    name: "小数点（th11-15替换）",
+    type: 6
+  },
+  {
+    name: "缘（th10替换）",
+    type: 7
+  }
+];
+
+const spellListWithTimer = 1
+
 abstract class Config {
   public static readonly webSocket = WebSocketConfig;
   public static readonly rankList = rankList;
@@ -119,6 +148,8 @@ abstract class Config {
   public static readonly predefineColors = predefineColors;
   public static readonly gameTypeList = gameTypeList;
   public static readonly difficultyList = difficultyList;
+  public static readonly spellVersionList = spellVersionList;
+  public static readonly spellListWithTimer = spellListWithTimer;
 }
 
 export default Config;

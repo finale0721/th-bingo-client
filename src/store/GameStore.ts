@@ -5,6 +5,7 @@ import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStat
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
 import Config from "@/config"
+import config from "@/config";
 
 interface GameLog {
   index: number;
@@ -23,6 +24,7 @@ interface PlayerAction {
   spellName: string;
   timestamp: number;
   spell?: Spell; // 附加一个spell对象，方便处理
+  scoreNow: number[];
 }
 
 interface GameLogData {
@@ -538,6 +540,7 @@ export const useGameStore = defineStore("game", () => {
     output.push(`模式: ${Config.gameTypeList.find(g => g.type === roomConfig.type)?.name || '未知'}`);
     output.push(`时长: ${roomConfig.game_time}分钟, 倒计时: ${roomConfig.countdown}秒, cd： ${roomConfig.cd_time}秒`);
     // 1. 添加符卡来源与游戏难度
+    output.push(`卡池：${Config.spellVersionList.find(n => n.type === roomConfig.spell_version)?.name}`)
     const gameNames = roomConfig.games.map(code => Config.gameOptionList.find(g => g.code === code)?.name).filter(Boolean).join(', ');
     output.push(`作品来源: ${gameNames || '未指定'}`);
     output.push(`符卡难度: ${roomConfig.ranks.join(', ') || '未指定'}`);
@@ -595,7 +598,7 @@ export const useGameStore = defineStore("game", () => {
       } else if (action.actionType === 'resume') {
         logLine += `${action.playerName} 恢复了游戏。`;
       } else if (action.actionType.startsWith('set-')) {
-        logLine += `${action.playerName} 将 "${action.spellName}" 设置为 ${action.actionType.split('-')[1]} 状态。`;
+        logLine += `${action.playerName} 将 "${action.spellName}" 设置为 ${action.actionType.split('-')[1]} 状态。当前比分：${action.scoreNow[0]}-${action.scoreNow[1]}。`;
       } else {
         logLine += `玩家 ${action.playerName} ${boardInfo}`;
         switch (action.actionType) {
@@ -611,7 +614,7 @@ export const useGameStore = defineStore("game", () => {
             // 4. 计算并显示用时
             const lastSelect = playerSelectHistory[action.playerName].pop();
             if (lastSelect) {
-              const startTime = lastSelect.timestamp;
+              const startTime = Math.max(lastSelect.timestamp,  roomConfig.countdown * 1000);
               const endTime = action.timestamp;
               let pauseDurationInInterval = 0;
               let pStart = 0;
@@ -628,6 +631,7 @@ export const useGameStore = defineStore("game", () => {
               if (duration > 0) {
                 logLine += ` (用时: ${(duration / 1000).toFixed(2)}s)`;
               }
+              logLine += `(比分：${action.scoreNow[0]}-${action.scoreNow[1]})`
             }
             break;
         }
@@ -658,7 +662,7 @@ export const useGameStore = defineStore("game", () => {
       const selectStack: PlayerAction[] = [];
       let totalTime = 0;
       let totalFastest = 0;
-      const totalStars: number[] = [0,0,0,0,0];
+      const totalStars: number[] = [0, 0, 0, 0, 0];
       const completedTasks: string[] = [];
       let untrackedFinishes = 0;
       let stolenCount = 0;
@@ -707,7 +711,7 @@ export const useGameStore = defineStore("game", () => {
               if (duration > 0) {
                 totalTime += duration;
                 totalFastest += spell.fastest;
-                totalStars[spell.star-1] += 1;
+                totalStars[spell.star - 1] += 1;
                 completedTasks.push(`- "${spell.name}": ${(duration / 1000).toFixed(2)}s`);
               }
             } else {
@@ -737,8 +741,10 @@ export const useGameStore = defineStore("game", () => {
       // 2. 添加星级分布
       output.push(`总计收取 ${completedTasks.length} 张符卡，等级分布: [${totalStars[0]},${totalStars[1]},${totalStars[2]},${totalStars[3]},${totalStars[4]}]`);
       output.push(`总用时: ${formatTimestamp(totalTime)}`);
-      const efficiency = totalTime > 0 ? ((totalFastest * 1000) / totalTime * 100).toFixed(2) : 'N/A';
-      output.push(`全局效率: ${efficiency}%`);
+      if (roomConfig.spell_version === Config.spellListWithTimer) {
+        const efficiency = totalTime > 0 ? ((totalFastest * 1000) / totalTime * 100).toFixed(2) : 'N/A';
+        output.push(`全局效率: ${efficiency}%`);
+      }
       output.push('');
     });
 

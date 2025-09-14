@@ -200,24 +200,18 @@
           </template>
         </template>
       </template>
-      <!--
-            <template #button-right-2>
+
+      <template #button-right-2>
               <template v-if="inGame && isDualBoard && roomStore.roomConfig.type == BingoType.STANDARD">
-                选手如果已经有选择/暂停期间，不允许实际切换盘面（仍可以本地切换），但是倒计时期间仍可以观察。
           <el-button type="primary" :disabled="!inGame"
                      @click="switchDualBoardSide">
             {{
-              boardNotDecided() ?
-                (gameStore.currentBoard == 0 ? "(A) 切换到B" : "(B) 切换到A") :
-                (isOnCurrentBoard() ?
-                    (gameStore.currentBoard == 0 ? "(A) 查看B" : "(B) 查看A") :
-                    (gameStore.currentBoard == 0 ? "(A) 返回B" : "(B) 返回A")
-                )
+              boardNotDecided() ? "切换盘面" : (isOnCurrentBoard() ? "查看另一面" : "返回当前面")
             }}
           </el-button>
         </template>
       </template>
-      -->
+
     </room-layout>
   </div>
 </template>
@@ -1056,7 +1050,7 @@ const removeChangeCardCount = (index: number) => {
 
 const switchDualBoardSide = () => {
   gameStore.currentBoard = 1 - gameStore.currentBoard;
-  //仅倒计时期间且未实际选择时允许实际的盘面转换
+  //仅倒计时期间/*且未实际选择时*/允许实际的盘面转换
   if (boardNotDecided()) {
     ws.send(WebSocketActionType.NORMAL_DUAL_BOARD_CHANGE, {player: isPlayerA.value ? 0:1, to: gameStore.currentBoard});
   }
@@ -1067,13 +1061,13 @@ const switchToSelfPage = () =>{
   }
 }
 //不是选手，始终为查看模式
-//是选手，只有倒计时期间且未实际选卡才有自由进行实际的切换，其余情况以服务器为准
+//是选手，只有倒计时期间/*且未实际选卡*/才有自由进行实际的切换，其余情况以服务器为准
 const boardNotDecided = () => {
-  return isPlayer.value && gameStore.gameStatus === GameStatus.COUNT_DOWN && !spellCardSelected.value
+  return isPlayer.value && gameStore.gameStatus === GameStatus.COUNT_DOWN// && !spellCardSelected.value
 }
 //在不允许自由切换的时候，判断选手是否与服务器最近返回的数据相符
 const isOnCurrentBoard = () => {
-  if(!boardNotDecided()){
+  if(boardNotDecided()){
     return true;
   }
   if(isPlayerA.value){
@@ -1082,6 +1076,7 @@ const isOnCurrentBoard = () => {
   if(isPlayerB.value){
     return gameStore.currentBoard === gameStore.normalGameData.which_board_b;
   }
+  return true;
 }
 //如果点了卡，但显示盘面与实际盘面不符，则立即踢回去
 /*

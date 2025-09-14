@@ -147,7 +147,7 @@
                     :disabled="inGame"
                   >
                     <el-option
-                      v-for="(item, index) in spellVersionList"
+                      v-for="(item, index) in Config.spellVersionList"
                       :key="index"
                       :label="item.name"
                       :value="item.type"
@@ -558,33 +558,6 @@ const blindTypeList = [
   {
     name: "模式2",
     type: 3
-  }
-];
-
-const spellVersionList = [
-  {
-    name: "S6卡池",
-    type: 1
-  },
-  {
-    name: "S5卡池",
-    type: 3
-  },
-  {
-    name: "S3卡池",
-    type: 4
-  },
-  {
-    name: "史卡池（你确定吗）",
-    type: 5
-  },
-  {
-    name: "小数点（th11-13替换）",
-    type: 6
-  },
-  {
-    name: "缘（th10替换）",
-    type: 7
   }
 ];
 
