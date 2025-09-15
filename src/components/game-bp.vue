@@ -86,7 +86,7 @@ import { useRoomStore } from "@/store/RoomStore";
 const roomStore = useRoomStore();
 
 const code = defineModel();
-const gameList = ref([...Config.gameOptionList]);
+const gameList = ref([...Config.gameOptionList(roomStore.roomConfig.spell_version)]);
 const ASelectedList = ref<string[]>([]);
 const BSelectedList = ref<string[]>([]);
 const ABannedList = ref<string[]>([]);

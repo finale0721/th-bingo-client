@@ -94,15 +94,20 @@ export const useRoomStore = defineStore("room", () => {
     for (const i in savedSettings) {
       roomSettings[i] = savedSettings[i];
     }
+    //checkAIPracticeEnabled();
   };
   loadRoomSettings();
 
   const saveRoomSettings = () => {
+    checkAIPracticeEnabled();
+    local.set("roomSettings", roomSettings);
+  };
+
+  const checkAIPracticeEnabled = () => {
     if(!(practiceMode.value) || roomSettings.spell_version != 1 || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0){
       roomSettings.use_ai = false;
     }
-    local.set("roomSettings", roomSettings);
-  };
+  }
 
   //服务端房间设置
   const roomConfig = reactive({
@@ -139,6 +144,7 @@ export const useRoomStore = defineStore("room", () => {
   watch(roomId, (id) => {
     if (id) getRoomConfig();
   });
+
   const updateRoomConfig = (
     key?: "type" | "game_time" | "countdown" | "games" | "ranks" | "need_win" | "difficulty" | "cd_time"
       | "blind_setting" | "spell_version" | "dual_board" | "portal_count" | "blind_reveal_level" | "diff_level"

@@ -81,6 +81,29 @@ const gameOptionList = [
   },
 ];
 
+const gameOptionListPoint1 = [
+  {
+    code: "11",
+    name: "东方文花帖",
+  },
+  {
+    code: "12",
+    name: "文花帖DS",
+  },
+  {
+    code: "13",
+    name: "弹幕天邪鬼",
+  },
+  {
+    code: "14",
+    name: "密封噩梦日记",
+  },
+  {
+    code: "15",
+    name: "妖精大战争",
+  }
+];
+
 const predefineColors = [
   "hsl(16, 100%, 50%)",
   "hsl(33, 100%, 50%)",
@@ -130,7 +153,7 @@ const spellVersionList = [
     type: 5
   },
   {
-    name: "小数点（th11-15替换）",
+    name: "小数点",
     type: 6
   },
   {
@@ -141,10 +164,15 @@ const spellVersionList = [
 
 const spellListWithTimer = 1
 
+const realSpellList = (version: number) => {
+  if(version === 6) return gameOptionListPoint1
+  return gameOptionList
+}
+
 abstract class Config {
   public static readonly webSocket = WebSocketConfig;
   public static readonly rankList = rankList;
-  public static readonly gameOptionList = gameOptionList;
+  public static readonly gameOptionList = realSpellList;
   public static readonly predefineColors = predefineColors;
   public static readonly gameTypeList = gameTypeList;
   public static readonly difficultyList = difficultyList;

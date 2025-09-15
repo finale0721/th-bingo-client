@@ -5,7 +5,6 @@ import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStat
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
 import Config from "@/config"
-import config from "@/config";
 
 interface GameLog {
   index: number;
@@ -541,7 +540,7 @@ export const useGameStore = defineStore("game", () => {
     output.push(`时长: ${roomConfig.game_time}分钟, 倒计时: ${roomConfig.countdown}秒, cd： ${roomConfig.cd_time}秒`);
     // 1. 添加符卡来源与游戏难度
     output.push(`卡池：${Config.spellVersionList.find(n => n.type === roomConfig.spell_version)?.name}`)
-    const gameNames = roomConfig.games.map(code => Config.gameOptionList.find(g => g.code === code)?.name).filter(Boolean).join(', ');
+    const gameNames = roomConfig.games.map(code => Config.gameOptionList(roomStore.roomConfig.spell_version).find(g => g.code === code)?.name).filter(Boolean).join(', ');
     output.push(`作品来源: ${gameNames || '未指定'}`);
     output.push(`符卡难度: ${roomConfig.ranks.join(', ') || '未指定'}`);
     const difficultyName = Config.difficultyList.find(d => d.value === roomConfig.difficulty)?.name;

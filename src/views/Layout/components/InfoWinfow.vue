@@ -143,7 +143,7 @@
                   <el-select
                     v-model="roomSettings.spell_version"
                     style="width: 120px"
-                    @change="roomStore.updateRoomConfig('spell_version')"
+                    @change="roomStore.updateRoomConfig()"
                     :disabled="inGame"
                   >
                     <el-option
@@ -158,7 +158,7 @@
                   <el-checkbox
                     v-model="roomSettings.use_ai"
                     :disabled="inGame || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0"
-                    @change="roomStore.updateRoomConfig('use_ai')"
+                    @change="roomStore.updateRoomConfig()"
                     style="margin-right: 0"
                   ></el-checkbox>
                 </el-form-item>
@@ -224,7 +224,7 @@
                   <el-select
                     v-model="roomSettings.blind_setting"
                     style="width: 120px"
-                    @change="roomStore.updateRoomConfig('blind_setting')"
+                    @change="roomStore.updateRoomConfig()"
                     :disabled="inGame"
                   >
                     <el-option
@@ -254,7 +254,7 @@
                   <el-select
                     v-model="roomSettings.dual_board"
                     style="width: 120px"
-                    @change="roomStore.updateRoomConfig('dual_board')"
+                    @change="roomStore.updateRoomConfig()"
                     :disabled="inGame"
                   >
                     <el-option
@@ -510,7 +510,7 @@ const scrollbar = ref<InstanceType<typeof ElScrollbar>>();
 
 const tabIndex = ref(0);
 const showTypeInput = ref(false);
-const gameList = Config.gameOptionList;
+const gameList = computed( () => Config.gameOptionList(roomStore.roomConfig.spell_version));
 const rankList = Config.rankList;
 const difficultyList = Config.difficultyList;
 const predefineColors = Config.predefineColors;
