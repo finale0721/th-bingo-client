@@ -83,26 +83,45 @@ const gameOptionList = [
 
 const gameOptionListPoint1 = [
   {
-    code: "11",
+    code: "101",
     name: "东方文花帖",
   },
   {
-    code: "12",
+    code: "102",
     name: "文花帖DS",
   },
   {
-    code: "13",
+    code: "103",
     name: "弹幕天邪鬼",
   },
   {
-    code: "14",
+    code: "104",
     name: "密封噩梦日记",
   },
   {
-    code: "15",
+    code: "105",
     name: "妖精大战争",
   }
 ];
+
+const gameOptionFanGameList = [
+  {
+    code: "1001",
+    name: "东方雪莲华"
+  },
+  {
+    code: "1002",
+    name: "东方祈华梦"
+  },
+  {
+    code: "1003",
+    name: "东方栖霞园"
+  },
+  {
+    code: "1004",
+    name: "东方夏夜祭"
+  },
+]
 
 const predefineColors = [
   "hsl(16, 100%, 50%)",
@@ -145,16 +164,16 @@ const spellVersionList = [
     type: 3
   },
   {
-    name: "S3卡池",
-    type: 4
-  },
-  {
     name: "史卡池（你确定吗）",
     type: 5
   },
   {
     name: "小数点",
     type: 6
+  },
+  {
+    name: "二同（游戏自备）",
+    type: 8
   },
   {
     name: "缘（th10替换）",
@@ -166,6 +185,7 @@ const spellListWithTimer = 1
 
 const realSpellList = (version: number) => {
   if(version === 6) return gameOptionListPoint1
+  if(version === 8) return gameOptionFanGameList
   return gameOptionList
 }
 
