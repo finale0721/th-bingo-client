@@ -56,7 +56,7 @@
                 <el-button
                   type="primary"
                   @click="downloadGameLog"
-                  :disabled="isLogButtonDisabled || inGame || !inRoom"
+                  :disabled="isLogButtonDisabled || (inGame && !isHost) || !inRoom"
                   style="margin-top: 10px;"
                 >
                   下载上局记录
@@ -356,7 +356,7 @@
                   color-format="hsl"
                   show-alpha
                   :predefine="predefineColors"
-                  @change="saveRoomSettings"
+                  @change="(newColor) => saveRoomSettings"
                 />
               </el-form-item>
               <template v-if="isHost">
@@ -395,7 +395,7 @@
                   color-format="hsl"
                   show-alpha
                   :predefine="predefineColors"
-                  @change="saveRoomSettings"
+                  @change="(newColor) => saveRoomSettings"
                 />
               </el-form-item>
               <template v-if="isHost">
@@ -448,7 +448,7 @@
                   color-format="hsl"
                   show-alpha
                   :predefine="predefineColors"
-                  @change="saveRoomSettings"
+                  @change="(newColor) => saveRoomSettings"
                 />
                 <el-color-picker
                   v-model="roomSettings.backgroundColorReverse"
@@ -456,7 +456,7 @@
                   color-format="hsl"
                   show-alpha
                   :predefine="predefineColors"
-                  @change="saveRoomSettings"
+                  @change="(newColor) => saveRoomSettings"
                 />
               </el-form-item>
               <el-form-item label="单人练习不判定胜利：">

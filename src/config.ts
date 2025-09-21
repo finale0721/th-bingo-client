@@ -121,6 +121,46 @@ const gameOptionFanGameList = [
     code: "1004",
     name: "东方夏夜祭"
   },
+  {
+    code: "1005",
+    name: "东方宝天京"
+  },
+  {
+    code: "1006",
+    name: "东方潮圣书"
+  },
+  {
+    code: "1007",
+    name: "铃集无名之丘"
+  },
+  {
+    code: "1008",
+    name: "东方远空界"
+  },
+  {
+    code: "1009",
+    name: "东方资志疏"
+  },
+  {
+    code: "1010",
+    name: "东方幕华祭春雪"
+  },
+  {
+    code: "1011",
+    name: "东方希莲船"
+  },
+  {
+    code: "1012",
+    name: "东方桃源宫"
+  },
+  {
+    code: "1013",
+    name: "东方实在相（后果自负）"
+  },
+  {
+    code: "1014",
+    name: "东方真珠岛"
+  },
 ]
 
 const predefineColors = [

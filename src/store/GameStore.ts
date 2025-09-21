@@ -492,7 +492,7 @@ export const useGameStore = defineStore("game", () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    // 7. 文件命名加入时分信息
+    //文件命名加入时分信息
     const date = new Date(logData.gameStartTimestamp);
     const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
     const timeStr = `${date.getHours().toString().padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}`;
