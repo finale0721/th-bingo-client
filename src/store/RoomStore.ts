@@ -59,6 +59,7 @@ export const useRoomStore = defineStore("room", () => {
     rankList: ["L", "EX"],
     difficulty: 3,
     bgmMuted: false,
+    sfxMuted: false,
     gamebp: false,
     matchbp: false,
     confirmDelay: 5,

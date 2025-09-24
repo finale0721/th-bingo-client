@@ -97,15 +97,15 @@
       </div>
     </div>
     <div class="audio">
-      <bgm ref="spellCardGrabbedAudioRef" :src="require('@/assets/audio/spell_card_grabbed.mp3')"></bgm>
-      <bgm ref="gamePointAudioRef" :src="require('@/assets/audio/game_point.wav')"></bgm>
-      <bgm ref="lineWarnAudioRef" :src="require('@/assets/audio/se_ufoalert.mp3')"></bgm>
-      <bgm ref="pauseAudioRef" :src="require('@/assets/audio/se_pause.mp3')"></bgm>
-      <bgm ref="startGameAudioRef" :src="require('@/assets/audio/start_game.mp3')"></bgm>
-      <bgm ref="captureCardAudioRef" :src="require('@/assets/audio/se_cardget.mp3')"></bgm>
-      <bgm ref="captureCardFailureAudioRef" :src="require('@/assets/audio/se_pldead00.mp3')"></bgm>
-      <bgm ref="winGameAudioRef" :src="require('@/assets/audio/se_extend.mp3')"></bgm>
-      <bgm ref="loseGameAudioRef" :src="require('@/assets/audio/se_fault.mp3')"></bgm>
+      <bgm ref="spellCardGrabbedAudioRef" :src="require('@/assets/audio/spell_card_grabbed.mp3')" :muted="sfxMuted"></bgm>
+      <bgm ref="gamePointAudioRef" :src="require('@/assets/audio/game_point.wav')" :muted="sfxMuted"></bgm>
+      <bgm ref="lineWarnAudioRef" :src="require('@/assets/audio/se_ufoalert.mp3')" :muted="sfxMuted"></bgm>
+      <bgm ref="pauseAudioRef" :src="require('@/assets/audio/se_pause.mp3')" :muted="sfxMuted"></bgm>
+      <bgm ref="startGameAudioRef" :src="require('@/assets/audio/start_game.mp3')" :muted="sfxMuted"></bgm>
+      <bgm ref="captureCardAudioRef" :src="require('@/assets/audio/se_cardget.mp3')" :muted="sfxMuted"></bgm>
+      <bgm ref="captureCardFailureAudioRef" :src="require('@/assets/audio/se_pldead00.mp3')" :muted="sfxMuted"></bgm>
+      <bgm ref="winGameAudioRef" :src="require('@/assets/audio/se_extend.mp3')" :muted="sfxMuted"></bgm>
+      <bgm ref="loseGameAudioRef" :src="require('@/assets/audio/se_fault.mp3')" :muted="sfxMuted"></bgm>
       <bgm
         ref="turn1CountdownAudioRef"
         src="http://link.hhtjim.com/163/22636828.mp3"
@@ -176,6 +176,7 @@ const winGameAudioRef = ref<InstanceType<typeof bgm>>();
 const loseGameAudioRef = ref<InstanceType<typeof bgm>>();
 
 const muted = computed(() => roomStore.roomSettings.bgmMuted);
+const sfxMuted = computed(() => roomStore.roomSettings.sfxMuted);
 const roomData = computed(() => roomStore.roomData);
 const isWatcher = computed(() => roomStore.isWatcher);
 const isPlayerA = computed(() => roomStore.isPlayerA);

@@ -20,20 +20,20 @@ export const enum BpStatus {
 }
 
 export const enum SpellStatus {
-  BANNED = -1,
-  NONE = 0,
-  A_SELECTED = 1,
-  BOTH_SELECTED = 2,
-  B_SELECTED = 3,
-  A_ATTAINED = 5,
-  BOTH_ATTAINED = 6,
-  B_ATTAINED = 7,
-  BOTH_HIDDEN = 0x1000,
-  LEFT_SEE_ONLY = 0x1001,
-  RIGHT_SEE_ONLY = 0x1002,
-  ONLY_REVEAL_GAME = 0x1010,
-  ONLY_REVEAL_GAME_STAGE = 0x1011,
-  ONLY_REVEAL_STAR = 0x1012,
+    BANNED = -1,
+    NONE = 0,
+    A_SELECTED = 1,
+    BOTH_SELECTED = 2,
+    B_SELECTED = 3,
+    A_ATTAINED = 5,
+    BOTH_ATTAINED = 6,
+    B_ATTAINED = 7,
+    BOTH_HIDDEN = 0x1000,
+    LEFT_SEE_ONLY = 0x1001,
+    RIGHT_SEE_ONLY = 0x1002,
+    ONLY_REVEAL_GAME = 0x1010,
+    ONLY_REVEAL_GAME_STAGE = 0x1011,
+    ONLY_REVEAL_STAR = 0x1012,
 }
 
 export const enum GameStatus {

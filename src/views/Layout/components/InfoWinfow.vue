@@ -61,6 +61,16 @@
                 >
                   下载上局记录
                 </el-button>
+
+                <el-button
+                    :disabled="!inRoom || inGame"
+                    type="primary"
+                    @click="showReplayDialog"
+                    style="margin-top: 10px;"
+                >
+                  回放对局
+                </el-button>
+
               </div>
             </div>
           </el-scrollbar>
@@ -430,6 +440,9 @@
               <el-form-item label="BGM静音：">
                 <el-checkbox v-model="roomSettings.bgmMuted" @change="saveRoomSettings"></el-checkbox>
               </el-form-item>
+              <el-form-item label="音效静音：">
+                <el-checkbox v-model="roomSettings.sfxMuted" @change="saveRoomSettings"></el-checkbox>
+              </el-form-item>
               <el-form-item label="收取延时：">
                 <el-input-number
                   class="input-number"
@@ -474,6 +487,19 @@
         </el-tab-pane>
       </el-tabs>
     </div>
+
+    <el-dialog v-model="replayDialogVisible" title="输入对局代码" width="500px">
+      <el-input
+          v-model="replayCode"
+          type="textarea"
+          placeholder="请粘贴对局代码"
+          :rows="6"
+      ></el-input>
+      <template #footer>
+        <el-button @click="replayDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="startReplay">开始回放</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -496,12 +522,15 @@ import {
   ElInputNumber,
   ElColorPicker,
   ElScrollbar,
+  ElDialog,
+  ElInput
 } from "element-plus";
 import Config from "@/config";
 import { useRoomStore } from "@/store/RoomStore";
 import { useLocalStore } from "@/store/LocalStore";
 import { useGameStore } from "@/store/GameStore";
 import { BingoType } from "@/types";
+import Replay from "@/utils/Replay";
 
 const roomStore = useRoomStore();
 const localStore = useLocalStore();
@@ -688,13 +717,40 @@ const downloadGameLog = () => {
   isLogButtonDisabled.value = true;
   ElMessage.info("正在生成对局记录...");
 
-  gameStore.fetchAndProcessGameLog().catch(() => {
+  Replay.fetchAndProcessGameLog().catch(() => {
     ElMessage.error("生成记录失败，请重试");
   });
 
   setTimeout(() => {
     isLogButtonDisabled.value = false;
   }, 10000); // 10秒内禁用
+};
+
+const replayDialogVisible = ref(false);
+const replayCode = ref('');
+const isReplayMode = ref(false);
+
+const showReplayDialog = () => {
+  replayDialogVisible.value = true;
+};
+
+// 开始回放
+const startReplay = () => {
+  if (replayCode.value.trim()) {
+    try {
+      Replay.parseReplayData(replayCode.value);
+      Replay.startReplay();
+      replayDialogVisible.value = false;
+      isReplayMode.value = true;
+
+      // 切换到操作记录标签页
+      tabIndex.value = 2;
+    } catch (error) {
+      ElMessage.error("回放代码解析失败: " + error);
+    }
+  } else {
+    ElMessage.warning("请输入对局代码");
+  }
 };
 </script>
 
