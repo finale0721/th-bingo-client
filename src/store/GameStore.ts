@@ -661,6 +661,7 @@ export const useGameStore = defineStore("game", () => {
       const selectStack: PlayerAction[] = [];
       let totalTime = 0;
       let totalFastest = 0;
+      let totalFastestWeighted = 0;
       const totalStars: number[] = [0, 0, 0, 0, 0];
       const completedTasks: string[] = [];
       let untrackedFinishes = 0;
@@ -711,6 +712,8 @@ export const useGameStore = defineStore("game", () => {
                 totalTime += duration;
                 totalFastest += spell.fastest;
                 totalStars[spell.star - 1] += 1;
+                //难度修正，预设收率，然后计算真正的期望时间
+                totalFastestWeighted += spell.fastest + (1 / getDifficultyFix(spell.difficulty) - 1) * (spell.miss_time * 1.05 + 1.5);
                 completedTasks.push(`- "${spell.name}": ${(duration / 1000).toFixed(2)}s`);
               }
             } else {
@@ -743,12 +746,23 @@ export const useGameStore = defineStore("game", () => {
       if (roomConfig.spell_version === Config.spellListWithTimer) {
         const efficiency = totalTime > 0 ? ((totalFastest * 1000) / totalTime * 100).toFixed(2) : 'N/A';
         output.push(`全局效率: ${efficiency}%`);
+        const eff_weighted = totalTime > 0 ? ((totalFastestWeighted * 1000) / totalTime * 100).toFixed(2) : 'N/A';
+        output.push(`全局效率（含难度修正）: ${eff_weighted}%`);
       }
       output.push('');
     });
 
     return output.join('\n');
   };
+
+  const getDifficultyFix = (difficulty: number): number => {
+    if(difficulty < 4) return 1.0;
+    if(difficulty < 8) return 1.0 - (difficulty - 4) * 0.025;
+    if(difficulty < 12) return 0.9 - (difficulty - 8) * 0.0375;
+    if(difficulty < 14) return 0.75 - (difficulty - 12) * 0.05;
+    if(difficulty < 16) return 0.65 - (difficulty - 14) * 0.1;
+    return 0.45
+  }
 
   return {
     spells,

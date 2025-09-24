@@ -161,6 +161,10 @@ const gameOptionFanGameList = [
     code: "1014",
     name: "东方真珠岛"
   },
+  {
+    code: "1015",
+    name: "东方幕华祭红月"
+  },
 ]
 
 const predefineColors = [
