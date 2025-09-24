@@ -5,6 +5,7 @@ import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStat
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
 import Config from "@/config"
+import pako from 'pako';
 
 interface GameLog {
   index: number;
@@ -42,6 +43,13 @@ interface GameLogData {
   gameStartTimestamp: number;
   score: number[];
 }
+
+interface ReplayPayload {
+    version: string;
+    data: GameLogData;
+}
+
+const REPLAY_DATA_VERSION = "1.0";
 
 
 export const useGameStore = defineStore("game", () => {
@@ -459,33 +467,40 @@ export const useGameStore = defineStore("game", () => {
     }
   );
 
-  const fetchAndProcessGameLog = async () => {
-    try {
-      const serializedLog = await ws.send(WebSocketActionType.PRINT_LOG);
-      if (typeof serializedLog !== 'string') {
-        throw new Error("收到的日志格式不正确");
-      }
-      const logData: GameLogData = JSON.parse(serializedLog);
+    const fetchAndProcessGameLog = async () => {
+        try {
+            const logObject: GameLogData = await ws.send(WebSocketActionType.PRINT_LOG);
 
-      // 将spells对象附加到actions上，方便后续处理
-      logData.actions.forEach(action => {
-        if (action.spellIndex >= 0) {
-          // 注意：这里假设spellIndex对应的是spells数组。
-          // 如果一个动作可能对应spells2，逻辑需要更复杂。
-          // 但从后端代码看，logAction只记录了主盘的spell。
-          action.spell = logData.spells[action.spellIndex];
+            if (typeof logObject !== 'object' || logObject === null) {
+                throw new Error("收到的日志格式不正确，期望是一个对象");
+            }
+
+            // 将spells对象附加到actions上，方便后续处理
+            logObject.actions.forEach(action => {
+                if (action.spellIndex >= 0) {
+                    action.spell = logObject.spells[action.spellIndex];
+                }
+            });
+
+            const dataToEncode: ReplayPayload = {
+                version: REPLAY_DATA_VERSION,
+                data: logObject,
+            };
+
+            const originalLogString = JSON.stringify(dataToEncode);
+
+            const compressedData = pako.deflate(originalLogString);
+
+            const replayDataB64 = uint8ArrayToBase64(compressedData);
+
+            const formattedLog = formatLogForDownload(logObject, replayDataB64);
+            triggerDownload(formattedLog, logObject);
+
+        } catch (error) {
+            console.error("获取或处理游戏日志失败:", error);
+            throw error;
         }
-      });
-
-      const formattedLog = formatLogForDownload(logData);
-      triggerDownload(formattedLog, logData);
-
-    } catch (error) {
-      console.error("获取或处理游戏日志失败:", error);
-      // 可以使用 ElMessage 提示用户
-      // ElMessage.error("获取游戏日志失败");
-    }
-  };
+    };
 
   const triggerDownload = (content: string, logData: GameLogData) => {
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -503,12 +518,9 @@ export const useGameStore = defineStore("game", () => {
     URL.revokeObjectURL(url);
   };
 
-
-// 替换旧的 formatLogForDownload 方法
-  const formatLogForDownload = (logData: GameLogData): string => {
+  const formatLogForDownload = (logData: GameLogData, replayDataB64: string): string => {
     const { roomConfig, players, score, spells, spells2, actions, gameStartTimestamp, normalData } = logData;
     const output: string[] = [];
-
     // 辅助函数
     const formatTimestamp = (ms: number) => {
       const totalSeconds = Math.floor(ms / 1000);
@@ -752,6 +764,11 @@ export const useGameStore = defineStore("game", () => {
       output.push('');
     });
 
+    const formattedReplayData = formatStringWithLineBreaks(replayDataB64, 128);
+    output.push('\n\n\n--- DO NOT EDIT BELOW THIS LINE ---\n');
+    output.push('本局回放代码：\n');
+    output.push(formattedReplayData);
+
     return output.join('\n');
   };
 
@@ -763,6 +780,71 @@ export const useGameStore = defineStore("game", () => {
     if(difficulty < 16) return 0.65 - (difficulty - 14) * 0.1;
     return 0.45
   }
+
+  const uint8ArrayToBase64 = (array: Uint8Array): string => {
+        // 将每个字节转换为字符
+        let binaryString = '';
+        for (let i = 0; i < array.length; i++) {
+            binaryString += String.fromCharCode(array[i]);
+        }
+        // 使用 btoa 进行Base64编码
+        return btoa(binaryString);
+  };
+
+  const formatStringWithLineBreaks = (str: string, lineLength: number): string => {
+        const regex = new RegExp(`.{1,${lineLength}}`, 'g');
+        const lines = str.match(regex);
+        return lines ? lines.join('\n') : '';
+  };
+
+    /**
+     * 解析包含换行和空格的回放代码
+     * @param replayCodeBlock 用户粘贴的回放代码字符串
+     * @returns 解析成功则返回包含版本和数据的对象，否则返回 null
+     */
+  const parseReplayData = (replayCodeBlock: string): ReplayPayload | null => {
+        try {
+            // 1. 匹配并提取所有Base64有效字符，自动忽略换行、空格等无效字符
+            // [A-Za-z0-9+/=] 是Base64字符集。我们把它们拼接成一个干净的字符串。
+            const validBase64Chars = replayCodeBlock.match(/[A-Za-z0-9+/=]/g);
+            if (!validBase64Chars) {
+                throw new Error("无效的回放输入");
+            }
+            const cleanBase64 = validBase64Chars.join('');
+
+            // 2. Base64 解码 -> 二进制字符串
+            const binaryString = atob(cleanBase64);
+
+            // 3. 二进制字符串 -> Uint8Array
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            // 4. Pako 解压缩 -> 原始JSON字符串
+            const jsonString = pako.inflate(bytes, { to: 'string' });
+
+            // 5. 解析JSON字符串为对象
+            const parsedPayload: ReplayPayload = JSON.parse(jsonString);
+
+            // 6. 验证结构并恢复版本号和原始数据
+            if (typeof parsedPayload.version !== 'string' || typeof parsedPayload.data !== 'object') {
+                throw new Error("解析出的数据格式不正确");
+            }
+
+            console.log(`成功解析回放数据，版本号: ${parsedPayload.version}`);
+
+            return {
+                version: parsedPayload.version,
+                data: parsedPayload.data
+            };
+
+        } catch (error) {
+            throw new Error("回放数据解析错误");
+            return null;
+        }
+  };
 
   return {
     spells,
