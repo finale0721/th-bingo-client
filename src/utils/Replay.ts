@@ -145,7 +145,7 @@ class Replay {
                     this.replayTimerId = null;
                 }
             }
-        }, 50); // 可以适当降低间隔，例如50ms，以获得更平滑的UI更新
+        }, 10);
     }
 
     // 暂停回放
@@ -206,7 +206,7 @@ class Replay {
 
         // 标记游戏开始
         this.roomStore.roomData.started = true;
-        this.gameStore.leftTime = this.roomStore.roomConfig.game_time * 1000 * 60 * 99;
+        this.gameStore.leftTime = this.roomStore.roomConfig.game_time * 1000 * 60 * 9;
     }
 
     // 执行单个操作

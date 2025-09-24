@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from "vue";
+import {onUnmounted, ref, watch} from "vue";
 import { useGameStore } from "@/store/GameStore";
 import { GameStatus } from "@/types";
 
@@ -112,6 +112,10 @@ watch(
   },
   { immediate: true }
 );
+
+onUnmounted(() => {
+  pause(); // 在组件卸载时调用 pause 方法来清除计时器
+});
 
 defineExpose({ start, pause, stop });
 </script>
