@@ -84,7 +84,7 @@ const gameOptionList = [
 const gameOptionListPoint1 = [
   {
     code: "101",
-    name: "东方文花帖",
+    name: "文花帖",
   },
   {
     code: "102",
@@ -92,84 +92,91 @@ const gameOptionListPoint1 = [
   },
   {
     code: "103",
-    name: "弹幕天邪鬼",
+    name: "天邪鬼",
   },
   {
     code: "104",
-    name: "密封噩梦日记",
+    name: "噩梦日记",
   },
   {
     code: "105",
-    name: "妖精大战争",
+    name: "大战争",
   }
 ];
 
 const gameOptionFanGameList = [
   {
     code: "1001",
-    name: "东方雪莲华"
+    name: "雪莲华"
   },
   {
     code: "1002",
-    name: "东方祈华梦"
+    name: "祈华梦"
   },
   {
     code: "1003",
-    name: "东方栖霞园"
+    name: "栖霞园"
   },
   {
     code: "1004",
-    name: "东方夏夜祭"
+    name: "夏夜祭"
   },
   {
     code: "1005",
-    name: "东方宝天京"
+    name: "宝天京"
   },
   {
     code: "1006",
-    name: "东方潮圣书"
+    name: "潮圣书"
   },
   {
     code: "1007",
-    name: "铃集无名之丘"
+    name: "铃集"
   },
   {
     code: "1008",
-    name: "东方远空界"
+    name: "远空界"
   },
   {
     code: "1009",
-    name: "东方资志疏"
+    name: "资志疏"
   },
   {
     code: "1010",
-    name: "东方幕华祭春雪"
+    name: "幕春雪"
   },
   {
     code: "1011",
-    name: "东方希莲船"
+    name: "希莲船"
   },
   {
     code: "1012",
-    name: "东方桃源宫"
+    name: "桃源宫"
   },
   {
     code: "1013",
-    name: "东方实在相（后果自负）"
+    name: "实在相"
   },
   {
     code: "1014",
-    name: "东方真珠岛"
+    name: "真珠岛"
   },
   {
     code: "1015",
-    name: "东方幕华祭红月"
+    name: "幕红月"
   },
   {
     code: "1016",
-    name: "东方导命树"
+    name: "导命树"
   },
 ]
+
+const lerenGameList = [
+    {
+        code: "9001",
+        name: "连缘天影战纪",
+    }
+];
 
 const predefineColors = [
   "hsl(16, 100%, 50%)",
@@ -224,7 +231,7 @@ const spellVersionList = [
     type: 8
   },
   {
-    name: "缘（th10替换）",
+    name: "缘",
     type: 7
   }
 ];
@@ -234,6 +241,7 @@ const spellListWithTimer = 1
 const realSpellList = (version: number) => {
   if(version === 6) return gameOptionListPoint1
   if(version === 8) return gameOptionFanGameList
+  if(version==7) return lerenGameList
   return gameOptionList
 }
 

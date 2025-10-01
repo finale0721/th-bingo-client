@@ -114,4 +114,5 @@ export interface RoomConfig {
   ai_style: 0;
   ai_base_power: 5;
   ai_experience: 5;
+  game_weight: {};
 }

@@ -87,6 +87,7 @@ export const useRoomStore = defineStore("room", () => {
     ai_base_power: 5,
     ai_experience: 5,
     noWinningDeclaration: false,
+    game_weight: {},
   });
 
   //加载本地设置
@@ -133,6 +134,7 @@ export const useRoomStore = defineStore("room", () => {
     ai_style: 0,
     ai_base_power: 5,
     ai_experience: 5,
+    game_weight: {},
   });
 
   const getRoomConfig = () => {
@@ -149,7 +151,7 @@ export const useRoomStore = defineStore("room", () => {
   const updateRoomConfig = (
     key?: "type" | "game_time" | "countdown" | "games" | "ranks" | "need_win" | "difficulty" | "cd_time"
       | "blind_setting" | "spell_version" | "dual_board" | "portal_count" | "blind_reveal_level" | "diff_level"
-      | "use_ai" | "ai_strategy_level" | "ai_style" | "ai_base_power" | "ai_experience",
+      | "use_ai" | "ai_strategy_level" | "ai_style" | "ai_base_power" | "ai_experience" | "game_weight",
   ) => {
     saveRoomSettings();
     const allParams = {
@@ -173,6 +175,7 @@ export const useRoomStore = defineStore("room", () => {
       ai_style: roomSettings.ai_style,
       ai_base_power: roomSettings.ai_base_power,
       ai_experience: roomSettings.ai_experience,
+      game_weight: roomSettings.game_weight,
     };
     const params: any = {};
     if (key) {
@@ -238,6 +241,7 @@ export const useRoomStore = defineStore("room", () => {
           ai_style: roomSettings.ai_style,
           ai_base_power: roomSettings.ai_base_power,
           ai_experience: roomSettings.ai_experience,
+          game_weight: roomSettings.game_weight,
         },
         solo: soloMode,
         add_robot: addRobot,

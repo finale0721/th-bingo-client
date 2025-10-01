@@ -187,6 +187,7 @@
                     ></el-option>
                   </el-select>
                 </el-form-item>
+                <!--
                 <el-form-item label="AI风格：" v-if="roomSettings.use_ai && roomSettings.ai_strategy_level >= 3">
                   <el-select
                     v-model="roomSettings.ai_style"
@@ -202,6 +203,7 @@
                     ></el-option>
                   </el-select>
                 </el-form-item>
+                -->
                 <el-form-item label="AI底力：" v-if="roomSettings.use_ai">
                   <el-input-number
                     class="input-number"
@@ -341,6 +343,16 @@
                   >
                     <el-checkbox v-for="(item, index) in rankList" :value="item" :key="index" :disabled="inGame">{{ item }}</el-checkbox>
                   </el-checkbox-group>
+                </el-form-item>
+                <el-form-item label="生成权重：" v-if="!roomSettings.gamebp">
+                  <el-button
+                      type="primary"
+                      @click="showWeightBalancer"
+                      :disabled="gameList.length <= 1 || inGame"
+                      size="small"
+                  >
+                    设置权重
+                  </el-button>
                 </el-form-item>
                 <el-form-item label="bingo难度：">
                   <el-radio-group
@@ -500,6 +512,14 @@
         <el-button type="primary" @click="startReplay">开始回放</el-button>
       </template>
     </el-dialog>
+
+    <!-- 游戏权重均衡器对话框 -->
+    <GameWeightBalancer
+        v-model:visible="weightBalancerVisible"
+        :game-list="weightBalancerGameList"
+        :current-weights="roomSettings.game_weight"
+        @confirm="handleWeightConfirm"
+    />
   </div>
 </template>
 
@@ -531,11 +551,13 @@ import { useLocalStore } from "@/store/LocalStore";
 import { useGameStore } from "@/store/GameStore";
 import { BingoType } from "@/types";
 import Replay from "@/utils/Replay";
+import GameWeightBalancer from './GameWeightBalancer.vue'
 
 const roomStore = useRoomStore();
 const localStore = useLocalStore();
 const gameStore = useGameStore();
 const scrollbar = ref<InstanceType<typeof ElScrollbar>>();
+const weightBalancerVisible = ref(false)
 
 const tabIndex = ref(0);
 const showTypeInput = ref(false);
@@ -752,6 +774,32 @@ const startReplay = () => {
     ElMessage.warning("请输入对局代码");
   }
 };
+
+const weightBalancerGameList = computed(() => {
+  const list = [...gameList.value]
+
+  // 如果游戏列表不为空，在开头插入特殊的均衡器滑块
+  if (list.length > 0) {
+    return [
+      { code: 'weight_balancer', name: '生成波动'},
+      ...list
+    ]
+  }
+
+  return list
+})
+
+const showWeightBalancer = () => {
+  weightBalancerVisible.value = true
+}
+
+// 处理权重确认
+const handleWeightConfirm = (weights: Record<string, number>) => {
+  // 更新roomSettings中的game_weight，保留所有游戏的权重设置
+  roomSettings.value.game_weight = weights
+  // 保存到服务器
+  roomStore.updateRoomConfig('game_weight')
+}
 </script>
 
 <style scoped lang="scss">
