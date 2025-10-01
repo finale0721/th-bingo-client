@@ -62,24 +62,6 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-// 档位到实际值的映射
-const levelToValueMap = new Map([
-  [2, 10],
-  [1, 2],
-  [0, 1],
-  [-1, 0.5],
-  [-2, 0.1],
-])
-
-// 实际值到档位的反向映射
-const valueToLevelMap = new Map([
-  [10, 2],
-  [2, 1],
-  [1, 0],
-  [0.5, -1],
-  [0.1, -2],
-])
-
 // 对话框显示状态
 const dialogVisible = ref(false)
 
@@ -99,23 +81,6 @@ watch(dialogVisible, (newVal) => {
   emit('update:visible', newVal)
 })
 
-// 根据实际权重值找到最接近的档位
-const findClosestLevel = (value: number): number => {
-  // 如果值正好在映射中，直接返回对应的档位
-  if (valueToLevelMap.has(value)) {
-    return valueToLevelMap.get(value)!
-  }
-
-  // 否则找到最接近的档位对应的实际值
-  const possibleValues = Array.from(levelToValueMap.values())
-  const closestValue = possibleValues.reduce((prev, curr) => {
-    return Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
-  })
-
-  // 返回最接近实际值对应的档位
-  return valueToLevelMap.get(closestValue) || 0
-}
-
 // 获取数值对应的CSS类名
 const getValueClass = (value: number) => {
   if (value > 0) return 'positive'
@@ -130,15 +95,13 @@ const initializeValues = () => {
   // 处理第一个特殊滑块（weight_balancer）
   if (props.gameList.length > 0) {
     const firstGame = props.gameList[0]
-    const storedValue = props.currentWeights['weight_balancer'] || 1
-    values[firstGame.code] = findClosestLevel(storedValue)
+    values[firstGame.code] = props.currentWeights['weight_balancer'] || 0
   }
 
   // 处理其他游戏滑块 - 保留所有游戏的权重，而不仅仅是当前列表中的游戏
   props.gameList.slice(1).forEach(game => {
-    // 优先使用当前游戏的权重，如果没有则使用默认值1
-    const storedValue = props.currentWeights[game.code] || 1
-    values[game.code] = findClosestLevel(storedValue)
+    // 优先使用当前游戏的权重，如果没有则使用默认值0
+    values[game.code] = props.currentWeights[game.code] || 0
   })
 
   currentValues.value = values
@@ -170,13 +133,13 @@ const handleConfirm = () => {
   if (props.gameList.length > 0) {
     const firstGame = props.gameList[0]
     const level = currentValues.value[firstGame.code]
-    weights['weight_balancer'] = levelToValueMap.get(level) || 1
+    weights['weight_balancer'] = level || 0
   }
 
   // 处理其他游戏滑块 - 更新当前列表中的游戏权重
   props.gameList.slice(1).forEach(game => {
     const level = currentValues.value[game.code]
-    weights[game.code] = levelToValueMap.get(level) || 1
+    weights[game.code] = level || 0
   })
 
   emit('confirm', weights)
