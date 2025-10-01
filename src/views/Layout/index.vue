@@ -23,7 +23,7 @@
 
 <script lang="ts" setup>
 import { computed } from "vue";
-import InfoWindow from "./components/InfoWinfow.vue";
+import InfoWindow from "./components/InfoWindow.vue";
 import { useRoomStore } from "@/store/RoomStore";
 
 const roomStore = useRoomStore();
