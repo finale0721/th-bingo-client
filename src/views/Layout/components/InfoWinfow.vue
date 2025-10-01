@@ -63,7 +63,7 @@
                 </el-button>
 
                 <el-button
-                    :disabled="!inRoom || inGame"
+                    :disabled="!inRoom || inGame || isWatcher"
                     type="primary"
                     @click="showReplayDialog"
                     style="margin-top: 10px;"

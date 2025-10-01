@@ -1101,7 +1101,7 @@ const removeChangeCardCount = (index: number) => {
 
 const switchDualBoardSide = () => {
   gameStore.currentBoard = 1 - gameStore.currentBoard;
-  //仅倒计时期间/*且未实际选择时*/允许实际的盘面转换
+  //仅倒计时期间且未实际选择时允许实际的盘面转换
   if (boardNotDecided()) {
     ws.send(WebSocketActionType.NORMAL_DUAL_BOARD_CHANGE, {player: isPlayerA.value ? 0:1, to: gameStore.currentBoard});
   }
@@ -1112,10 +1112,10 @@ const switchToSelfPage = () =>{
   }
 }
 //不是选手，始终为查看模式
-//是选手，只有倒计时期间/*且未实际选卡*/才有自由进行实际的切换，其余情况以服务器为准
+//是选手，只有倒计时期间且未实际选卡才有自由进行实际的切换，其余情况以服务器为准
 const boardNotDecided = () => {
   if(gameStore.isReplayMode) return false;
-  return isPlayer.value && gameStore.gameStatus === GameStatus.COUNT_DOWN// && !spellCardSelected.value
+  return isPlayer.value && gameStore.gameStatus === GameStatus.COUNT_DOWN && !spellCardSelected.value
 }
 //在不允许自由切换的时候，判断选手是否与服务器最近返回的数据相符
 const isOnCurrentBoard = () => {

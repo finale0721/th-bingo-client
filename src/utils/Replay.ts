@@ -1,11 +1,11 @@
-import { useGameStore } from '@/store/GameStore';
-import { computed, nextTick, reactive, ref, watch } from "vue";
+import { useGameStore } from "@/store/GameStore";
+import { reactive } from "vue";
 import { useRoomStore } from "@/store/RoomStore";
-import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStatus } from "@/types";
+import { BingoType, GameStatus, RoomConfig, Spell, SpellStatus } from "@/types";
 import ws from "@/utils/webSocket/WebSocketBingo";
-import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
-import Config from "@/config"
-import pako from 'pako';
+import { WebSocketActionType } from "@/utils/webSocket/types";
+import Config from "@/config";
+import pako from "pako";
 
 export interface PlayerAction {
     playerName: string;
@@ -263,8 +263,7 @@ class Replay {
 
     // 处理设置spellStatus操作
     private handleSetSpellStatus(action: PlayerAction): void {
-        let status = parseInt(action.actionType.split('-')[1], 10);
-        this.gameStore.spellStatus[action.spellIndex] = status
+      this.gameStore.spellStatus[action.spellIndex] = parseInt(action.actionType.split("-")[1], 10);
     }
 
     // 结束回放
@@ -407,7 +406,6 @@ class Replay {
 
         } catch (error) {
             throw new Error("回放数据解析错误");
-            return null;
         }
     };
 
@@ -553,8 +551,8 @@ class Replay {
             } else if (action.actionType === 'resume') {
                 logLine += `${action.playerName} 恢复了游戏。`;
             } else if (action.actionType.startsWith('set-')) {
-                let status_string = action.actionType.split('-')[1];
-                let status = parseInt(status_string, 10);
+                const status_string = action.actionType.split('-')[1];
+                const status = parseInt(status_string, 10);
                 let status_name = ""
                 if(status === SpellStatus.NONE){
                     status_name = "置空";
@@ -688,8 +686,8 @@ class Replay {
                                 totalTime += duration;
                                 totalFastest += spell.fastest;
                                 totalStars[spell.star - 1] += 1;
-                                //难度修正，预设收率，然后计算真正的期望时间
-                                totalFastestWeighted += spell.fastest + (1 / this.getDifficultyFix(spell.difficulty) - 1) * (spell.miss_time * 1.05 + 1.5);
+                                //难度修正，预设收率，然后计算真正的期望时间，并加上3s的开游戏
+                                totalFastestWeighted += spell.fastest + 3.0 + (1 / this.getDifficultyFix(spell.difficulty) - 1) * (spell.miss_time * 1.05 + 1.5);
                                 completedTasks.push(`- "${spell.name}": ${(duration / 1000).toFixed(2)}s`);
                             }
                         } else {
@@ -721,9 +719,9 @@ class Replay {
             output.push(`总用时: ${formatTimestamp(totalTime)}`);
             if (roomConfig.spell_version === Config.spellListWithTimer) {
                 const efficiency = totalTime > 0 ? ((totalFastest * 1000) / totalTime * 100).toFixed(2) : 'N/A';
-                output.push(`全局效率: ${efficiency}%`);
+                output.push(`全局效率（理论）: ${efficiency}%`);
                 const eff_weighted = totalTime > 0 ? ((totalFastestWeighted * 1000) / totalTime * 100).toFixed(2) : 'N/A';
-                output.push(`全局效率（含难度修正）: ${eff_weighted}%`);
+                output.push(`全局效率（含难度与时间修正）: ${eff_weighted}%`);
             }
             output.push('');
         });

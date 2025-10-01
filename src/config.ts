@@ -165,6 +165,10 @@ const gameOptionFanGameList = [
     code: "1015",
     name: "东方幕华祭红月"
   },
+  {
+    code: "1016",
+    name: "东方导命树"
+  },
 ]
 
 const predefineColors = [
