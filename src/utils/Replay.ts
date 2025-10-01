@@ -68,6 +68,7 @@ class Replay {
         ai_base_power: 5,
         ai_experience: 5,
         game_weight: {},
+        ai_preference: {},
     };
     private originalPlayerNames: string[] = Array(2).fill('');
 

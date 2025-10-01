@@ -232,6 +232,15 @@
                   />
                   <span class="input-number-text">级</span>
                 </el-form-item>
+                <el-form-item label="AI相性：" v-if="roomSettings.use_ai">
+                  <el-button
+                      type="primary"
+                      @click="showAIPreferenceBalancer"
+                      size="small"
+                  >
+                    设置相性
+                  </el-button>
+                </el-form-item>
                 <el-form-item label="盲盒设定：">
                   <el-select
                     v-model="roomSettings.blind_setting"
@@ -520,6 +529,14 @@
         :current-weights="roomSettings.game_weight"
         @confirm="handleWeightConfirm"
     />
+
+    <!-- AI偏好设置对话框 -->
+    <AIPreferenceBalancer
+        v-model:visible="aiPreferenceVisible"
+        :game-list="gameList"
+        :current-preferences="roomSettings.ai_preference"
+        @confirm="handleAIPreferenceConfirm"
+    />
   </div>
 </template>
 
@@ -552,12 +569,14 @@ import { useGameStore } from "@/store/GameStore";
 import { BingoType } from "@/types";
 import Replay from "@/utils/Replay";
 import GameWeightBalancer from './GameWeightBalancer.vue'
+import AIPreferenceBalancer from './AIPreferenceBalancer.vue'
 
 const roomStore = useRoomStore();
 const localStore = useLocalStore();
 const gameStore = useGameStore();
 const scrollbar = ref<InstanceType<typeof ElScrollbar>>();
 const weightBalancerVisible = ref(false)
+const aiPreferenceVisible = ref(false)
 
 const tabIndex = ref(0);
 const showTypeInput = ref(false);
@@ -799,6 +818,16 @@ const handleWeightConfirm = (weights: Record<string, number>) => {
   roomSettings.value.game_weight = weights
   // 保存到服务器
   roomStore.updateRoomConfig('game_weight')
+}
+
+const showAIPreferenceBalancer = () => {
+  aiPreferenceVisible.value = true
+}
+const handleAIPreferenceConfirm = (preferences: Record<string, number>) => {
+  // 更新roomSettings中的ai_preference
+  roomSettings.value.ai_preference = preferences
+  // 保存到服务器
+  roomStore.updateRoomConfig('ai_preference')
 }
 </script>
 
