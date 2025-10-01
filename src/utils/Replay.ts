@@ -503,6 +503,20 @@ class Replay {
         output.push(`符卡难度: ${roomConfig.ranks.join(', ') || '未指定'}`);
         const difficultyName = Config.difficultyList.find(d => d.value === roomConfig.difficulty)?.name;
         output.push(`盘面难度: ${difficultyName || '未知'}`);
+        let gw = ''
+        for(const [gameCode, weight] of Object.entries(roomConfig.game_weight)){
+            if(weight != 0){
+                const gameName = gameCode === "weight_balancer" ? "生成波动" :
+                    Config.gameOptionList(this.roomStore.roomConfig.spell_version).find(g => g.code === gameCode)?.name || '';
+                if(gameName === ''){
+                    continue;
+                }
+                gw += `${gameName}：${weight}；`;
+            }
+        }
+        if(gw != ''){
+            output.push(`游戏生成权重设定：${gw}`);
+        }
         if(roomConfig.blind_setting > 1){
             output.push(`盲盒设定: 模式${roomConfig.blind_setting-1}, 揭示等级${roomConfig.blind_reveal_level}`);
         }
@@ -511,6 +525,19 @@ class Replay {
         }
         if(roomConfig.use_ai){
             output.push(`AI参数：Lv.${roomConfig.ai_base_power} / Lv.${roomConfig.ai_experience} 策略等级：${roomConfig.ai_strategy_level}`)
+            let ai_pref = '';
+            for (const [gameCode, pref] of Object.entries(roomConfig.ai_preference)) {
+                if(pref != 0){
+                    const gameName = Config.gameOptionList(this.roomStore.roomConfig.spell_version).find(g => g.code === gameCode)?.name || '';
+                    if(gameName === ''){
+                        continue;
+                    }
+                    ai_pref += `${gameName}：${pref}；`;
+                }
+            }
+            if(ai_pref != ''){
+                output.push(`AI作品相性：${ai_pref}`);
+            }
         }
         output.push('---');
 
