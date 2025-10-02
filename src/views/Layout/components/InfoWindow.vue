@@ -73,6 +73,13 @@
 
               </div>
             </div>
+
+            <div class="doc-button-container">
+              <el-button class="doc-button" @click="showDoc = true" circle>
+                <el-icon><QuestionFilled /></el-icon>
+              </el-button>
+            </div>
+
           </el-scrollbar>
         </el-tab-pane>
         <el-tab-pane label="房间设置" :name="1" class="tab-content">
@@ -364,7 +371,7 @@
                     <el-checkbox v-for="(item, index) in rankList" :value="item" :key="index" :disabled="inGame">{{ item }}</el-checkbox>
                   </el-checkbox-group>
                 </el-form-item>
-                <el-form-item label="生成权重：" v-if="!roomSettings.gamebp">
+                <el-form-item label="生成权重：">
                   <el-button
                       type="primary"
                       @click="showWeightBalancer"
@@ -548,6 +555,8 @@
         :current-preferences="roomSettings.ai_preference"
         @confirm="handleAIPreferenceConfirm"
     />
+
+    <documentation :visible="showDoc" @close="showDoc = false" />
   </div>
 </template>
 
@@ -571,7 +580,8 @@ import {
   ElColorPicker,
   ElScrollbar,
   ElDialog,
-  ElInput
+  ElInput,
+  ElIcon,
 } from "element-plus";
 import Config from "@/config";
 import { useRoomStore } from "@/store/RoomStore";
@@ -579,8 +589,10 @@ import { useLocalStore } from "@/store/LocalStore";
 import { useGameStore } from "@/store/GameStore";
 import { BingoType } from "@/types";
 import Replay from "@/utils/Replay";
-import GameWeightBalancer from './GameWeightBalancer.vue'
-import AIPreferenceBalancer from './AIPreferenceBalancer.vue'
+import GameWeightBalancer from '../../../components/GameWeightBalancer.vue'
+import AIPreferenceBalancer from '../../../components/AIPreferenceBalancer.vue'
+import Documentation from '@/components/Documentation.vue';
+import { QuestionFilled } from '@element-plus/icons-vue'
 
 const roomStore = useRoomStore();
 const localStore = useLocalStore();
@@ -840,6 +852,8 @@ const handleAIPreferenceConfirm = (preferences: Record<string, number>) => {
   // 保存到服务器
   roomStore.updateRoomConfig('ai_preference')
 }
+
+const showDoc = ref(false);
 </script>
 
 <style scoped lang="scss">
@@ -941,5 +955,17 @@ const handleAIPreferenceConfirm = (preferences: Record<string, number>) => {
 
 .log-list-item {
   margin-bottom: 4px;
+}
+
+.doc-button-container {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+}
+
+.doc-button {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
 }
 </style>

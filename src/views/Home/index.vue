@@ -8,7 +8,7 @@
               v-model="roomId"
               :rules="rules"
               type="password"
-              placeholder="请输入4-16位数房间密码，仅支持数字"
+              placeholder="请输入4-16位字符的房间号"
               maxlength="16"
               show-password
             />
@@ -51,7 +51,7 @@ const rules = {
     {
       min: 4,
       max: 16,
-      message: "密码长度应为4-16个数字",
+      message: "密码长度应为4-16个字符",
       trigger: "blur",
     },
     {
