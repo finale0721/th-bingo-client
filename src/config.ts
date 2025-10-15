@@ -25,6 +25,10 @@ const difficultyList = [
     value: 4
   },
   {
+    name: "史+",
+    value: 5
+  },
+  {
     name: "随机",
     value: 0,
   },
@@ -215,8 +219,12 @@ const spellVersionList = [
     type: 1
   },
   {
+    name: "S7卡池预览",
+    type: 2
+  },
+  {
     name: "S5卡池",
-    type: 3
+    type: 4
   },
   {
     name: "史卡池（你确定吗）",

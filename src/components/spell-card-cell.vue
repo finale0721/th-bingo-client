@@ -349,18 +349,18 @@ const onClick = () => {
   &.A-selected-other-board{
     &::before {
       background-image: linear-gradient(var(--A-color) 60%, var(--A-color-dark));
-      -webkit-animation: breath 6s infinite linear;
-      animation: breath 6s infinite linear;
-      opacity: .5;
+      -webkit-animation: breath 3s infinite linear;
+      animation: breath 3s infinite linear;
+      filter: saturate(0.6);
     }
   }
 
   &.B-selected-other-board{
     &::after {
       background-image: linear-gradient(var(--B-color) 60%, var(--B-color-dark));
-      -webkit-animation: breath 6s infinite linear;
-      animation: breath 6s infinite linear;
-      opacity: .5;
+      -webkit-animation: breath 3s infinite linear;
+      animation: breath 3s infinite linear;
+      filter: saturate(0.6);
     }
   }
 
@@ -382,6 +382,7 @@ const onClick = () => {
     &::before {
       background-image: linear-gradient(var(--A-color) 60%, var(--A-color-dark));
       opacity: 0.5;
+      filter: saturate(0.6);
     }
   }
 
@@ -389,6 +390,7 @@ const onClick = () => {
     &::after {
       background-image: linear-gradient(var(--B-color) 60%, var(--B-color-dark));
       opacity: 0.5;
+      filter: saturate(0.6);
     }
   }
 
