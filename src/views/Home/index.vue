@@ -24,8 +24,10 @@
       <div class="btns">
         <el-button type="primary" @click="createRoom">创建房间</el-button>
         <el-button type="primary" @click="joinRoom">加入房间</el-button>
+        <el-button type="primary" @click="showRoomList = true">查找房间</el-button>
       </div>
     </div>
+    <room-list-dialog v-model="showRoomList" @join-room="onJoinRoom"></room-list-dialog>
   </div>
 </template>
 
@@ -34,6 +36,7 @@ import { computed, ref } from "vue";
 import { ElInput, ElButton, ElForm, ElFormItem, ElCheckbox } from "element-plus";
 import type { FormInstance } from "element-plus";
 import { useRoomStore } from "@/store/RoomStore";
+import RoomListDialog from "@/components/RoomListDialog.vue";
 
 const roomStore = useRoomStore();
 const roomId = ref("");
@@ -92,6 +95,13 @@ const onChangeSoloMode = (val) => {
     addRobot.value = val;
   }
 };
+
+const showRoomList = ref(false);
+
+const onJoinRoom = (rid: any) => {
+  roomId.value = rid;
+  joinRoom();
+};
 </script>
 
 <style lang="scss" scoped>
@@ -121,9 +131,10 @@ const onChangeSoloMode = (val) => {
 
   .btns {
     margin-top: 30px;
+    text-align: center;
 
     & > * {
-      margin: 0 30px;
+      margin: 0 20px;
     }
   }
 }

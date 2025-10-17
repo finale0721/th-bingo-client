@@ -58,6 +58,7 @@ export enum WebSocketActionType {
   BAN_PICK = "ban_pick",
   REFRESH_SPELL = "refresh_one_spell",
   PRINT_LOG = "print_log",
+  GET_ROOM_LIST = "get_room_list",
 
   //bp赛
   BP_GAME_BAN_PICK = "bp_game_ban_pick",
@@ -83,6 +84,7 @@ export enum WebSocketPushActionType {
   PUSH_BAN_PICK = "push_ban_pick",
   PUSH_KICK = "push_kick",
   PUSH_PRINT_LOG = "push_print_log",
+  PUSH_GET_ROOM_LIST = "push_get_room_list",
 
   //bp赛
   PUSH_BP_GAME_NEXT_ROUND = "push_bp_game_next_round",

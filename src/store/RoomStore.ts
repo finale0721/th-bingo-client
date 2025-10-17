@@ -435,6 +435,10 @@ export const useRoomStore = defineStore("room", () => {
     }
   });
 
+  const getRoomList = () => {
+    return ws.send(WebSocketActionType.GET_ROOM_LIST);
+  };
+
   return {
     roomId,
     soloMode,
@@ -465,5 +469,6 @@ export const useRoomStore = defineStore("room", () => {
     resetBanPick,
     startBanPick,
     banPickCard,
+    getRoomList,
   };
 });
