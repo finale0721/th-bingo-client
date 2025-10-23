@@ -69,6 +69,7 @@ class Replay {
         ai_experience: 5,
         game_weight: {},
         ai_preference: {},
+        custom_level_count: [],
     };
     private originalPlayerNames: string[] = Array(2).fill('');
 

@@ -63,9 +63,11 @@ watch(
 
 const sortedRoomList = computed(() => {
   if (!Array.isArray(roomList.value)) return [];
-  const matchingRooms = roomList.value.filter((room) => room.isMatching && room.players[1] !== "训练用毛玉");
-  const otherRooms = roomList.value.filter((room) => !room.isMatching && room.players[1] !== "训练用毛玉");
-  const pracRooms = roomList.value.filter((room) => room.players[1] === "训练用毛玉");
+  //只显示30分钟内有动作的房间
+  const activeRoom = roomList.value.filter((room) => Date.now() - 1000 * 60 * 30 < room.lastActive);
+  const matchingRooms = activeRoom.filter((room) => room.isMatching && room.players[1] !== "训练用毛玉");
+  const otherRooms = activeRoom.filter((room) => !room.isMatching && room.players[1] !== "训练用毛玉");
+  const pracRooms = activeRoom.filter((room) => room.players[1] === "训练用毛玉");
 
   const sortDescByLastActive = (a, b) => b.lastActive - a.lastActive;
 
@@ -93,8 +95,9 @@ const getButtonType = (room) => {
   if (room.isMatching && room.playerB !== "训练用毛玉") {
     return "success";
   }
-  const thirtyMinutesAgo = Date.now() - 1000 * 60 * 30;
-  if (room.lastActive > thirtyMinutesAgo && room.playerB !== "训练用毛玉") {
+  //15分钟内没动作的房间视为已经不活跃
+  const isActive = Date.now() - 1000 * 60 * 15 < room.lastActive;
+  if (isActive && room.playerB !== "训练用毛玉") {
     return "primary";
   }
   return "info";

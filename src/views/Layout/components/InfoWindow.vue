@@ -383,15 +383,25 @@
                 </el-form-item>
                 <el-form-item label="bingo难度：">
                   <el-radio-group
-                      v-model="roomSettings.difficulty"
-                      style="text-align: left"
-                      :disabled="inGame"
-                      @change="roomStore.updateRoomConfig('difficulty')"
+                    v-model="roomSettings.difficulty"
+                    style="text-align: left"
+                    :disabled="inGame"
+                    @change="roomStore.updateRoomConfig('difficulty')"
                   >
                     <el-radio v-for="(item, index) in difficultyList" :value="item.value" :key="index">{{
                         item.name
                       }}</el-radio>
                   </el-radio-group>
+                  <el-button
+                    v-if="roomSettings.difficulty === 6"
+                    @click="showCustomLevelBalancer"
+                    size="small"
+                    style="margin-left: 10px;"
+                    :type="customDifficultyButtonType"
+                    :disabled="inGame"
+                  >
+                    自定义
+                  </el-button>
                 </el-form-item>
               </el-form>
               <el-divider style="margin: 10px 0"></el-divider>
@@ -556,6 +566,12 @@
         @confirm="handleAIPreferenceConfirm"
     />
 
+    <CustomLevelBalancer
+      v-model:visible="customLevelBalancerVisible"
+      :current-counts="roomSettings.custom_level_count"
+      @confirm="handleCustomLevelConfirm"
+    />
+
     <documentation :visible="showDoc" @close="showDoc = false" />
   </div>
 </template>
@@ -591,6 +607,7 @@ import { BingoType } from "@/types";
 import Replay from "@/utils/Replay";
 import GameWeightBalancer from '../../../components/GameWeightBalancer.vue'
 import AIPreferenceBalancer from '../../../components/AIPreferenceBalancer.vue'
+import CustomLevelBalancer from '../../../components/CustomLevelBalancer.vue'
 import Documentation from '@/components/Documentation.vue';
 import { QuestionFilled } from '@element-plus/icons-vue'
 
@@ -598,8 +615,9 @@ const roomStore = useRoomStore();
 const localStore = useLocalStore();
 const gameStore = useGameStore();
 const scrollbar = ref<InstanceType<typeof ElScrollbar>>();
-const weightBalancerVisible = ref(false)
-const aiPreferenceVisible = ref(false)
+const weightBalancerVisible = ref(false);
+const aiPreferenceVisible = ref(false);
+const customLevelBalancerVisible = ref(false);
 
 const tabIndex = ref(0);
 const showTypeInput = ref(false);
@@ -852,6 +870,23 @@ const handleAIPreferenceConfirm = (preferences: Record<string, number>) => {
   // 保存到服务器
   roomStore.updateRoomConfig('ai_preference')
 }
+
+const showCustomLevelBalancer = () => {
+  customLevelBalancerVisible.value = true;
+};
+
+const handleCustomLevelConfirm = (counts: number[]) => {
+  roomSettings.value.custom_level_count = counts;
+  roomStore.updateRoomConfig('custom_level_count');
+};
+
+const customDifficultyButtonType = computed(() => {
+  if (!roomSettings.value.custom_level_count || roomSettings.value.custom_level_count.length < 5) {
+    return 'danger';
+  }
+  const sum = roomSettings.value.custom_level_count.slice(0, 5).reduce((a, b) => a + b, 0);
+  return sum === 25 ? 'success' : 'danger';
+});
 
 const showDoc = ref(false);
 </script>

@@ -32,6 +32,10 @@ const difficultyList = [
     name: "随机",
     value: 0,
   },
+  {
+    name: "自定义",
+    value: 6
+  },
 ];
 
 const gameOptionList = [
@@ -126,6 +130,10 @@ const gameOptionFanGameList = [
     name: "夏夜祭"
   },
   {
+    code: "1019",
+    name: "夏+"
+  },
+  {
     code: "1005",
     name: "宝天京"
   },
@@ -163,15 +171,27 @@ const gameOptionFanGameList = [
   },
   {
     code: "1014",
-    name: "真珠岛"
+    name: "实+"
   },
   {
     code: "1015",
-    name: "幕红月"
+    name: "真珠岛"
   },
   {
     code: "1016",
+    name: "幕红月"
+  },
+  {
+    code: "1017",
     name: "导命树"
+  },
+  {
+    code: "1018",
+    name: "催狐谭"
+  },
+  {
+    code: "1020",
+    name: "光像仪"
   },
 ]
 
