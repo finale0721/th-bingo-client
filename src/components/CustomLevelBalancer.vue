@@ -24,11 +24,17 @@
           <el-form-item label="4/5级生成降级">
             <el-checkbox v-model="downgradeEnabled" />
           </el-form-item>
+          <el-form-item label="EX默认生成方法">
+            <el-checkbox v-model="exGuaranteed" />
+          </el-form-item>
           <el-form-item label="4级保底数量">
             <el-input-number v-model="guaranteed4Star" :min="0" :max="5" size="small" :disabled="!guaranteeEnabled" @change="adjustGuaranteed(4)" />
           </el-form-item>
           <el-form-item label="5级保底数量">
             <el-input-number v-model="guaranteed5Star" :min="0" :max="5" size="small" :disabled="!guaranteeEnabled" @change="adjustGuaranteed(5)" />
+          </el-form-item>
+          <el-form-item label="EX自定义数量">
+            <el-input-number v-model="exCount" :min="0" :max="25" size="small" :disabled="exGuaranteed"/>
           </el-form-item>
         </el-form>
       </div>
@@ -37,7 +43,7 @@
     <template #footer>
       <div class="footer-buttons">
         <el-button @click="resetToDefault">重置</el-button>
-        <el-button @click="$emit('update:visible', false)">取消</el-button>
+        <el-button @click="handleCancel">取消</el-button>
         <el-button type="primary" @click="handleConfirm">确认</el-button>
       </div>
     </template>
@@ -55,13 +61,15 @@ const props = defineProps<{
 
 const emit = defineEmits(['update:visible', 'confirm']);
 
-const defaultValues = [2, 6, 12, 4, 1, 1, 0, 4, 1];
+const defaultValues = [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5];
 
 const localCounts = ref<number[]>([...props.currentCounts.slice(0, 5)]);
 const guaranteeEnabled = ref(props.currentCounts[5] === 1);
 const downgradeEnabled = ref(props.currentCounts[6] === 1);
 const guaranteed4Star = ref(props.currentCounts[7]);
 const guaranteed5Star = ref(props.currentCounts[8]);
+const exGuaranteed = ref(props.currentCounts[9] === 1);
+const exCount = ref(props.currentCounts[10]);
 
 const totalCount = computed(() => localCounts.value.reduce((sum, val) => sum + val, 0));
 
@@ -89,6 +97,8 @@ const resetToDefault = () => {
   downgradeEnabled.value = defaultValues[6] === 1;
   guaranteed4Star.value = defaultValues[7];
   guaranteed5Star.value = defaultValues[8];
+  exGuaranteed.value = defaultValues[9] === 1;
+  exCount.value = defaultValues[10];
 };
 
 const handleConfirm = () => {
@@ -98,18 +108,33 @@ const handleConfirm = () => {
     downgradeEnabled.value ? 1 : 0,
     guaranteed4Star.value,
     guaranteed5Star.value,
+    exGuaranteed.value ? 1 : 0,
+    exCount.value,
   ];
   emit('confirm', newCounts);
   emit('update:visible', false);
 };
 
+const handleCancel = () => {
+  localCounts.value = [...props.currentCounts.slice(0, 5)];
+  guaranteeEnabled.value = props.currentCounts[5] === 1;
+  downgradeEnabled.value = props.currentCounts[6] === 1;
+  guaranteed4Star.value = props.currentCounts[7];
+  guaranteed5Star.value = props.currentCounts[8];
+  exGuaranteed.value = props.currentCounts[9] === 1;
+  exCount.value = props.currentCounts[10];
+  emit('update:visible', false);
+};
+
 watch(() => props.currentCounts, (newVal) => {
-  if (newVal && newVal.length === 9) {
+  if (newVal && newVal.length === defaultValues.length) {
     localCounts.value = [...newVal.slice(0, 5)];
     guaranteeEnabled.value = newVal[5] === 1;
     downgradeEnabled.value = newVal[6] === 1;
     guaranteed4Star.value = newVal[7];
     guaranteed5Star.value = newVal[8];
+    exGuaranteed.value = newVal[9] === 1;
+    exCount.value = newVal[10];
   } else {
     resetToDefault();
   }

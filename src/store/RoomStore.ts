@@ -89,7 +89,7 @@ export const useRoomStore = defineStore("room", () => {
     noWinningDeclaration: false,
     game_weight: {},
     ai_preference: {},
-    custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1],
+    custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
   });
 
   //加载本地设置
@@ -138,7 +138,7 @@ export const useRoomStore = defineStore("room", () => {
     ai_experience: 5,
     game_weight: {},
     ai_preference: {},
-    custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1],
+    custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
   });
 
   const getRoomConfig = () => {
