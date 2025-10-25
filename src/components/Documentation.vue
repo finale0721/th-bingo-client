@@ -47,6 +47,7 @@ export default defineComponent({
       { title: 'AI参数与符卡数据', file: 'AI参数与符卡数据.md' },
       { title: '作品生成权重', file: '作品生成权重.md' },
       { title: '史难度', file: '史难度.md' },
+      { title: '自定义难度', file: '自定义难度.md' },
       { title: '杂项设定', file: '杂项设定.md' },
       { title: '记录与回放', file: '记录与回放.md' },
     ]);
