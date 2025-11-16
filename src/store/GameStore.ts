@@ -268,37 +268,39 @@ export const useGameStore = defineStore("game", () => {
     const curSpellList = computed(() => currentBoard.value == 0 ? spells.value : spells2.value)
     const spellCard = `<span style="padding:0 2px;font-weight:600">
       ${curSpellList.value[index].name}</span>`;
+    const row = Math.floor(index/5)+1;
+    const col = index%5+1;
 
     if (roomStore.roomData.names[0] === causer) {
       str += playerA;
       switch (status) {
         case -1:
-          str += "禁用了符卡";
+          str += "禁用了" + row + "行" + col + "列的符卡";
           break;
         case 0:
         case 3:
           if (roomStore.isPlayerA) {
             if (oldStatus === 5) {
-              str += "取消收取符卡";
+              str += "取消收取" + row + "行" + col + "列的符卡";
             } else {
-              str += "取消选择符卡";
+              str += "取消选择" + row + "行" + col + "列的符卡";
             }
           }
           break;
         case 1:
         case 2:
-          str += "选择了符卡";
+          str += "选择了" + row + "行" + col + "列的符卡";
           break;
         case 5:
           if (roomStore.isPlayerB && (oldStatus === 3 || oldStatus === 2)) {
-            str += "抢了你选择的符卡";
+            str += "抢了你选择的" + row + "行" + col + "列的符卡";
             spellCardGrabbedFlag.value = true;
           } else {
-            str += "收取了符卡";
+            str += "收取了" + row + "行" + col + "列的符卡";
           }
           break;
         case 0x100:
-          str += `刷新了${Math.floor(index/5)+1}行${index%5+1}列的符卡`
+          str += "刷新了" + row + "行" + col + "列的符卡";
           break;
       }
       str += spellCard;
@@ -306,32 +308,32 @@ export const useGameStore = defineStore("game", () => {
       str += playerB;
       switch (status) {
         case -1:
-          str += "禁用了符卡";
+          str += "禁用了" + row + "行" + col + "列的符卡";
           break;
         case 0:
         case 1:
           if (roomStore.isPlayerB) {
             if (oldStatus === 7) {
-              str += "取消收取符卡";
+              str += "取消收取" + row + "行" + col + "列的符卡";
             } else {
-              str += "取消选择符卡";
+              str += "取消选择" + row + "行" + col + "列的符卡";
             }
           }
           break;
         case 2:
         case 3:
-          str += "选择了符卡";
+          str += "选择了" + row + "行" + col + "列的符卡";
           break;
         case 7:
           if (roomStore.isPlayerA && (oldStatus === 1 || oldStatus === 2)) {
-            str += "抢了你选择的符卡";
+            str += "抢了你选择的" + row + "行" + col + "列的符卡";
             spellCardGrabbedFlag.value = true;
           } else {
-            str += "收取了符卡";
+            str += "收取了" + row + "行" + col + "列的符卡";
           }
           break;
         case 0x100:
-          str += `刷新了${Math.floor(index/5)+1}行${index%5+1}列的符卡`
+          str += "刷新了" + row + "行" + col + "列的符卡";
           break;
       }
       str += spellCard;
@@ -340,13 +342,13 @@ export const useGameStore = defineStore("game", () => {
         const currentCountA = bpGameData.spell_failed_count_a[index];
         const currentCountB = bpGameData.spell_failed_count_b[index];
         if (failCountA! > currentCountA) {
-          return `${playerA}收取符卡${spellCard}失败`;
+          return `${playerA}收取" + row + "行" + col + "列的符卡${spellCard}失败`;
         }
         if (failCountB! > currentCountB) {
-          return `${playerB}收取符卡${spellCard}失败`;
+          return `${playerB}收取" + row + "行" + col + "列的符卡${spellCard}失败`;
         }
       }
-      str = `${host}把符卡${spellCard}`;
+      str = `${host}把" + row + "行" + col + "列的符卡${spellCard}`;
       switch (status) {
         case -1:
           str += "设置为禁用";
@@ -373,7 +375,7 @@ export const useGameStore = defineStore("game", () => {
           str += `设置为${playerB}收取`;
           break;
         case 0x100:
-          str += `刷新，该符卡位于${Math.floor(index/5)+1}行${index%5+1}列`
+          str += `刷新`
           break;
       }
     }
