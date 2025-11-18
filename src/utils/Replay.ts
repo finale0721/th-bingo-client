@@ -370,7 +370,7 @@ class Replay {
     return lines ? lines.join("\n") : "";
   };
 
-  public parseReplayData = (replayCodeBlock: string): ReplayPayload | null => {
+  public parseReplayData = (replayCodeBlock: string, loadData: boolean=true): ReplayPayload | null => {
     try {
       // 1. 匹配并提取所有Base64有效字符，自动忽略换行、空格等无效字符
       // [A-Za-z0-9+/=] 是Base64字符集。我们把它们拼接成一个干净的字符串。
@@ -403,7 +403,7 @@ class Replay {
 
       console.log(`成功解析回放数据，版本号: ${parsedPayload.version}`);
 
-      this.gameLogData = parsedPayload.data;
+      if(loadData) this.gameLogData = parsedPayload.data;
 
       return {
         version: parsedPayload.version,
