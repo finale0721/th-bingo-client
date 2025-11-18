@@ -1,7 +1,11 @@
 import { defineStore } from "pinia";
-import { reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { useRoomStore } from "./RoomStore";
 import { Spell, SpellStatus, RoomConfig } from "@/types";
+import { local } from "@/utils/Storage";
+import ws from "@/utils/webSocket/WebSocketBingo";
+import { WebSocketActionType } from "@/utils/webSocket/types";
+import pako from "pako";
 
 // 创建一个默认的空白Spell对象
 const createBlankSpell = (): Spell => ({
@@ -19,6 +23,13 @@ const createBlankSpell = (): Spell => ({
   change_rate: 0,
   max_capRate: 0,
 });
+
+interface CacheEntry {
+  data: Spell[];
+  timestamp: number;
+}
+
+const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours
 
 export const useEditorStore = defineStore("editor", () => {
   const roomStore = useRoomStore();
@@ -43,6 +54,12 @@ export const useEditorStore = defineStore("editor", () => {
   const isEditorModalVisible = ref(false);
   // Partial<Spell> 表示剪贴板只存储部分Spell字段
   const clipboard = ref<Partial<Spell> | null>(null);
+
+  const isDatabasePanelVisible = ref(false);
+  const localSpellDatabase = ref<Spell[]>(local.get("custom_spell_database") || []);
+
+  const serverSpellCache = ref<Map<number, CacheEntry>>(new Map());
+  const isFetchingServerData = ref(false);
 
   const enterEditorMode = () => {
     // 1. 复制当前的房间设置到编辑器，确保双盘面等设置同步
@@ -147,6 +164,108 @@ export const useEditorStore = defineStore("editor", () => {
     }
   };
 
+  const toggleDatabasePanel = () => {
+    isDatabasePanelVisible.value = !isDatabasePanelVisible.value;
+  };
+
+  const saveToLocalDatabase = (spell: Spell) => {
+    const exists = localSpellDatabase.value.some(
+      (s) => s.name === spell.name && s.game === spell.game && s.rank === spell.rank
+    );
+    if (!exists) {
+      const newSpell = createBlankSpell();
+      newSpell.name = spell.name;
+      newSpell.game = spell.game;
+      newSpell.rank = spell.rank;
+      newSpell.star = spell.star;
+      newSpell.desc = spell.desc;
+
+      localSpellDatabase.value.push(newSpell);
+      local.set("custom_spell_database", localSpellDatabase.value);
+      return true;
+    }
+    return false;
+  };
+
+  const deleteFromLocalDatabase = (spell: Spell) => {
+    const index = localSpellDatabase.value.indexOf(spell);
+    if (index > -1) {
+      localSpellDatabase.value.splice(index, 1);
+      local.set("custom_spell_database", localSpellDatabase.value);
+    }
+  };
+
+  // 获取指定版本的服务器数据
+  const fetchServerSpells = async (version: number) => {
+    const now = Date.now();
+    const cacheEntry = serverSpellCache.value.get(version);
+
+    // 检查缓存是否有效
+    if (cacheEntry && (now - cacheEntry.timestamp < CACHE_DURATION)) {
+      return;
+    }
+
+    isFetchingServerData.value = true;
+    try {
+      const base64Data: string = await ws.send(WebSocketActionType.GET_XLSX_DATA, { id: version });
+
+      const binaryString = atob(base64Data);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const jsonString = pako.inflate(bytes, { to: "string" });
+      const rawData = JSON.parse(jsonString);
+
+      const flattenedSpells: Spell[] = [];
+      Object.values(rawData).forEach((isExMap: any) => {
+        Object.values(isExMap).forEach((gameMap: any) => {
+          Object.values(gameMap).forEach((spellList: any) => {
+            if (Array.isArray(spellList)) {
+              flattenedSpells.push(...spellList);
+            }
+          });
+        });
+      });
+
+      // 更新缓存
+      serverSpellCache.value.set(version, {
+        data: flattenedSpells,
+        timestamp: now
+      });
+
+    } catch (e) {
+      console.error("Failed to fetch spell data", e);
+    } finally {
+      isFetchingServerData.value = false;
+    }
+  };
+
+  const applySpellFromDatabase = (spell: Spell) => {
+    if (selectedSpellIndex.value === -1) return;
+    updateSpell({
+      index: selectedSpellIndex.value,
+      spellData: {
+        name: spell.name,
+        game: spell.game,
+        rank: spell.rank,
+        star: spell.star,
+        desc: spell.desc,
+      }
+    });
+  };
+
+  const updateLocalDatabaseSpell = (index: number, spell: Spell) => {
+    if (index >= 0 && index < localSpellDatabase.value.length) {
+      // 更新数据
+      localSpellDatabase.value[index] = { ...localSpellDatabase.value[index], ...spell };
+      // 持久化
+      local.set("custom_spell_database", localSpellDatabase.value);
+    }
+  };
+
   return {
     isEditorMode,
     spells,
@@ -169,5 +288,15 @@ export const useEditorStore = defineStore("editor", () => {
     copySpell,
     pasteSpell,
     closeModal,
-  };
+    isDatabasePanelVisible,
+    localSpellDatabase,
+    serverSpellCache,
+    isFetchingServerData,
+    toggleDatabasePanel,
+    saveToLocalDatabase,
+    deleteFromLocalDatabase,
+    fetchServerSpells,
+    applySpellFromDatabase,
+    updateLocalDatabaseSpell,
+  }
 });

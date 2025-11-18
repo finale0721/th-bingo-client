@@ -212,7 +212,11 @@
         </template>
 
         <template v-else>
-          <div>编辑器模式</div>
+          <div>
+            <el-button type="primary" @click="editorStore.toggleDatabasePanel">
+              {{ editorStore.isDatabasePanelVisible ? '关闭数据库' : '打开数据库' }}
+            </el-button>
+          </div>
         </template>
 
       </template>
@@ -276,6 +280,7 @@
       @clear="handleEditorClear"
       @close="editorStore.closeModal()"
     />
+    <spell-database-panel v-if="editorStore.isEditorMode" />
   </div>
 </template>
 
@@ -296,6 +301,7 @@ import { VideoPlay, VideoPause } from '@element-plus/icons-vue';
 import Replay from '@/utils/Replay';
 import { useEditorStore } from "@/store/EditorStore";
 import SpellEditorModal from '@/components/SpellEditorModal.vue';
+import SpellDatabasePanel from '@/components/SpellDatabasePanel.vue';
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();

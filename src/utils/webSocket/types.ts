@@ -65,7 +65,10 @@ export enum WebSocketActionType {
   BP_GAME_NEXT_ROUND = "bp_game_next_round",
 
   //normal 双重面板 切换按钮
-  NORMAL_DUAL_BOARD_CHANGE = "normal_dual_board_change"
+  NORMAL_DUAL_BOARD_CHANGE = "normal_dual_board_change",
+
+  //获取卡池
+  GET_XLSX_DATA = "get_xlsx_data",
 }
 
 export enum WebSocketPushActionType {
