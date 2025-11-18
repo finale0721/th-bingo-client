@@ -5,6 +5,8 @@
         v-model="selectedSpellIndex"
         :menu="menu"
         :multiple="isBingoBp || (isBingoStandard && gameStore.gameStatus === GameStatus.COUNT_DOWN)"
+        :is-editor-mode="editorStore.isEditorMode"
+        @editor-cell-click="handleEditorCellClick"
     >
       <template #left>
         <div
@@ -124,7 +126,7 @@
           </el-button>
         </div>
 
-        <template v-else>
+        <template v-else-if="!editorStore.isEditorMode">
           <template v-if="!soloMode && isHost">
             <el-button type="primary" v-if="!inGame && !isBpPhase" @click="startGame">开始比赛</el-button>
             <el-button type="primary" v-if="isBpPhase" @click="drawSpellCard" :disabled="banPick.phase < 99">
@@ -209,9 +211,11 @@
           </template> -->
         </template>
 
+        <template v-else>
+          <div>编辑器模式</div>
+        </template>
+
       </template>
-
-
 
       <template #button-left-1>
         <div v-if="!gameStore.isReplayMode">
@@ -262,6 +266,16 @@
       </template>
 
     </room-layout>
+
+    <spell-editor-modal
+      v-if="editorStore.isEditorModalVisible && editorStore.selectedSpellIndex !== -1"
+      :spell="selectedSpellData.spell"
+      :status="selectedSpellData.status"
+      :is-portal="selectedSpellData.isPortal"
+      @confirm="handleEditorConfirm"
+      @clear="handleEditorClear"
+      @close="editorStore.closeModal()"
+    />
   </div>
 </template>
 
@@ -280,15 +294,36 @@ import { useGameStore } from "@/store/GameStore";
 import { WebSocketActionType } from "@/utils/webSocket/types";
 import { VideoPlay, VideoPause } from '@element-plus/icons-vue';
 import Replay from '@/utils/Replay';
+import { useEditorStore } from "@/store/EditorStore";
+import SpellEditorModal from '@/components/SpellEditorModal.vue';
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
+const editorStore = useEditorStore();
 
 const countdownRef = ref<InstanceType<typeof CountDown>>();
 const layoutRef = ref<InstanceType<typeof RoomLayout>>();
 
-const selectedSpellIndex = ref(-1);
+//const selectedSpellIndex = ref(-1);
 const winFlag = ref(0);
+
+const gameModeSelectedSpellIndex = ref(-1);
+const selectedSpellIndex = computed({
+  get: () => {
+    // If in editor mode, get the index from the editorStore.
+    // Otherwise, get it from our local ref for game mode.
+    return editorStore.isEditorMode
+      ? editorStore.selectedSpellIndex
+      : gameModeSelectedSpellIndex.value;
+  },
+  set: (val) => {
+    // The setter is ONLY used by the v-model in game mode.
+    // In editor mode, the selection is set directly by our new event handler.
+    if (!editorStore.isEditorMode) {
+      gameModeSelectedSpellIndex.value = val;
+    }
+  }
+});
 
 const roomData = computed(() => roomStore.roomData);
 const roomSettings = computed(() => roomStore.roomSettings);
@@ -771,7 +806,7 @@ const nextRound = () => {
 const confirmBp = () => {
   if (selectedSpellIndex.value === -1) return;
   gameStore.bpGameBanPick(selectedSpellIndex.value).then(() => {
-    selectedSpellIndex.value = -1;
+    gameModeSelectedSpellIndex.value = -1;
   });
 };
 const decideBp = (status) => {
@@ -1052,7 +1087,7 @@ watch(
 const confirmSelect = () => {
   gameStore.alreadySelectCard = true;
   gameStore.selectSpell(selectedSpellIndex.value).then(() => {
-    selectedSpellIndex.value = -1;
+    gameModeSelectedSpellIndex.value = -1;
   });
   if(isDualBoard.value) switchToSelfPage();
 };
@@ -1195,6 +1230,66 @@ const handleTimelineChange = (value: number) => {
   replayInstance.jumpToTime(value);
   layoutRef.value?.hideAlert();
 };
+
+const handleEditorCellClick = (index: number) => {
+  // Delegate the logic entirely to the store
+  editorStore.selectSpell(index);
+};
+
+// 计算属性，用于向模态框传递数据
+const selectedSpellData = computed(() => {
+  if (!editorStore.isEditorMode || editorStore.selectedSpellIndex === -1) {
+    return { spell: {}, status: 0, isPortal: false };
+  }
+  const index = editorStore.selectedSpellIndex;
+  const board = editorStore.currentBoard;
+  const spell = board === 0 ? editorStore.spells[index] : editorStore.spells2[index];
+  const status = editorStore.spellStatus[index];
+  const portals = board === 0 ? editorStore.normalGameData.is_portal_a : editorStore.normalGameData.is_portal_b;
+  const isPortal = (editorStore.roomConfig.dual_board > 0 && portals && portals[index] === 1) || false;
+  return { spell, status, isPortal };
+});
+
+// 处理模态框确认事件
+const handleEditorConfirm = (payload) => {
+  const index = editorStore.selectedSpellIndex;
+  editorStore.updateSpell({ index, spellData: payload.spellData });
+  editorStore.updateSpellStatus({ index, status: payload.status });
+  editorStore.updatePortalStatus({ index, isPortal: payload.isPortal });
+  editorStore.closeModal();
+};
+
+// 处理模态框清空事件
+const handleEditorClear = () => {
+  editorStore.clearSpell(editorStore.selectedSpellIndex);
+  editorStore.closeModal();
+};
+
+// --- 键盘快捷键 ---
+const handleKeyDown = (e: KeyboardEvent) => {
+  if (!editorStore.isEditorMode || editorStore.selectedSpellIndex === -1) return;
+
+  // 检查是否在输入框内，避免冲突
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+  if (e.ctrlKey || e.metaKey) { // metaKey for macOS
+    if (e.key === 'c') {
+      e.preventDefault();
+      editorStore.copySpell(editorStore.selectedSpellIndex);
+    } else if (e.key === 'v') {
+      e.preventDefault();
+      editorStore.pasteSpell(editorStore.selectedSpellIndex);
+    }
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown);
+});
 
 </script>
 
