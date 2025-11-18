@@ -36,27 +36,27 @@
           <div class="bingo-wrap">
             <right-click-menu
               style="width: 100%; height: 100%"
-              :menuData="contextMenuData"
-              :disabled="!editorStore.isEditorMode && (!menu || menu.length === 0 || !inGame)"
+              :menuData="menu"
+              :disabled="!menu || menu.length === 0 || !inGame"
               @click="onMenuClick"
             >
               <div class="bingo-items">
-                <template v-if="dataSource.spells.length > 0">
-                  <div class="spell-card" v-for="(item, index) in (dataSource.currentBoard == 0 ? dataSource.spells : dataSource.spells2)" :key="index">
+                <template v-if="gameStore.currentBoard == 0 ? gameStore.spells : gameStore.spells2">
+                  <div class="spell-card" v-for="(item, index) in gameStore.currentBoard == 0 ? gameStore.spells : gameStore.spells2" :key="index">
                     <spell-card-cell
                       :name="item.name"
                       :desc="item.desc"
                       :level="isBingoStandard ? undefined : item.star"
-                      :failCountA="dataSource.bpGameData?.spell_failed_count_a[index] || 0"
-                      :failCountB="dataSource.bpGameData?.spell_failed_count_b[index] || 0"
-                      @click="isEditorMode ? emits('editor-cell-click', index) : selectSpellCard(index)"
+                      :failCountA="gameStore.bpGameData.spell_failed_count_a[index]"
+                      :failCountB="gameStore.bpGameData.spell_failed_count_b[index]"
+                      @click="selectSpellCard(index)"
                       :selected="selectedSpellIndex === index"
-                      :status="dataSource.spellStatus[index]"
+                      :status="gameStore.spellStatus[index]"
                       :index="index"
-                      :isPortalA="dataSource.normalGameData?.is_portal_a[index] > 0"
-                      :isPortalB="dataSource.normalGameData?.is_portal_b[index] > 0"
-                      :isACurrentBoard="dataSource.currentBoard == 0"
-                      :isBCurrentBoard="dataSource.currentBoard == 1"
+                      :isPortalA="gameStore.normalGameData.is_portal_a[index] > 0"
+                      :isPortalB="gameStore.normalGameData.is_portal_b[index] > 0"
+                      :isACurrentBoard="gameStore.currentBoard == 0"
+                      :isBCurrentBoard="gameStore.currentBoard == 1"
                       :spellIndex="index"
                     ></spell-card-cell>
                   </div>
@@ -146,29 +146,18 @@ import { useGameStore } from "@/store/GameStore";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketPushActionType } from "@/utils/webSocket/types";
 import { BingoType, GameStatus } from "@/types";
-import { useEditorStore } from "@/store/EditorStore";
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
-const editorStore = useEditorStore();
-
-const dataSource = computed(() => {
-  return editorStore.isEditorMode ? editorStore : gameStore;
-});
 
 const props = withDefaults(
   defineProps<{
     menu: { label: string; value: number; tag?: string }[];
     multiple?: boolean;
-    isEditorMode?: boolean;
   }>(),
-  {
-    multiple: false,
-    isEditorMode: false,
-  }
+  { multiple: false }
 );
 const selectedSpellIndex = defineModel();
-const emits = defineEmits(["update:modelValue", "editor-cell-click"]);
 
 const volume = ref(0.3);
 const needWinArr = computed(() => new Array(needWin.value));
@@ -201,12 +190,6 @@ const BGMpaused = computed(
 );
 
 const selectSpellCard = (index: number) => {
-  if (props.isEditorMode) {
-    // 在编辑器模式下，逻辑非常简单：直接更新 v-model
-    selectedSpellIndex.value = index;
-    return; // 结束函数，不执行下面的游戏逻辑
-  }
-
   if (isWatcher.value) {
     return;
   }
@@ -234,15 +217,7 @@ function canSelectBlindCard (status: number) {
 
 const onMenuClick = ({ event, target, item }: any) => {
   const index = target.getAttribute("index");
-  if (index === null || isNaN(index)) return;
-
-  if (editorStore.isEditorMode) {
-    if (item.value === 'copy') {
-      editorStore.copySpell(index);
-    } else if (item.value === 'paste') {
-      editorStore.pasteSpell(index);
-    }
-  } else {
+  if (index !== null) {
     if (item.isReset != null && item.isReset == false) {
       gameStore.finishSpell(parseInt(index), false, gameStore.spellStatus[index] === 5 ? 0 : 1);
     } else {
@@ -271,10 +246,6 @@ const showAlert = (text?: string, color?: string) => {
 const hideAlert = () => {
   gameAlertRef.value.hide();
 };
-
-watch(() => editorStore.isEditorMode, (value) => {
-  value ? hideAlert() : showAlert();
-})
 
 const warnGamePoint = () => {
   //gamePointAudioRef.value?.play();
@@ -384,18 +355,6 @@ watch(
     }
   }
 );
-
-// 右键菜单的数据源现在需要是动态的
-const contextMenuData = computed(() => {
-  if (editorStore.isEditorMode) {
-    return [
-      { label: '复制', value: 'copy' },
-      { label: '粘贴', value: 'paste' },
-    ];
-  }
-  // 返回游戏模式下的菜单
-  return props.menu;
-});
 
 defineExpose({ showAlert, hideAlert, warnGamePoint,
   infoCaptureCard, infoFailCard, infoWinGame, infoLoseGame });

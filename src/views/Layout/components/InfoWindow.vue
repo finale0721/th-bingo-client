@@ -71,15 +71,6 @@
                   回放对局
                 </el-button>
 
-                <el-button
-                  :disabled="!inRoom || inGame || isWatcher"
-                  type="primary"
-                  @click="editorStore.toggleEditorMode()"
-                  style="margin-top: 10px;"
-                >
-                  {{ editorStore.isEditorMode ? '退出编辑器' : '盘面编辑器' }}
-                </el-button>
-
               </div>
             </div>
 
@@ -619,13 +610,10 @@ import AIPreferenceBalancer from '../../../components/AIPreferenceBalancer.vue'
 import CustomLevelBalancer from '../../../components/CustomLevelBalancer.vue'
 import Documentation from '@/components/Documentation.vue';
 import { QuestionFilled } from '@element-plus/icons-vue'
-import { useEditorStore } from "@/store/EditorStore";
 
 const roomStore = useRoomStore();
 const localStore = useLocalStore();
 const gameStore = useGameStore();
-const editorStore = useEditorStore();
-
 const scrollbar = ref<InstanceType<typeof ElScrollbar>>();
 const weightBalancerVisible = ref(false);
 const aiPreferenceVisible = ref(false);
