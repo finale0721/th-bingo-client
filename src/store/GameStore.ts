@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useRoomStore } from "./RoomStore";
-import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStatus } from "@/types";
+import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStatus, EditorPreset } from "@/types";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
 import Config from "@/config"
@@ -439,6 +439,25 @@ export const useGameStore = defineStore("game", () => {
       isReplayMode.value = isReplay;
   }
 
+  const startCustomGame = (preset: EditorPreset) => {
+    // 构造发送给服务器的 Payload
+    // 注意：这里假设服务器端接收的字段名与前端保持一致或为下划线风格
+    // 根据 RoomConfig 定义，字段已经是 snake_case，所以直接传 roomConfig 即可
+    const payload = {
+      room_config: preset.data.roomConfig,
+      spells: preset.data.spells,
+      spells2: preset.data.spells2,
+      spell_status: preset.data.spellStatus,
+      initial_left_time: preset.data.initialLeftTime,
+      initial_countdown: preset.data.initialCountDown,
+      initial_cd_time_a: preset.data.initialCdTimeA,
+      initial_cd_time_b: preset.data.initialCdTimeB,
+      is_portal_a: preset.data.isPortalA,
+      is_portal_b: preset.data.isPortalB,
+    };
+    return ws.send(WebSocketActionType.START_CUSTOM_GAME, payload);
+  };
+
   return {
     spells,
     spellStatus,
@@ -471,5 +490,6 @@ export const useGameStore = defineStore("game", () => {
     refreshSpell,
     resetGameData,
     setReplayMode,
+    startCustomGame,
   };
 });

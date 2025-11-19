@@ -33,6 +33,7 @@ export interface GameLogData {
   gameStartTimestamp: number;
   score: number[];
   initStatus: number[];
+  isCustomGame: boolean | null;
 }
 
 export interface ReplayPayload {
@@ -491,6 +492,8 @@ class Replay {
       return str + padString.repeat(paddingLength);
     };
 
+    const isCustomGame = logData.isCustomGame || false;
+
     // 1. 基础信息
     output.push(`东方Bingo对战日志`);
     output.push(`对局开始时间: ${new Date(gameStartTimestamp).toLocaleString()}`);
@@ -503,63 +506,68 @@ class Replay {
     output.push(`模式: ${Config.gameTypeList.find((g) => g.type === roomConfig.type)?.name || "未知"}`);
     output.push(`时长: ${roomConfig.game_time}分钟, 倒计时: ${roomConfig.countdown}秒, cd： ${roomConfig.cd_time}秒`);
     // 1. 添加符卡来源与游戏难度
-    output.push(`卡池：${Config.spellVersionList.find((n) => n.type === roomConfig.spell_version)?.name}`);
-    const gameNames = roomConfig.games
-      .map((code) => Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === code)?.name)
-      .filter(Boolean)
-      .join(", ");
-    output.push(`作品来源: ${gameNames || "未指定"}`);
-    output.push(`符卡难度: ${roomConfig.ranks.join(", ") || "未指定"}`);
-    const difficultyName = Config.difficultyList.find((d) => d.value === roomConfig.difficulty)?.name;
-    output.push(`盘面难度: ${difficultyName || "未知"}`);
-    let gw = "";
-    for (const [gameCode, weight] of Object.entries(roomConfig.game_weight)) {
-      if (weight != 0) {
-        const gameName =
-          gameCode === "weight_balancer"
-            ? "生成波动"
-            : Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === gameCode)?.name ||
-              "";
-        if (gameName === "") {
-          continue;
-        }
-        gw += `${gameName}：${weight}；`;
-      }
-    }
-    if (gw != "") {
-      output.push(`游戏生成权重设定：${gw}`);
-    }
-    if (roomConfig.blind_setting > 1) {
-      output.push(`盲盒设定: 模式${roomConfig.blind_setting - 1}, 揭示等级${roomConfig.blind_reveal_level}`);
-    }
-    if (roomConfig.dual_board > 0) {
-      output.push(
-        `双重盘面: ${
-          roomConfig.dual_board > 0
-            ? `开启 (转换格: ${roomConfig.portal_count}, 差异等级: ${roomConfig.diff_level})`
-            : "关闭"
-        }`
-      );
-    }
-    if (roomConfig.use_ai) {
-      output.push(
-        `AI参数：Lv.${roomConfig.ai_base_power} / Lv.${roomConfig.ai_experience} 策略等级：${roomConfig.ai_strategy_level}`
-      );
-      let ai_pref = "";
-      for (const [gameCode, pref] of Object.entries(roomConfig.ai_preference)) {
-        if (pref != 0) {
+    if(isCustomGame){
+      output.push(`卡池：自定义`);
+    }else{
+      output.push(`卡池：${Config.spellVersionList.find((n) => n.type === roomConfig.spell_version)?.name}`);
+      const gameNames = roomConfig.games
+        .map((code) => Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === code)?.name)
+        .filter(Boolean)
+        .join(", ");
+      output.push(`作品来源: ${gameNames || "未指定"}`);
+      output.push(`符卡难度: ${roomConfig.ranks.join(", ") || "未指定"}`);
+      const difficultyName = Config.difficultyList.find((d) => d.value === roomConfig.difficulty)?.name;
+      output.push(`盘面难度: ${difficultyName || "未知"}`);
+      let gw = "";
+      for (const [gameCode, weight] of Object.entries(roomConfig.game_weight)) {
+        if (weight != 0) {
           const gameName =
-            Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === gameCode)?.name || "";
+            gameCode === "weight_balancer"
+              ? "生成波动"
+              : Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === gameCode)?.name ||
+              "";
           if (gameName === "") {
             continue;
           }
-          ai_pref += `${gameName}：${pref}；`;
+          gw += `${gameName}：${weight}；`;
         }
       }
-      if (ai_pref != "") {
-        output.push(`AI作品相性：${ai_pref}`);
+      if (gw != "") {
+        output.push(`游戏生成权重设定：${gw}`);
+      }
+      if (roomConfig.blind_setting > 1) {
+        output.push(`盲盒设定: 模式${roomConfig.blind_setting - 1}, 揭示等级${roomConfig.blind_reveal_level}`);
+      }
+      if (roomConfig.dual_board > 0) {
+        output.push(
+          `双重盘面: ${
+            roomConfig.dual_board > 0
+              ? `开启 (转换格: ${roomConfig.portal_count}, 差异等级: ${roomConfig.diff_level})`
+              : "关闭"
+          }`
+        );
+      }
+      if (roomConfig.use_ai) {
+        output.push(
+          `AI参数：Lv.${roomConfig.ai_base_power} / Lv.${roomConfig.ai_experience} 策略等级：${roomConfig.ai_strategy_level}`
+        );
+        let ai_pref = "";
+        for (const [gameCode, pref] of Object.entries(roomConfig.ai_preference)) {
+          if (pref != 0) {
+            const gameName =
+              Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === gameCode)?.name || "";
+            if (gameName === "") {
+              continue;
+            }
+            ai_pref += `${gameName}：${pref}；`;
+          }
+        }
+        if (ai_pref != "") {
+          output.push(`AI作品相性：${ai_pref}`);
+        }
       }
     }
+
     output.push("---");
 
     // 3. 盘面符卡
@@ -896,7 +904,7 @@ class Replay {
       output.push(`总计收取 ${stats.completedTasks.length} 张符卡，等级分布: [${stats.totalStars.join(',')}]`);
       output.push(`总用时: ${formatTimestamp(totalEffectiveTime)} (收取: ${formatTimestamp(stats.totalTime)}, 被抢损失: ${formatTimestamp(stats.stolenTime)})`);
 
-      if (roomConfig.spell_version === Config.spellListWithTimer) {
+      if (roomConfig.spell_version === Config.spellListWithTimer && !isCustomGame) {
         const efficiency = stats.totalTime > 0 ? ((stats.totalFastest * 1000) / stats.totalTime * 100).toFixed(2) : 'N/A';
         output.push(`全局效率（理论值，不含抢卡）: ${efficiency}%`);
 

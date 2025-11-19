@@ -241,6 +241,8 @@ const onMenuClick = ({ event, target, item }: any) => {
       editorStore.copySpell(index);
     } else if (item.value === 'paste') {
       editorStore.pasteSpell(index);
+    } else if (item.value === 'clear') {
+      editorStore.clearSpell(index);
     }
   } else {
     if (item.isReset != null && item.isReset == false) {
@@ -391,6 +393,7 @@ const contextMenuData = computed(() => {
     return [
       { label: '复制', value: 'copy' },
       { label: '粘贴', value: 'paste' },
+      { label: '清空', value: 'clear' },
     ];
   }
   // 返回游戏模式下的菜单

@@ -49,21 +49,21 @@
                     :disabled="inGame || (roomData.names[0] !== '' && roomData.names[1] !== '')"
                   >成为玩家</el-button
                   >
-                  <el-button v-if="isPlayer" type="primary" @click="standUp" :disabled="inGame">成为观众</el-button>
+                  <el-button v-if="isPlayer" type="primary" @click="standUp" :disabled="inGame || isReplayMode || editorStore.isEditorMode">成为观众</el-button>
                 </template>
                 <el-button type="primary" @click="leaveRoom" :disabled="inGame && !isWatcher">退出房间</el-button>
 
                 <el-button
                   type="primary"
                   @click="downloadGameLog"
-                  :disabled="isLogButtonDisabled || (inGame && !isHost) || !inRoom"
+                  :disabled="isLogButtonDisabled || (inGame && !isHost) || !inRoom || editorStore.isEditorMode || isReplayMode"
                   style="margin-top: 10px;"
                 >
                   下载上局记录
                 </el-button>
 
                 <el-button
-                    :disabled="!inRoom || inGame || isWatcher"
+                    :disabled="!inRoom || inGame || isWatcher || editorStore.isEditorMode || isReplayMode"
                     type="primary"
                     @click="showReplayDialog"
                     style="margin-top: 10px;"
@@ -72,7 +72,7 @@
                 </el-button>
 
                 <el-button
-                  :disabled="!inRoom || inGame || isWatcher"
+                  :disabled="!inRoom || inGame || isWatcher || isReplayMode"
                   type="primary"
                   @click="editorStore.toggleEditorMode()"
                   style="margin-top: 10px;"
@@ -823,7 +823,7 @@ const downloadGameLog = () => {
 
 const replayDialogVisible = ref(false);
 const replayCode = ref('');
-const isReplayMode = ref(false);
+const isReplayMode = computed(() => gameStore.isReplayMode);
 
 const showReplayDialog = () => {
   replayDialogVisible.value = true;
@@ -836,7 +836,6 @@ const startReplay = () => {
       Replay.parseReplayData(replayCode.value);
       Replay.startReplay();
       replayDialogVisible.value = false;
-      isReplayMode.value = true;
 
       // 切换到操作记录标签页
       tabIndex.value = 2;

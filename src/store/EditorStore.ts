@@ -22,7 +22,7 @@ const createBlankSpell = (): Spell => ({
   power_weight: 0,
   difficulty: 0,
   change_rate: 0,
-  max_capRate: 0,
+  max_cap_rate: 0,
 });
 
 interface CacheEntry {
@@ -77,6 +77,12 @@ export const useEditorStore = defineStore("editor", () => {
   const originalRoomConfigBackup = ref<RoomConfig | null>(null);
 
   let autoSaveTimer: number | null = null;
+  const presetManagerMode = ref<'manage' | 'select'>('manage');
+
+  const openPresetManager = (mode: 'manage' | 'select' = 'manage') => {
+    presetManagerMode.value = mode;
+    isPresetManagerVisible.value = true;
+  };
 
   // --- 监听双盘面设置变化 ---
   watch(
@@ -147,7 +153,6 @@ export const useEditorStore = defineStore("editor", () => {
     isInitialStateModalVisible.value = false;
     isPresetManagerVisible.value = false;
     isEditorModalVisible.value = false;
-
     gameStore.currentBoard = 0;
   };
 
@@ -480,6 +485,10 @@ export const useEditorStore = defineStore("editor", () => {
     }
   };
 
+  watch(() => isEditorMode.value, (value) => {
+    presetManagerMode.value = value ? 'manage' : 'select'
+  });
+
   return {
     isEditorMode,
     spells,
@@ -524,5 +533,7 @@ export const useEditorStore = defineStore("editor", () => {
     exportPresets,
     importPresets,
     importReplay,
+    presetManagerMode,
+    openPresetManager,
   };
 });

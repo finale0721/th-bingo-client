@@ -1,15 +1,23 @@
 <template>
-  <el-dialog v-model="editorStore.isPresetManagerVisible" title="预设管理器" width="900px" top="5vh" class="preset-dialog">
+  <el-dialog
+    v-model="editorStore.isPresetManagerVisible"
+    :title="editorStore.isEditorMode ? '预设管理器' : '选择预设开始游戏'"
+    width="900px"
+    top="5vh"
+    class="preset-dialog"
+  >
     <div class="preset-toolbar">
       <div class="left-group">
-        <el-button-group>
+        <el-button-group v-if="editorStore.isEditorMode">
           <el-button type="primary" @click="handleExportPage">导出本页</el-button>
           <el-button type="primary" @click="handleExportAll">导出全部</el-button>
         </el-button-group>
       </div>
       <div class="right-group">
-        <el-button type="success" @click="importDialogVisible = true">导入到本页</el-button>
-        <el-button type="warning" @click="replayDialogVisible = true">从Replay导入</el-button>
+        <template v-if="editorStore.isEditorMode">
+          <el-button type="success" @click="importDialogVisible = true">导入到本页</el-button>
+          <el-button type="warning" @click="replayDialogVisible = true">从Replay导入</el-button>
+        </template>
       </div>
     </div>
 
@@ -42,18 +50,26 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="200" align="center">
+        <el-table-column label="操作" width="220" align="center">
           <template #default="{ row }">
-            <div class="action-buttons">
-              <template v-if="hasPreset(row.id)">
+            <div class="action-buttons" v-if="hasPreset(row.id)">
+              <template v-if="!editorStore.isEditorMode">
+                <el-button type="success" size="small" @click="handleStartGame(row.id)">开始游戏</el-button>
+              </template>
+
+              <template v-else>
                 <el-button type="success" link size="small" @click="handleLoad(row.id)">读取</el-button>
-                <el-button type="warning" link size="small" @click="handleEditNote(row.id)">备注</el-button>
+                <el-button type="primary" link size="small" @click="handleEditNote(row.id)">备注</el-button>
+                <el-button type="warning" link size="small" @click="handleSave(row.id)">覆盖</el-button>
                 <el-button type="danger" link size="small" @click="handleDelete(row.id)">删除</el-button>
               </template>
+            </div>
+            <div v-else-if="editorStore.isEditorMode">
               <el-button type="primary" link size="small" @click="handleSave(row.id)">保存</el-button>
             </div>
           </template>
         </el-table-column>
+
       </el-table>
     </div>
 
@@ -98,12 +114,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from "vue";
 import { useEditorStore } from '@/store/EditorStore';
+import { useGameStore } from '@/store/GameStore';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { ElDialog, ElButton, ElButtonGroup, ElTable, ElTableColumn, ElPagination, ElInput } from 'element-plus';
-import { EditorPreset } from "@/types";
+import { EditorPreset, Spell } from "@/types";
 
+const gameStore = useGameStore();
 const editorStore = useEditorStore();
 const currentPage = ref(1);
 const importDialogVisible = ref(false);
@@ -226,6 +244,38 @@ const getCardCountInfo = (preset: EditorPreset) => {
     return `${countA} / ${countB}`;
   }
   return `${countA}`;
+};
+
+const handleStartGame = (id: number) => {
+  const preset = getPreset(id);
+
+  // 校验逻辑
+  const validateBoard = (spells: Spell[]) => {
+    return spells.filter(s => s.name && s.name.trim() !== '').length === 25;
+  };
+
+  if (!validateBoard(preset.data.spells)) {
+    ElMessage.error('盘面A符卡数量不足25张，无法开始游戏');
+    return;
+  }
+
+  if (preset.data.roomConfig.dual_board > 0) {
+    if (!validateBoard(preset.data.spells2)) {
+      ElMessage.error('盘面B符卡数量不足25张，无法开始游戏');
+      return;
+    }
+  }
+
+  // 发送请求
+  gameStore.startCustomGame(preset)
+    .then(() => {
+      ElMessage.success('自定义游戏请求已发送');
+      editorStore.isPresetManagerVisible = false;
+    })
+    .catch((err) => {
+      ElMessage.error('开始游戏失败');
+      console.error(err);
+    });
 };
 </script>
 

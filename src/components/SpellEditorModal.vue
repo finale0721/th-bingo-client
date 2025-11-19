@@ -30,7 +30,7 @@
       <el-row :gutter="15">
         <el-col :span="12">
           <el-form-item label="评级">
-            <el-rate v-model="formData.star" :max="6" clearable />
+            <el-rate v-model="formData.star" :min=1 :max="5" clearable />
           </el-form-item>
         </el-col>
         <el-col :span="12">
@@ -57,7 +57,7 @@
           </el-form-item>
         </el-col>
         <el-col :span="10">
-          <el-form-item label="传送门" v-if="roomStore.roomConfig.dual_board > 0">
+          <el-form-item label="翻转卡" v-if="roomStore.roomConfig.dual_board > 0">
             <el-switch
               v-model="formData.isPortal"
               inline-prompt
@@ -133,8 +133,9 @@ const statusMenu = [
   { label: "左侧玩家收取", value: SpellStatus.A_ATTAINED },
   { label: "右侧玩家收取", value: SpellStatus.B_ATTAINED },
   { label: "禁用", value: SpellStatus.BANNED },
-  //{ label: "双方隐藏", value: SpellStatus.BOTH_HIDDEN },
-  //{ label: "仅显示游戏", value: SpellStatus.ONLY_REVEAL_GAME },
+  { label: "双方隐藏", value: SpellStatus.BOTH_HIDDEN },
+  { label: "仅显示游戏", value: SpellStatus.ONLY_REVEAL_GAME },
+  { label: "仅显示来源", value: SpellStatus.ONLY_REVEAL_GAME_STAGE },
   //{ label: "仅显示星级", value: SpellStatus.ONLY_REVEAL_STAR },
 ];
 
@@ -186,7 +187,7 @@ const onSaveToDb = () => {
     rank: formData.value.rank,
     star: formData.value.star,
     desc: formData.value.desc,
-    id: 0, fastest: 0, miss_time: 0, power_weight: 0, difficulty: 0, change_rate: 0, max_capRate: 0
+    id: 0, fastest: 0, miss_time: 0, power_weight: 0, difficulty: 0, change_rate: 0, max_cap_rate: 0
   };
 
   if (!tempSpell.name) {

@@ -63,7 +63,7 @@
         <el-input v-model="filters.game" placeholder="作品" size="small" clearable style="width: 80px" />
         <el-input v-model="filters.name" placeholder="名称" size="small" clearable style="width: 120px" />
         <el-input v-model="filters.rank" placeholder="分类" size="small" clearable style="width: 80px" />
-        <el-input-number v-model="filters.star" :min="0" :max="6" size="small" placeholder="评级" controls-position="right" style="width: 80px" />
+        <el-input-number v-model="filters.star" :min="0" :max="5" size="small" placeholder="评级" controls-position="right" style="width: 80px" />
         <el-button size="small" @click="clearFilters">重置</el-button>
       </div>
 
@@ -140,7 +140,7 @@
           <el-input v-model="dbForm.rank" />
         </el-form-item>
         <el-form-item label="评级">
-          <el-rate v-model="dbForm.star" :max="6" clearable />
+          <el-rate v-model="dbForm.star" :min="1" :max="5" clearable />
         </el-form-item>
         <el-form-item label="位置">
           <el-input v-model="dbForm.desc" type="textarea" />
@@ -380,7 +380,7 @@ const saveDbSpell = () => {
     rank: dbForm.rank,
     star: dbForm.star,
     desc: dbForm.desc,
-    id: 0, fastest: 0, miss_time: 0, power_weight: 0, difficulty: 0, change_rate: 0, max_capRate: 0
+    id: 0, fastest: 0, miss_time: 0, power_weight: 0, difficulty: 0, change_rate: 0, max_cap_rate: 0
   };
 
   if (dbDialogMode.value === 'create') {

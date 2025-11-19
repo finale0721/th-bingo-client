@@ -57,7 +57,7 @@ export interface Spell {
   power_weight: number, //底力系数，熟练度系数=1-底力系数
   difficulty: number,  //难度
   change_rate: number, //变化率，越高说明门槛的性质越强
-  max_capRate: number, //最高收率
+  max_cap_rate: number, //最高收率
 }
 
 export interface GameData {

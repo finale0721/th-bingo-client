@@ -128,6 +128,13 @@
 
         <template v-else-if="!editorStore.isEditorMode">
           <template v-if="!soloMode && isHost">
+            <el-button
+              type="primary"
+              v-if="!inGame && !isBpPhase"
+              @click="editorStore.openPresetManager('select')"
+            >
+              自定义游戏
+            </el-button>
             <el-button type="primary" v-if="!inGame && !isBpPhase" @click="startGame">开始比赛</el-button>
             <el-button type="primary" v-if="isBpPhase" @click="drawSpellCard" :disabled="banPick.phase < 99">
               抽取符卡
@@ -146,6 +153,7 @@
           <template v-if="isPlayer">
             <template v-if="inGame">
               <template v-if="isBingoStandard">
+
                 <confirm-select-button
                   @click="confirmSelect"
                   :disabled="selectedSpellIndex < 0 || gamePaused"
@@ -203,6 +211,14 @@
               <el-button type="primary" v-if="banPick.phase === 11" @click="confirmOpenEX(true)">开启</el-button>
               <el-button type="primary" v-if="banPick.phase === 11" @click="confirmOpenEX(false)">不开启</el-button>
             </template>
+
+            <el-button
+              type="primary"
+              v-if="!inGame && !isBpPhase"
+              @click="editorStore.openPresetManager('select')"
+            >
+              自定义游戏
+            </el-button>
           </template>
 
           <!-- <template v-if="isBingoLink">
@@ -218,15 +234,15 @@
             </el-button>
             <el-button
               type="primary"
-              @click="editorStore.isInitialStateModalVisible = true"
-            >
-              初始设置
-            </el-button>
-            <el-button
-              type="primary"
               @click="editorStore.isPresetManagerVisible = true"
             >
               预设管理
+            </el-button>
+            <el-button
+              type="danger"
+              @click="handleClearAll"
+            >
+              清空格子
             </el-button>
           </div>
         </template>
@@ -293,7 +309,6 @@
       @close="editorStore.closeModal()"
     />
     <spell-database-panel v-if="editorStore.isEditorMode" />
-    <initial-state-editor />
     <preset-manager />
   </div>
 </template>
@@ -306,7 +321,7 @@ import ScoreBoard from "@/components/score-board.vue";
 import CountDown from "@/components/count-down.vue";
 import GameBp from "@/components/game-bp.vue";
 import ConfirmSelectButton from "@/components/button-with-cooldown.vue";
-import { ElButton, ElMessageBox, ElRadio, ElRadioGroup, ElSlider } from "element-plus";
+import { ElButton, ElMessage, ElMessageBox, ElRadio, ElRadioGroup, ElSlider } from "element-plus";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { useRoomStore } from "@/store/RoomStore";
 import { useGameStore } from "@/store/GameStore";
@@ -316,7 +331,6 @@ import Replay from '@/utils/Replay';
 import { useEditorStore } from "@/store/EditorStore";
 import SpellEditorModal from '@/components/SpellEditorModal.vue';
 import SpellDatabasePanel from '@/components/SpellDatabasePanel.vue';
-import InitialStateEditor from "@/components/InitialStateEditor.vue";
 import PresetManager from "@/components/PresetManager.vue";
 
 const roomStore = useRoomStore();
@@ -1315,6 +1329,17 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown);
 });
+
+const handleClearAll = () => {
+  ElMessageBox.confirm('确定要清空所有格子的内容吗？此操作不可恢复。', '警告', {
+    type: 'warning',
+    confirmButtonText: '确认清空',
+    confirmButtonClass: 'el-button--danger'
+  }).then(() => {
+    editorStore.clearAllSpells();
+    ElMessage.success('已清空');
+  }).catch(() => {});
+};
 
 </script>
 

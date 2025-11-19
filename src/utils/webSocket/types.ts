@@ -69,6 +69,7 @@ export enum WebSocketActionType {
 
   //获取卡池
   GET_XLSX_DATA = "get_xlsx_data",
+  START_CUSTOM_GAME = "start_custom_game",
 }
 
 export enum WebSocketPushActionType {
