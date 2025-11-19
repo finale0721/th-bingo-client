@@ -1,37 +1,37 @@
 <template>
   <div class="room">
     <room-layout
-        ref="layoutRef"
-        v-model="selectedSpellIndex"
-        :menu="menu"
-        :multiple="isBingoBp || (isBingoStandard && gameStore.gameStatus === GameStatus.COUNT_DOWN)"
-        :is-editor-mode="editorStore.isEditorMode"
-        @editor-cell-click="handleEditorCellClick"
+      ref="layoutRef"
+      v-model="selectedSpellIndex"
+      :menu="menu"
+      :multiple="isBingoBp || (isBingoStandard && gameStore.gameStatus === GameStatus.COUNT_DOWN)"
+      :is-editor-mode="editorStore.isEditorMode"
+      @editor-cell-click="handleEditorCellClick"
     >
       <template #left>
         <div
-            :class="{ 'page-icon': playerASide === 0, 'page-icon-reverse': playerASide === 1 }"
-            v-if="isDualBoard"
-            @click="switchDualBoardSide"
+          :class="{ 'page-icon': playerASide === 0, 'page-icon-reverse': playerASide === 1 }"
+          v-if="isDualBoard"
+          @click="switchDualBoardSide"
         ></div>
         <score-board
-            class="change-card"
-            v-if="isBingoStandard"
-            :size="48"
-            :manual="soloMode ? isPlayerA : isHost"
-            label="换卡次数"
-            v-model="roomData.change_card_count[0]"
-            @add="addChangeCardCount(0)"
-            @minus="removeChangeCardCount(0)"
-            :disabled="!inGame"
+          class="change-card"
+          v-if="isBingoStandard"
+          :size="48"
+          :manual="soloMode ? isPlayerA : isHost"
+          label="换卡次数"
+          v-model="roomData.change_card_count[0]"
+          @add="addChangeCardCount(0)"
+          @minus="removeChangeCardCount(0)"
+          :disabled="!inGame"
         ></score-board>
         <score-board class="spell-card-score-card" :size="30" label="得分" v-model="playerAScore"></score-board>
         <el-button
-            class="alert-button"
-            type="primary"
-            v-if="isHost"
-            @click="warnPlayer(roomData.names[0])"
-            :disabled="!inGame"
+          class="alert-button"
+          type="primary"
+          v-if="isHost"
+          @click="warnPlayer(roomData.names[0])"
+          :disabled="!inGame"
         >
           警告
         </el-button>
@@ -39,28 +39,28 @@
 
       <template #right>
         <div
-            :class="{ 'page-icon': playerBSide === 0, 'page-icon-reverse': playerBSide === 1 }"
-            v-if="isDualBoard"
-            @click="switchDualBoardSide"
+          :class="{ 'page-icon': playerBSide === 0, 'page-icon-reverse': playerBSide === 1 }"
+          v-if="isDualBoard"
+          @click="switchDualBoardSide"
         ></div>
         <score-board
-            class="change-card"
-            v-if="isBingoStandard"
-            :size="48"
-            :manual="soloMode ? isPlayerB : isHost"
-            label="换卡次数"
-            v-model="roomData.change_card_count[1]"
-            @add="addChangeCardCount(1)"
-            @minus="removeChangeCardCount(1)"
-            :disabled="!inGame"
+          class="change-card"
+          v-if="isBingoStandard"
+          :size="48"
+          :manual="soloMode ? isPlayerB : isHost"
+          label="换卡次数"
+          v-model="roomData.change_card_count[1]"
+          @add="addChangeCardCount(1)"
+          @minus="removeChangeCardCount(1)"
+          :disabled="!inGame"
         ></score-board>
         <score-board class="spell-card-score-card" :size="30" label="得分" v-model="playerBScore"></score-board>
         <el-button
-            class="alert-button"
-            type="primary"
-            v-if="isHost"
-            @click="warnPlayer(roomData.names[1])"
-            :disabled="!inGame"
+          class="alert-button"
+          type="primary"
+          v-if="isHost"
+          @click="warnPlayer(roomData.names[1])"
+          :disabled="!inGame"
         >
           警告
         </el-button>
@@ -78,10 +78,10 @@
 
       <template #widget>
         <count-down
-            ref="countdownRef"
-            :size="30"
-            @complete="onCountDownComplete"
-            v-show="(isBingoStandard && inGame) || (isBingoBp && gameStore.gameStatus === GameStatus.COUNT_DOWN)"
+          ref="countdownRef"
+          :size="30"
+          @complete="onCountDownComplete"
+          v-show="(isBingoStandard && inGame) || (isBingoBp && gameStore.gameStatus === GameStatus.COUNT_DOWN)"
         ></count-down>
       </template>
 
@@ -89,28 +89,28 @@
         <div v-if="gameStore.isReplayMode" class="replay-controls">
           <!-- 调速 -->
           <el-slider
-              v-model="replaySpeed"
-              :marks="speedMarks"
-              :step="1"
-              :min="1"
-              :max="8"
-              style="width: 144px; margin: 0 15px;"
-              @change="changeReplaySpeed"
+            v-model="replaySpeed"
+            :marks="speedMarks"
+            :step="1"
+            :min="1"
+            :max="8"
+            style="width: 144px; margin: 0 15px;"
+            @change="changeReplaySpeed"
           />
           <!-- 回放控制按钮 -->
           <el-button
-              :icon="replayInstance.state.isPlaying ? VideoPause : VideoPlay"
-              @click="toggleReplay"
-              :disabled="replayInstance.state.isReplayFinished"
-              circle
+            :icon="replayInstance.state.isPlaying ? VideoPause : VideoPlay"
+            @click="toggleReplay"
+            :disabled="replayInstance.state.isReplayFinished"
+            circle
           />
           <!-- 时间轴滑块 -->
           <el-slider v-if="replayInstance.state.totalTime > 0"
-              v-model="replayInstance.state.currentTime"
-              :max="replayInstance.state.totalTime"
-              :format-tooltip="formatReplayTime"
-              @change="handleTimelineChange"
-              style="width: 144px; margin: 0 15px;"
+                     v-model="replayInstance.state.currentTime"
+                     :max="replayInstance.state.totalTime"
+                     :format-tooltip="formatReplayTime"
+                     @change="handleTimelineChange"
+                     style="width: 144px; margin: 0 15px;"
           />
 
           <div class="replay-time">
@@ -118,9 +118,9 @@
           </div>
 
           <el-button
-              type="primary"
-              @click="confirmExitReplay"
-              style="margin-left: 15px;"
+            type="primary"
+            @click="confirmExitReplay"
+            style="margin-left: 15px;"
           >
             退出回放
           </el-button>
@@ -147,37 +147,37 @@
             <template v-if="inGame">
               <template v-if="isBingoStandard">
                 <confirm-select-button
-                    @click="confirmSelect"
-                    :disabled="selectedSpellIndex < 0 || gamePaused"
-                    v-if="!spellCardSelected"
-                    :cooldown="selectCooldown"
-                    :immediate="gameStore.gameStatus === GameStatus.STARTED && !gameStore.spellCardGrabbedFlag"
-                    :paused="gamePaused"
-                    @finish="setCdTime"
-                    text="选择符卡"
+                  @click="confirmSelect"
+                  :disabled="selectedSpellIndex < 0 || gamePaused"
+                  v-if="!spellCardSelected"
+                  :cooldown="selectCooldown"
+                  :immediate="gameStore.gameStatus === GameStatus.STARTED && !gameStore.spellCardGrabbedFlag"
+                  :paused="gamePaused"
+                  @finish="setCdTime"
+                  text="选择符卡"
                 ></confirm-select-button>
                 <confirm-select-button
-                    @click="confirmAttained"
-                    v-if="spellCardSelected"
-                    :disabled="gameStore.gameStatus !== GameStatus.STARTED"
-                    :cooldown="roomSettings.confirmDelay * 1000"
-                    :immediate="gameStore.alreadySelectCard"
-                    text="确认收取"
+                  @click="confirmAttained"
+                  v-if="spellCardSelected"
+                  :disabled="gameStore.gameStatus !== GameStatus.STARTED"
+                  :cooldown="roomSettings.confirmDelay * 1000"
+                  :immediate="gameStore.alreadySelectCard"
+                  text="确认收取"
                 ></confirm-select-button>
               </template>
               <template v-if="isBingoBp">
                 <el-button
-                    type="primary"
-                    @click="confirmBp"
-                    :disabled="!isMyTurn || !bingoBpPhase || selectedSpellIndex < 0"
-                    v-if="!gameStore.bpGameData.ban_pick"
+                  type="primary"
+                  @click="confirmBp"
+                  :disabled="!isMyTurn || !bingoBpPhase || selectedSpellIndex < 0"
+                  v-if="!gameStore.bpGameData.ban_pick"
                 >{{ bingoBpPhase ? (isMyTurn ? "选择符卡" : "等待对手选择符卡") : "等待房主操作" }}</el-button
                 >
                 <el-button
-                    type="primary"
-                    @click="confirmBp"
-                    v-if="gameStore.bpGameData.ban_pick"
-                    :disabled="!isMyTurn || !bingoBpPhase || selectedSpellIndex < 0"
+                  type="primary"
+                  @click="confirmBp"
+                  v-if="gameStore.bpGameData.ban_pick"
+                  :disabled="!isMyTurn || !bingoBpPhase || selectedSpellIndex < 0"
                 >{{ bingoBpPhase ? (isMyTurn ? "禁用符卡" : "等待对手禁用符卡") : "等待房主操作" }}</el-button
                 >
               </template>
@@ -194,10 +194,10 @@
 
             <template v-if="isBpPhase">
               <el-button
-                  type="primary"
-                  v-if="banPick.phase < 11"
-                  :disabled="!(isPlayerA && playerACanBP) && !(isPlayerB && playerBCanBP)"
-                  @click="playerBanPick"
+                type="primary"
+                v-if="banPick.phase < 11"
+                :disabled="!(isPlayerA && playerACanBP) && !(isPlayerB && playerBCanBP)"
+                @click="playerBanPick"
               >确定</el-button
               >
               <el-button type="primary" v-if="banPick.phase === 11" @click="confirmOpenEX(true)">开启</el-button>
@@ -216,13 +216,25 @@
             <el-button type="primary" @click="editorStore.toggleDatabasePanel">
               {{ editorStore.isDatabasePanelVisible ? '关闭数据库' : '打开数据库' }}
             </el-button>
+            <el-button
+              type="primary"
+              @click="editorStore.isInitialStateModalVisible = true"
+            >
+              初始设置
+            </el-button>
+            <el-button
+              type="primary"
+              @click="editorStore.isPresetManagerVisible = true"
+            >
+              预设管理
+            </el-button>
           </div>
         </template>
 
       </template>
 
       <template #button-left-1>
-        <div v-if="!gameStore.isReplayMode">
+        <div v-if="!gameStore.isReplayMode && !editorStore.isEditorMode">
           <template v-if="!soloMode && isHost">
             <template v-if="isBingoStandard || !inGame">
               <el-button size="small" :disabled="inGame" @click="resetRoom">重置房间</el-button>
@@ -240,7 +252,7 @@
       </template>
 
       <template #button-right-1>
-        <div v-if="!gameStore.isReplayMode">
+        <div v-if="!gameStore.isReplayMode && !editorStore.isEditorMode">
           <template v-if="isOwner">
             <template v-if="isBingoStandard">
               <template v-if="!isBpPhase">
@@ -259,8 +271,8 @@
       </template>
 
       <template #button-right-2>
-        <template v-if="inGame && isDualBoard && roomStore.roomConfig.type == BingoType.STANDARD">
-          <el-button type="primary" :disabled="!inGame"
+        <template v-if="isDualBoard && roomStore.roomConfig.type == BingoType.STANDARD">
+          <el-button type="primary"
                      @click="switchDualBoardSide">
             {{
               boardNotDecided() ? "切换盘面" : (isOnCurrentBoard() ? "查看另一面" : "返回当前面")
@@ -281,6 +293,8 @@
       @close="editorStore.closeModal()"
     />
     <spell-database-panel v-if="editorStore.isEditorMode" />
+    <initial-state-editor />
+    <preset-manager />
   </div>
 </template>
 
@@ -302,6 +316,8 @@ import Replay from '@/utils/Replay';
 import { useEditorStore } from "@/store/EditorStore";
 import SpellEditorModal from '@/components/SpellEditorModal.vue';
 import SpellDatabasePanel from '@/components/SpellDatabasePanel.vue';
+import InitialStateEditor from "@/components/InitialStateEditor.vue";
+import PresetManager from "@/components/PresetManager.vue";
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
@@ -353,16 +369,16 @@ const playerASide = computed(() => isDualBoard.value ? gameStore.normalGameData.
 const playerBSide = computed(() => isDualBoard.value ? gameStore.normalGameData.which_board_b : 0);
 
 const playerACanBP = computed(
-    () =>
-        bpStatus.value === BpStatus.IS_A_BAN ||
-        bpStatus.value === BpStatus.IS_A_PICK ||
-        bpStatus.value === BpStatus.SELECT_OPEN_EX
+  () =>
+    bpStatus.value === BpStatus.IS_A_BAN ||
+    bpStatus.value === BpStatus.IS_A_PICK ||
+    bpStatus.value === BpStatus.SELECT_OPEN_EX
 );
 const playerBCanBP = computed(
-    () =>
-        bpStatus.value === BpStatus.IS_B_BAN ||
-        bpStatus.value === BpStatus.IS_B_PICK ||
-        bpStatus.value === BpStatus.SELECT_OPEN_EX
+  () =>
+    bpStatus.value === BpStatus.IS_B_BAN ||
+    bpStatus.value === BpStatus.IS_B_PICK ||
+    bpStatus.value === BpStatus.SELECT_OPEN_EX
 );
 const playerASelectedIndex = computed(() => gameStore.playerASelectedIndex);
 const playerBSelectedIndex = computed(() => gameStore.playerBSelectedIndex);
@@ -585,18 +601,18 @@ onMounted(() => {
   }
 });
 const isBpPhase = computed(
-    () => roomStore.banPick.phase > 0 && (roomStore.banPick.phase < 99 || gameStore.gameStatus === GameStatus.NOT_STARTED)
+  () => roomStore.banPick.phase > 0 && (roomStore.banPick.phase < 99 || gameStore.gameStatus === GameStatus.NOT_STARTED)
 );
 watch(
-    isBpPhase,
-    (value) => {
-      if (value) {
-        layoutRef.value?.hideAlert();
-      }
-    },
-    {
-      immediate: true,
+  isBpPhase,
+  (value) => {
+    if (value) {
+      layoutRef.value?.hideAlert();
     }
+  },
+  {
+    immediate: true,
+  }
 );
 watch([inGame, isBpPhase], ([inGame, isBpPhase]) => {
   if (!inGame && !isBpPhase) {
@@ -618,23 +634,23 @@ onMounted(() => {
   }
 });
 watch(
-    gamePaused,
-    (value) => {
-      if (value) {
-        layoutRef.value?.showAlert("游戏已暂停", "#000");
-        countdownRef.value?.pause();
-      } else {
-        layoutRef.value?.hideAlert();
-        if (!isBingoBp.value) {
-          nextTick(() => {
-            countdownRef.value?.start();
-          });
-        }
+  gamePaused,
+  (value) => {
+    if (value) {
+      layoutRef.value?.showAlert("游戏已暂停", "#000");
+      countdownRef.value?.pause();
+    } else {
+      layoutRef.value?.hideAlert();
+      if (!isBingoBp.value) {
+        nextTick(() => {
+          countdownRef.value?.start();
+        });
       }
-    },
-    {
-      immediate: true,
     }
+  },
+  {
+    immediate: true,
+  }
 );
 
 //赛前BP
@@ -652,10 +668,10 @@ const playerBanPick = () => {
       cancelButtonText: "取消",
       type: "warning",
     })
-        .then(() => {
-          roomStore.banPickCard("");
-        })
-        .catch(() => {});
+      .then(() => {
+        roomStore.banPickCard("");
+      })
+      .catch(() => {});
   } else {
     roomStore.banPickCard(bpCode.value);
   }
@@ -736,8 +752,8 @@ const decideStandard = (status) => {
       winFlag.value = i + 1;
       break;
     } else if (
-        (sumArr[i] === -4 && oldSumArr.value[i] > -4 && isPlayerB.value) ||
-        (sumArr[i] === 4 && oldSumArr.value[i] < 4 && isPlayerA.value)
+      (sumArr[i] === -4 && oldSumArr.value[i] > -4 && isPlayerB.value) ||
+      (sumArr[i] === 4 && oldSumArr.value[i] < 4 && isPlayerA.value)
     ) {
       gamePointFlag = true;
     }
@@ -797,9 +813,9 @@ const decideStandard = (status) => {
 
 //BP赛
 const isMyTurn = computed(
-    () =>
-        (isPlayerA.value && gameStore.bpGameData.whose_turn === 0) ||
-        (isPlayerB.value && gameStore.bpGameData.whose_turn === 1)
+  () =>
+    (isPlayerA.value && gameStore.bpGameData.whose_turn === 0) ||
+    (isPlayerB.value && gameStore.bpGameData.whose_turn === 1)
 );
 const bingoBpPhase = computed(() => gameStore.bpGameData.ban_pick !== 2);
 //总失败次数
@@ -889,8 +905,8 @@ const decideBp = (status) => {
 
   //失败的一方爆炸音效
   if (
-      (playerAFailure.value < playerAFailureNew && isPlayerA.value) ||
-      (playerBFailure.value < playerBFailureNew && isPlayerB.value)
+    (playerAFailure.value < playerAFailureNew && isPlayerA.value) ||
+    (playerBFailure.value < playerBFailureNew && isPlayerB.value)
   ) {
     layoutRef.value?.infoFailCard();
   }
@@ -919,63 +935,63 @@ const decideBp = (status) => {
 // const routeB = ref([]);
 
 watch(
-    () => gameStore.gameStatus,
-    (newVal, oldVal) => {
-      switch (newVal) {
-        case GameStatus.NOT_STARTED:
-          playerAScore.value = 0;
-          playerBScore.value = 0;
-          playerAFailure.value = 0;
-          playerBFailure.value = 0;
-          break;
-        case GameStatus.COUNT_DOWN:
+  () => gameStore.gameStatus,
+  (newVal, oldVal) => {
+    switch (newVal) {
+      case GameStatus.NOT_STARTED:
+        playerAScore.value = 0;
+        playerBScore.value = 0;
+        playerAFailure.value = 0;
+        playerBFailure.value = 0;
+        break;
+      case GameStatus.COUNT_DOWN:
+        nextTick(() => {
+          countdownRef.value?.start();
+        });
+        break;
+      case GameStatus.STARTED:
+        if (!isBingoBp.value) {
           nextTick(() => {
             countdownRef.value?.start();
           });
-          break;
-        case GameStatus.STARTED:
-          if (!isBingoBp.value) {
-            nextTick(() => {
-              countdownRef.value?.start();
-            });
-          }
-          break;
-        case GameStatus.PAUSED:
-          break;
-        case GameStatus.ENDED:
-          layoutRef.value?.showAlert("比赛已结束，等待房主操作", "red");
-          // ElMessageBox.alert(`${roomData.value.last_winner}获胜`, "比赛结束", {
-          //   confirmButtonText: "确定",
-          // });
-          // roomStore.roomData.change_card_count = [0, 0];
-          break;
-      }
-    },
-    {
-      immediate: true,
+        }
+        break;
+      case GameStatus.PAUSED:
+        break;
+      case GameStatus.ENDED:
+        layoutRef.value?.showAlert("比赛已结束，等待房主操作", "red");
+        // ElMessageBox.alert(`${roomData.value.last_winner}获胜`, "比赛结束", {
+        //   confirmButtonText: "确定",
+        // });
+        // roomStore.roomData.change_card_count = [0, 0];
+        break;
     }
+  },
+  {
+    immediate: true,
+  }
 );
 
 watch(
-    () => gameStore.spellStatus,
-    (status) => {
-      if (status && status.length) {
-        if (isBingoStandard.value) {
-          decideStandard(status);
-        }
-        if (isBingoBp.value) {
-          decideBp(status);
-        }
+  () => gameStore.spellStatus,
+  (status) => {
+    if (status && status.length) {
+      if (isBingoStandard.value) {
+        decideStandard(status);
       }
+      if (isBingoBp.value) {
+        decideBp(status);
+      }
+    }
 
-      // if (isBingoLink.value) {
-      //   winFlag.value = 0;
-      //   if (newVal.link_data) {
-      //     decideLink(newVal);
-      //   }
-      // }
-    },
-    { deep: true, immediate: true }
+    // if (isBingoLink.value) {
+    //   winFlag.value = 0;
+    //   if (newVal.link_data) {
+    //     decideLink(newVal);
+    //   }
+    // }
+  },
+  { deep: true, immediate: true }
 );
 
 //方法
@@ -1002,54 +1018,54 @@ const stopGame = () => {
   ElMessageBox({
     title: "还没有人获胜，现在结束比赛请选择一个选项",
     message: () =>
-        h(
-            ElRadioGroup,
+      h(
+        ElRadioGroup,
+        {
+          modelValue: checked.value,
+          "onUpdate:modelValue": (val: any) => {
+            checked.value = val;
+          },
+        },
+        () => [
+          h(
+            ElRadio,
             {
-              modelValue: checked.value,
-              "onUpdate:modelValue": (val: any) => {
-                checked.value = val;
-              },
+              value: -1,
             },
-            () => [
-              h(
-                  ElRadio,
-                  {
-                    value: -1,
-                  },
-                  {
-                    default: () => "结果作废",
-                  }
-              ),
-              h(
-                  ElRadio,
-                  {
-                    value: 0,
-                  },
-                  {
-                    default: () => roomData.value.names[0] + "获胜",
-                  }
-              ),
-              h(
-                  ElRadio,
-                  {
-                    value: 1,
-                  },
-                  {
-                    default: () => roomData.value.names[1] + "获胜",
-                  }
-              ),
-            ]
-        ),
+            {
+              default: () => "结果作废",
+            }
+          ),
+          h(
+            ElRadio,
+            {
+              value: 0,
+            },
+            {
+              default: () => roomData.value.names[0] + "获胜",
+            }
+          ),
+          h(
+            ElRadio,
+            {
+              value: 1,
+            },
+            {
+              default: () => roomData.value.names[1] + "获胜",
+            }
+          ),
+        ]
+      ),
   })
-      .then(() => {
-        //winner
-        if ((checked.value as number) < 0) {
-          gameStore.stopGame(-1);
-        } else {
-          gameStore.stopGame(checked.value);
-        }
-      })
-      .catch(() => {});
+    .then(() => {
+      //winner
+      if ((checked.value as number) < 0) {
+        gameStore.stopGame(-1);
+      } else {
+        gameStore.stopGame(checked.value);
+      }
+    })
+    .catch(() => {});
 };
 const pauseGame = () => {
   gameStore.pause(true);
@@ -1075,20 +1091,20 @@ const stopGameInfo = (winner: number) => {
 const playerAWin = ref(0);
 const playerBWin = ref(0);
 watch(
-    () => roomData.value.score,
-    (score) => {
-      if (score[0] > playerAWin.value) {
-        if (isPlayerA.value) layoutRef.value?.infoWinGame();
-        if (isPlayerB.value) layoutRef.value?.infoLoseGame();
-      }
-      if (score[1] > playerBWin.value) {
-        if (isPlayerB.value) layoutRef.value?.infoWinGame();
-        if (isPlayerA.value) layoutRef.value?.infoLoseGame();
-      }
-      playerAWin.value = score[0];
-      playerBWin.value = score[1];
-    },
-    { deep: true, immediate: true }
+  () => roomData.value.score,
+  (score) => {
+    if (score[0] > playerAWin.value) {
+      if (isPlayerA.value) layoutRef.value?.infoWinGame();
+      if (isPlayerB.value) layoutRef.value?.infoLoseGame();
+    }
+    if (score[1] > playerBWin.value) {
+      if (isPlayerB.value) layoutRef.value?.infoWinGame();
+      if (isPlayerA.value) layoutRef.value?.infoLoseGame();
+    }
+    playerAWin.value = score[0];
+    playerBWin.value = score[1];
+  },
+  { deep: true, immediate: true }
 );
 const confirmSelect = () => {
   gameStore.alreadySelectCard = true;
@@ -1128,10 +1144,10 @@ const resetRoom = () => {
     cancelButtonText: "取消",
     type: "warning",
   })
-      .then(() => {
-        roomStore.resetRoom();
-      })
-      .catch(() => {});
+    .then(() => {
+      roomStore.resetRoom();
+    })
+    .catch(() => {});
 };
 const addChangeCardCount = (index: number) => {
   roomStore.updateChangeCardCount(roomData.value.names[index], roomData.value.change_card_count[index] + 1);
@@ -1248,11 +1264,11 @@ const selectedSpellData = computed(() => {
     return { spell: {}, status: 0, isPortal: false };
   }
   const index = editorStore.selectedSpellIndex;
-  const board = editorStore.currentBoard;
+  const board = gameStore.currentBoard;
   const spell = board === 0 ? editorStore.spells[index] : editorStore.spells2[index];
   const status = editorStore.spellStatus[index];
   const portals = board === 0 ? editorStore.normalGameData.is_portal_a : editorStore.normalGameData.is_portal_b;
-  const isPortal = (editorStore.roomConfig.dual_board > 0 && portals && portals[index] === 1) || false;
+  const isPortal = (roomStore.roomConfig.dual_board > 0 && portals && portals[index] === 1) || false;
   return { spell, status, isPortal };
 });
 
@@ -1285,6 +1301,9 @@ const handleKeyDown = (e: KeyboardEvent) => {
     } else if (e.key === 'v') {
       e.preventDefault();
       editorStore.pasteSpell(editorStore.selectedSpellIndex);
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      editorStore.clearSpell(editorStore.selectedSpellIndex);
     }
   }
 };

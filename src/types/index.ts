@@ -118,3 +118,21 @@ export interface RoomConfig {
   ai_preference: Record<string, number>;
   custom_level_count: number[];
 }
+
+export interface EditorPreset {
+  id: number; // 0-99, 99为自动存档
+  note: string;
+  timestamp: number;
+  data: {
+    spells: Spell[];
+    spells2: Spell[];
+    spellStatus: SpellStatus[];
+    roomConfig: RoomConfig;
+    initialLeftTime: number;
+    initialCountDown: number;
+    initialCdTimeA: number;
+    initialCdTimeB: number;
+    isPortalA: number[];
+    isPortalB: number[];
+  };
+}

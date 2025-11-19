@@ -42,7 +42,7 @@
             >
               <div class="bingo-items">
                 <template v-if="dataSource.spells.length > 0">
-                  <div class="spell-card" v-for="(item, index) in (dataSource.currentBoard == 0 ? dataSource.spells : dataSource.spells2)" :key="index">
+                  <div class="spell-card" v-for="(item, index) in (gameStore.currentBoard == 0 ? dataSource.spells : dataSource.spells2)" :key="index">
                     <spell-card-cell
                       :name="item.name"
                       :desc="item.desc"
@@ -53,11 +53,11 @@
                       :selected="selectedSpellIndex === index"
                       :status="dataSource.spellStatus[index]"
                       :index="index"
-                      :isPortalA="dataSource.normalGameData?.is_portal_a[index] > 0"
-                      :isPortalB="dataSource.normalGameData?.is_portal_b[index] > 0"
-                      :isACurrentBoard="dataSource.currentBoard == 0"
-                      :isBCurrentBoard="dataSource.currentBoard == 1"
-                      :spellIndex="index"
+                    :isPortalA="roomStore.roomConfig.dual_board > 0 && dataSource.normalGameData?.is_portal_a[index] > 0"
+                    :isPortalB="roomStore.roomConfig.dual_board > 0 && dataSource.normalGameData?.is_portal_b[index] > 0"
+                    :isACurrentBoard="gameStore.currentBoard == 0"
+                    :isBCurrentBoard="gameStore.currentBoard == 1"
+                    :spellIndex="index"
                     ></spell-card-cell>
                   </div>
                 </template>

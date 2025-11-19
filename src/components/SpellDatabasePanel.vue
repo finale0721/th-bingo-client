@@ -34,7 +34,7 @@
         <!-- 服务器库特有控件 -->
         <template v-if="activeTab === 'server'">
           <el-select
-            v-model="editorStore.roomConfig.spell_version"
+            v-model="roomStore.roomConfig.spell_version"
             placeholder="选择卡池"
             size="small"
             style="width: 120px; margin-right: 5px;"
@@ -156,6 +156,7 @@
 
 <script lang="ts" setup>
 import { ref, computed, watch, onMounted, reactive } from 'vue';
+import { useRoomStore } from '@/store/RoomStore';
 import { useEditorStore } from '@/store/EditorStore';
 import { Spell } from '@/types';
 import Config from '@/config';
@@ -166,6 +167,7 @@ import {
   ElDialog, ElForm, ElFormItem, ElRate
 } from 'element-plus';
 
+const roomStore = useRoomStore();
 const editorStore = useEditorStore();
 
 // --- 窗口拖动逻辑 (保持不变) ---
@@ -231,7 +233,7 @@ const clearFilters = () => {
   filters.star = 0;
 };
 
-watch(() => editorStore.roomConfig.spell_version, () => {
+watch(() => roomStore.roomConfig.spell_version, () => {
   currentPage.value = 1;
 });
 
@@ -239,7 +241,7 @@ const currentSource = computed(() => {
   if (activeTab.value === 'local') {
     return editorStore.localSpellDatabase;
   } else {
-    const version = editorStore.roomConfig.spell_version;
+    const version = roomStore.roomConfig.spell_version;
     const cache = editorStore.serverSpellCache.get(version);
     if (cache && (Date.now() - cache.timestamp < 3 * 60 * 60 * 1000)) {
       return cache.data;
@@ -302,7 +304,7 @@ const handleSortChange = ({ prop, order }: any) => {
 
 const handleFetchServer = () => {
   if (cooldown.value > 0) return;
-  editorStore.fetchServerSpells(editorStore.roomConfig.spell_version);
+  editorStore.fetchServerSpells(roomStore.roomConfig.spell_version);
   cooldown.value = 10;
   const timer = setInterval(() => {
     cooldown.value--;

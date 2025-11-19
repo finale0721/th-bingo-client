@@ -57,7 +57,7 @@
           </el-form-item>
         </el-col>
         <el-col :span="10">
-          <el-form-item label="传送门" v-if="editorStore.roomConfig.dual_board > 0">
+          <el-form-item label="传送门" v-if="roomStore.roomConfig.dual_board > 0">
             <el-switch
               v-model="formData.isPortal"
               inline-prompt
@@ -84,7 +84,7 @@
 <script lang="ts" setup>
 import { ref, watch } from "vue";
 import { Spell, SpellStatus } from "@/types";
-import { useEditorStore } from "@/store/EditorStore";
+import { useRoomStore } from "@/store/RoomStore";
 import { Edit, FolderAdd, Delete, Check } from '@element-plus/icons-vue';
 
 // --- 显式引入 Element Plus 组件 ---
@@ -104,7 +104,7 @@ import {
   ElMessage
 } from "element-plus";
 
-const editorStore = useEditorStore();
+const roomStore = useRoomStore();
 
 const props = defineProps<{
   spell: Spell;

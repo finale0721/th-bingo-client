@@ -620,6 +620,7 @@ import CustomLevelBalancer from '../../../components/CustomLevelBalancer.vue'
 import Documentation from '@/components/Documentation.vue';
 import { QuestionFilled } from '@element-plus/icons-vue'
 import { useEditorStore } from "@/store/EditorStore";
+import PresetManager from "@/components/PresetManager.vue";
 
 const roomStore = useRoomStore();
 const localStore = useLocalStore();
