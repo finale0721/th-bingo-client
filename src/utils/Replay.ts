@@ -68,6 +68,7 @@ class Replay {
     ai_style: 0,
     ai_base_power: 5,
     ai_experience: 5,
+    ai_temperature: 0.0,
     game_weight: {},
     ai_preference: {},
     custom_level_count: [],
@@ -549,7 +550,7 @@ class Replay {
       }
       if (roomConfig.use_ai) {
         output.push(
-          `AI参数：Lv.${roomConfig.ai_base_power} / Lv.${roomConfig.ai_experience} 策略等级：${roomConfig.ai_strategy_level}`
+          `AI参数：Lv.${roomConfig.ai_base_power} / Lv.${roomConfig.ai_experience} 策略等级：${roomConfig.ai_strategy_level} 选卡温度：${roomConfig.ai_temperature}`
         );
         let ai_pref = "";
         for (const [gameCode, pref] of Object.entries(roomConfig.ai_preference)) {

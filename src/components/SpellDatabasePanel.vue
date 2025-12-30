@@ -63,6 +63,7 @@
         <el-input v-model="filters.game" placeholder="作品" size="small" clearable style="width: 80px" />
         <el-input v-model="filters.name" placeholder="名称" size="small" clearable style="width: 120px" />
         <el-input v-model="filters.rank" placeholder="分类" size="small" clearable style="width: 80px" />
+        <el-input v-model="filters.desc" placeholder="位置" size="small" clearable style="width: 120px" />
         <el-input-number v-model="filters.star" :min="0" :max="5" size="small" placeholder="评级" controls-position="right" style="width: 80px" />
         <el-button size="small" @click="clearFilters">重置</el-button>
       </div>
@@ -224,6 +225,7 @@ const filters = reactive({
   game: '',
   rank: '',
   star: 0,
+  desc: '',
 });
 
 const clearFilters = () => {
@@ -231,6 +233,7 @@ const clearFilters = () => {
   filters.game = '';
   filters.rank = '';
   filters.star = 0;
+  filters.desc = '';
 };
 
 watch(() => roomStore.roomConfig.spell_version, () => {
@@ -252,14 +255,15 @@ const currentSource = computed(() => {
 
 // 1. 过滤
 const filteredSpells = computed(() => {
-  const { name, game, rank, star } = filters;
+  const { name, game, rank, star, desc } = filters;
   return currentSource.value.filter(spell => {
     if (!spell) return false;
     const matchName = !name || (spell.name && spell.name.toLowerCase().includes(name.toLowerCase()));
     const matchGame = !game || (spell.game && spell.game.toLowerCase().includes(game.toLowerCase()));
     const matchRank = !rank || (spell.rank && spell.rank.toLowerCase().includes(rank.toLowerCase()));
+    const matchDesc = !desc || (spell.desc && spell.desc.toLowerCase().includes(desc.toLowerCase()));
     const matchStar = star === 0 || spell.star === star;
-    return matchName && matchGame && matchRank && matchStar;
+    return matchName && matchGame && matchRank && matchStar && matchDesc;
   });
 });
 

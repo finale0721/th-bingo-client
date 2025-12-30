@@ -114,6 +114,7 @@ export interface RoomConfig {
   ai_style: 0;
   ai_base_power: 5;
   ai_experience: 5;
+  ai_temperature: 0.0;
   game_weight: Record<string, number>;
   ai_preference: Record<string, number>;
   custom_level_count: number[];

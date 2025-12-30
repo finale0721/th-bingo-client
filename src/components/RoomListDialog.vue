@@ -30,6 +30,7 @@
 import { computed, ref, watch } from "vue";
 import { ElButton, ElDialog } from "element-plus";
 import { useRoomStore } from "@/store/RoomStore";
+import { useLocalStore } from "@/store/LocalStore";
 
 interface RoomInfo {
   rid: string;
@@ -45,6 +46,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "join-room"]);
 
 const roomStore = useRoomStore();
+const localStore = useLocalStore();
 const roomList = ref<RoomInfo[]>([]);
 
 const visible = computed({
@@ -74,6 +76,14 @@ const sortedRoomList = computed(() => {
   matchingRooms.sort(sortDescByLastActive);
   otherRooms.sort(sortDescByLastActive);
   pracRooms.sort(sortDescByLastActive);
+
+  if(localStore.userData.username !== "finale") {
+    return [...matchingRooms, ...otherRooms].map((room) => ({
+      ...room,
+      playerA: room.players[0] || "",
+      playerB: room.players[1] || "",
+    }));
+  }
 
   return [...matchingRooms, ...otherRooms, ...pracRooms].map((room) => ({
     ...room,

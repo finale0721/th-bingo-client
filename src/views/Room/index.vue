@@ -430,9 +430,23 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
               tag: "playerA",
             },
             {
+              label: "选择",
+              value: 3,
+              tag: "playerB",
+            },
+            {
+              label: "收取",
+              value: 7,
+              tag: "playerB",
+            },
+
+            /*
+            {
               label: "刷新",
               value: 0x100,
             },
+
+             */
           ];
         }
         if (isPlayerB.value) {
@@ -449,8 +463,14 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
               tag: "playerB",
             },
             {
-              label: "刷新",
-              value: 0x100,
+              label: "选择",
+              value: 3,
+              tag: "playerB",
+            },
+            {
+              label: "收取",
+              value: 7,
+              tag: "playerB",
             },
           ];
         }

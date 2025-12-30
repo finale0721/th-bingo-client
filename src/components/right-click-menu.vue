@@ -4,25 +4,46 @@
       <slot></slot>
     </div>
     <div class="right-click-menu" v-show="showMenu" :style="{ left: left + 'px', top: top + 'px' }">
-      <div
-        v-for="(item, index) in (menuData as any[])"
-        :key="index"
-        @mouseup="onMenuItemClick($event, item)"
-        @contextmenu="
-          (e) => {
-            e.preventDefault();
-            return false;
-          }
-        "
-        :class="{ 'menu-item': true, playerA: item.tag === 'playerA', playerB: item.tag === 'playerB' }"
-      >
-        {{ item.label }}
+      <div class="menu-top">
+        <div class="menu-col-a">
+          <div
+            v-for="(item, index) in playerAItems"
+            :key="'a' + index"
+            @mouseup="onMenuItemClick($event, item)"
+            @contextmenu.prevent
+            :class="{ 'menu-item': true, playerA: true }"
+          >
+            {{ item.label }}
+          </div>
+        </div>
+        <div class="menu-col-b">
+          <div
+            v-for="(item, index) in playerBItems"
+            :key="'b' + index"
+            @mouseup="onMenuItemClick($event, item)"
+            @contextmenu.prevent
+            :class="{ 'menu-item': true, playerB: true }"
+          >
+            {{ item.label }}
+          </div>
+        </div>
+      </div>
+      <div class="menu-bottom" v-if="generalItems.length > 0">
+        <div
+          v-for="(item, index) in generalItems"
+          :key="'g' + index"
+          @mouseup="onMenuItemClick($event, item)"
+          @contextmenu.prevent
+          class="menu-item"
+        >
+          {{ item.label }}
+        </div>
       </div>
     </div>
   </div>
 </template>
 <script lang="ts" setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, computed } from "vue";
 
 const innerElement = ref();
 const showMenu = ref(false);
@@ -41,6 +62,11 @@ const props = withDefaults(
     disabled: false,
   }
 );
+
+const playerAItems = computed(() => props.menuData.filter((item) => item.tag === "playerA"));
+const playerBItems = computed(() => props.menuData.filter((item) => item.tag === "playerB"));
+const generalItems = computed(() => props.menuData.filter((item) => !item.tag));
+
 const emits = defineEmits(["click"]);
 
 const onMenuItemClick = (e: any, item: any) => {
@@ -139,7 +165,28 @@ watch(
   background-color: white;
   z-index: 999;
   border-radius: 4px;
-  min-width: 120px;
+  min-width: 240px;
+  border: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-top {
+  display: flex;
+}
+
+.menu-col-a,
+.menu-col-b {
+  flex: 1;
+  min-width: 0;
+}
+
+.menu-col-a {
+  border-right: 1px solid #ccc;
+}
+
+.menu-bottom {
+  border-top: 1px solid #ccc;
 }
 
 .menu-item {
@@ -149,7 +196,7 @@ watch(
   padding: 6px 10px;
   cursor: pointer;
 
-  & + .menu-item {
+  &:not(:first-child) {
     border-top: 1px solid #ccc;
   }
 

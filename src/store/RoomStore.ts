@@ -86,6 +86,7 @@ export const useRoomStore = defineStore("room", () => {
     ai_style: 0,
     ai_base_power: 5,
     ai_experience: 5,
+    ai_temperature: 0.0,
     noWinningDeclaration: false,
     game_weight: {},
     ai_preference: {},
@@ -136,6 +137,7 @@ export const useRoomStore = defineStore("room", () => {
     ai_style: 0,
     ai_base_power: 5,
     ai_experience: 5,
+    ai_temperature: 0.0,
     game_weight: {},
     ai_preference: {},
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
@@ -155,7 +157,8 @@ export const useRoomStore = defineStore("room", () => {
   const updateRoomConfig = (
     key?: "type" | "game_time" | "countdown" | "games" | "ranks" | "need_win" | "difficulty" | "cd_time"
       | "blind_setting" | "spell_version" | "dual_board" | "portal_count" | "blind_reveal_level" | "diff_level"
-      | "use_ai" | "ai_strategy_level" | "ai_style" | "ai_base_power" | "ai_experience" | "game_weight" | "ai_preference" | "custom_level_count",
+      | "use_ai" | "ai_strategy_level" | "ai_style" | "ai_base_power" | "ai_experience" | "ai_temperature"
+      | "game_weight" | "ai_preference" | "custom_level_count",
   ) => {
     saveRoomSettings();
     const allParams = {
@@ -179,6 +182,7 @@ export const useRoomStore = defineStore("room", () => {
       ai_style: roomSettings.ai_style,
       ai_base_power: roomSettings.ai_base_power,
       ai_experience: roomSettings.ai_experience,
+      ai_temperature: roomSettings.ai_temperature,
       game_weight: roomSettings.game_weight,
       ai_preference: roomSettings.ai_preference,
       custom_level_count: roomSettings.custom_level_count,
@@ -187,6 +191,13 @@ export const useRoomStore = defineStore("room", () => {
     if (key) {
       params.rid = allParams.rid;
       params[key] = allParams[key];
+      if(key === "type"){
+        params.type = allParams.type
+        params.game_time = allParams.game_time
+        params.countdown = allParams.countdown
+      }else{
+        params[key] = allParams[key];
+      }
     }
     return ws.send(WebSocketActionType.UPDATE_ROOM_CONFIG, key ? params : allParams);
   };
@@ -247,6 +258,7 @@ export const useRoomStore = defineStore("room", () => {
           ai_style: roomSettings.ai_style,
           ai_base_power: roomSettings.ai_base_power,
           ai_experience: roomSettings.ai_experience,
+          ai_temperature: roomSettings.ai_temperature,
           game_weight: roomSettings.game_weight,
           ai_preference: roomSettings.ai_preference,
           custom_level_count: roomSettings.custom_level_count,

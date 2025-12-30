@@ -227,32 +227,76 @@
                 </el-form-item>
                 -->
                 <el-form-item label="AI底力：" v-if="roomSettings.use_ai">
-                  <el-input-number
-                      class="input-number"
+                  <div style="display: flex; align-items: center; width: 100%;">
+                    <el-slider
                       v-model="roomSettings.ai_base_power"
-                      :min="1"
+                      :min="0"
                       :max="10"
-                      :step="1"
+                      :step="0.1"
+                      :disabled="inGame"
+                      @change="roomStore.updateRoomConfig('ai_base_power')"
+                      style="flex-grow: 1; margin-right: 15px;"
+                    />
+                    <el-input-number
+                      v-model="roomSettings.ai_base_power"
+                      :min="0"
+                      :max="10"
+                      :step="0.1"
                       :disabled="inGame"
                       size="small"
                       controls-position="right"
                       @change="roomStore.updateRoomConfig('ai_base_power')"
-                  />
-                  <span class="input-number-text">级</span>
+                      style="width: 130px;"
+                    />
+                  </div>
                 </el-form-item>
                 <el-form-item label="AI熟练度：" v-if="roomSettings.use_ai">
-                  <el-input-number
-                      class="input-number"
+                  <div style="display: flex; align-items: center; width: 100%;">
+                    <el-slider
                       v-model="roomSettings.ai_experience"
-                      :min="1"
+                      :min="0"
                       :max="10"
-                      :step="1"
+                      :step="0.1"
+                      :disabled="inGame"
+                      @change="roomStore.updateRoomConfig('ai_experience')"
+                      style="flex-grow: 1; margin-right: 15px;"
+                    />
+                    <el-input-number
+                      v-model="roomSettings.ai_experience"
+                      :min="0"
+                      :max="10"
+                      :step="0.1"
                       :disabled="inGame"
                       size="small"
                       controls-position="right"
                       @change="roomStore.updateRoomConfig('ai_experience')"
-                  />
-                  <span class="input-number-text">级</span>
+                      style="width: 130px;"
+                    />
+                  </div>
+                </el-form-item>
+                <el-form-item label="选卡温度：" v-if="roomSettings.use_ai">
+                  <div style="display: flex; align-items: center; width: 100%;">
+                    <el-slider
+                      v-model="roomSettings.ai_temperature"
+                      :min="0"
+                      :max="2"
+                      :step="0.05"
+                      :disabled="inGame"
+                      @change="roomStore.updateRoomConfig('ai_temperature')"
+                      style="flex-grow: 1; margin-right: 15px;"
+                    />
+                    <el-input-number
+                      v-model="roomSettings.ai_temperature"
+                      :min="0"
+                      :max="2"
+                      :step="0.05"
+                      :disabled="inGame"
+                      size="small"
+                      controls-position="right"
+                      @change="roomStore.updateRoomConfig('ai_temperature')"
+                      style="width: 130px;"
+                    />
+                  </div>
                 </el-form-item>
                 <el-form-item label="AI相性：" v-if="roomSettings.use_ai">
                   <el-button
@@ -607,6 +651,7 @@ import {
   ElDialog,
   ElInput,
   ElIcon,
+  ElSlider,
 } from "element-plus";
 import Config from "@/config";
 import { useRoomStore } from "@/store/RoomStore";
