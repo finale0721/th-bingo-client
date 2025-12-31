@@ -274,7 +274,7 @@
                     />
                   </div>
                 </el-form-item>
-                <el-form-item label="选卡温度：" v-if="roomSettings.use_ai">
+                <el-form-item label="选卡温度：" v-if="roomSettings.use_ai && roomSettings.ai_strategy_level >= 3">
                   <div style="display: flex; align-items: center; width: 100%;">
                     <el-slider
                       v-model="roomSettings.ai_temperature"
