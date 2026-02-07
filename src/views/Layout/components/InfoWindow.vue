@@ -574,6 +574,22 @@
                   @change="(newColor) => saveRoomSettings"
                 />
               </el-form-item>
+              <el-form-item label="自动翻面：">
+                <el-checkbox v-model="roomSettings.autoSwitchInDualMode" @change="saveRoomSettings" :disabled="isPlayer"></el-checkbox>
+              </el-form-item>
+              <el-form-item label="翻面间隔：" :disabled="isPlayer">
+                <el-input-number
+                  class="input-number"
+                  v-model="roomSettings.autoSwitchInterval"
+                  :min="3"
+                  :max="40"
+                  size="small"
+                  :step="1"
+                  controls-position="right"
+                  @change="saveRoomSettings"
+                />
+                <span class="input-number-text">秒</span>
+              </el-form-item>
               <el-form-item label="单人练习不判定胜利：">
                 <el-checkbox v-model="roomSettings.noWinningDeclaration" @change="saveRoomSettings" :disabled="inGame"></el-checkbox>
               </el-form-item>

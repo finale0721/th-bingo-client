@@ -114,7 +114,7 @@
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
+          :page-sizes="[12, 25, 50, 100]"
           layout="total, sizes, prev, pager, next"
           :total="filteredSpells.length"
           small

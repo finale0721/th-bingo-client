@@ -1222,6 +1222,115 @@ const isOnCurrentBoard = () => {
   return true;
 }
 
+// Auto-switch functionality for dual boards
+const autoSwitchTimer = ref<number | null>(null);
+const autoSwitchLeftTime = ref(0);
+
+// Start auto-switch timer
+const startAutoSwitchTimer = () => {
+  if (autoSwitchTimer.value) return;
+  
+  // Reset left time to interval value
+  autoSwitchLeftTime.value = roomSettings.value.autoSwitchInterval;
+  
+  autoSwitchTimer.value = setInterval(() => {
+    autoSwitchLeftTime.value--;
+    
+    if (autoSwitchLeftTime.value <= 0) {
+      // Perform auto-switch
+      switchDualBoardSide();
+      autoSwitchLeftTime.value = roomSettings.value.autoSwitchInterval;
+    }
+  }, 1000);
+};
+
+// Stop auto-switch timer
+const stopAutoSwitchTimer = () => {
+  if (autoSwitchTimer.value) {
+    clearInterval(autoSwitchTimer.value);
+    autoSwitchTimer.value = null;
+  }
+  autoSwitchLeftTime.value = 0;
+};
+
+// Reset auto-switch timer
+const resetAutoSwitchTimer = () => {
+  stopAutoSwitchTimer();
+  if (shouldAutoSwitch.value) {
+    startAutoSwitchTimer();
+  }
+};
+
+// Check if auto-switch conditions are met
+const shouldAutoSwitch = computed(() => {
+  return (
+    roomSettings.value.autoSwitchInDualMode &&
+    !isPlayer.value &&
+    roomStore.roomConfig.dual_board > 0 &&
+    inGame.value
+  );
+});
+
+// Watch for changes to autoSwitchInDualMode
+watch(
+  () => roomSettings.value.autoSwitchInDualMode,
+  (newValue) => {
+    if (newValue) {
+      if (shouldAutoSwitch.value) {
+        startAutoSwitchTimer();
+      }
+    } else {
+      stopAutoSwitchTimer();
+    }
+  }
+);
+
+// Watch for changes to autoSwitchInterval
+watch(
+  () => roomSettings.value.autoSwitchInterval,
+  (newInterval) => {
+    if (autoSwitchTimer.value) {
+      // Reset left time to the minimum of new interval and current left time
+      autoSwitchLeftTime.value = Math.min(newInterval, autoSwitchLeftTime.value);
+    }
+  }
+);
+
+// Watch for inGame changes
+watch(
+  () => inGame.value,
+  (newValue) => {
+    if (newValue && shouldAutoSwitch.value) {
+      startAutoSwitchTimer();
+    } else {
+      stopAutoSwitchTimer();
+    }
+  }
+);
+
+// Watch for manual board switches
+watch(
+  () => gameStore.currentBoard,
+  () => {
+    // Reset timer only if it's a manual switch (not caused by auto-switch)
+    if (autoSwitchTimer.value) {
+      resetAutoSwitchTimer();
+    }
+  }
+);
+
+// Start timer when component mounts
+onMounted(() => {
+  if (shouldAutoSwitch.value) {
+    startAutoSwitchTimer();
+  }
+});
+
+// Clean up timer on component unmount
+onUnmounted(() => {
+  stopAutoSwitchTimer();
+});
+
 const replayInstance = Replay;
 const replaySpeed = ref(1);
 const speedValues = [1, 1.5, 2, 3, 5, 8, 15, 30];

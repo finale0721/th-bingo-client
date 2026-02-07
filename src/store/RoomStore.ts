@@ -88,6 +88,8 @@ export const useRoomStore = defineStore("room", () => {
     ai_experience: 5,
     ai_temperature: 0.0,
     noWinningDeclaration: false,
+    autoSwitchInDualMode: false,
+    autoSwitchInterval: 20,
     game_weight: {},
     ai_preference: {},
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],

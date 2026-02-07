@@ -251,6 +251,10 @@ const spellVersionList = [
     type: 4
   },
   {
+    name: "S7卡池预览（史）",
+    type: 9
+  },
+  {
     name: "史卡池（你确定吗）",
     type: 5
   },
