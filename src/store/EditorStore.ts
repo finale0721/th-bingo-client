@@ -109,12 +109,25 @@ export const useEditorStore = defineStore("editor", () => {
 
   // --- 核心逻辑 ---
 
+  // 自动存档相关常量
+  const AUTO_SAVE_START_ID = 100; // 101-110 对应 id 100-109
+  const AUTO_SAVE_COUNT = 10;
+  const AUTO_SAVE_INTERVAL = 180000; // 180秒
+
   const enterEditorMode = () => {
     originalRoomConfigBackup.value = JSON.parse(JSON.stringify(roomStore.roomConfig));
 
-    const autoSaveSlot = presets.value.find(p => p.id === 99);
-    if (autoSaveSlot) {
-      loadPresetData(autoSaveSlot);
+    // 加载最新的自动存档（从101-110中找最新的）
+    const autoSaveSlots = presets.value.filter(p => 
+      p.id >= AUTO_SAVE_START_ID && p.id < AUTO_SAVE_START_ID + AUTO_SAVE_COUNT
+    );
+    
+    if (autoSaveSlots.length > 0) {
+      // 找到时间戳最新的自动存档
+      const latestAutoSave = autoSaveSlots.reduce((latest, current) => {
+        return current.timestamp > latest.timestamp ? current : latest;
+      });
+      loadPresetData(latestAutoSave);
     } else {
       resetToBlank();
     }
@@ -126,8 +139,8 @@ export const useEditorStore = defineStore("editor", () => {
     // 启动自动保存 (30秒)
     if (autoSaveTimer) clearInterval(autoSaveTimer);
     autoSaveTimer = window.setInterval(() => {
-      savePreset(99, "自动存档");
-    }, 30000);
+      saveAutoSave();
+    }, AUTO_SAVE_INTERVAL);
   };
 
   const exitEditorMode = () => {
@@ -137,7 +150,7 @@ export const useEditorStore = defineStore("editor", () => {
       autoSaveTimer = null;
     }
     // 退出时立即保存一次
-    savePreset(99, "自动存档");
+    saveAutoSave();
 
     if (originalRoomConfigBackup.value) {
       Object.assign(roomStore.roomConfig, originalRoomConfigBackup.value);
@@ -177,6 +190,140 @@ export const useEditorStore = defineStore("editor", () => {
     spellStatus.value = Array.from({ length: 25 }, () => SpellStatus.NONE);
     normalGameData.is_portal_a = Array(25).fill(0);
     normalGameData.is_portal_b = Array(25).fill(0);
+  };
+
+  // 洗混格子：只洗混当前面
+  const shuffleSpells = () => {
+    const currentBoard = gameStore.currentBoard;
+    const targetSpells = currentBoard === 0 ? spells.value : spells2.value;
+    const targetPortals = currentBoard === 0 ? normalGameData.is_portal_a : normalGameData.is_portal_b;
+
+    // 收集非空格子的信息（包含原始索引）
+    interface CellInfo {
+      index: number;
+      spell: Spell;
+      status: SpellStatus;
+      isPortal: number;
+      star: number;
+    }
+
+    const nonEmptyCells: CellInfo[] = [];
+    for (let i = 0; i < 25; i++) {
+      const spell = targetSpells[i];
+      // 判断格子是否非空：name、game、rank 至少有一个有值
+      if (spell.name || spell.game || spell.rank) {
+        nonEmptyCells.push({
+          index: i,
+          spell: { ...spell },
+          status: spellStatus.value[i],
+          isPortal: targetPortals[i],
+          star: spell.star || 0
+        });
+      }
+    }
+
+    // 筛选出评级>=4的格子
+    const highRatedCells = nonEmptyCells.filter(cell => cell.star >= 4);
+
+    // 如果不足5个评级>=4的格子，直接随机洗混所有非空格子
+    if (highRatedCells.length < 5) {
+      // Fisher-Yates 洗牌算法
+      for (let i = nonEmptyCells.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [nonEmptyCells[i], nonEmptyCells[j]] = [nonEmptyCells[j], nonEmptyCells[i]];
+      }
+
+      // 清空当前面
+      for (let i = 0; i < 25; i++) {
+        targetSpells[i] = createBlankSpell();
+        targetPortals[i] = 0;
+      }
+
+      // 将洗混后的格子放入前 N 个位置
+      nonEmptyCells.forEach((cell, idx) => {
+        targetSpells[idx] = cell.spell;
+        targetPortals[idx] = cell.isPortal;
+        spellStatus.value[idx] = cell.status;
+      });
+
+      return { success: true, message: '操作成功' };
+    }
+
+    // 有至少5个评级>=4的格子，需要特殊排布
+    // 新规则：中心格(索引12)固定为高级格，其余4个高级格与中心格不同行不同列
+
+    // 随机选择5个高评级格子
+    const shuffledHighRated = [...highRatedCells];
+    for (let i = shuffledHighRated.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledHighRated[i], shuffledHighRated[j]] = [shuffledHighRated[j], shuffledHighRated[i]];
+    }
+    const selected5 = shuffledHighRated.slice(0, 5);
+
+    // 中心格位置
+    const centerPos = 12; // 第3行第3列 (2*5+2)
+
+    // 从selected5中随机选一个放在中心格
+    const centerCellIndex = Math.floor(Math.random() * 5);
+    const centerCell = selected5[centerCellIndex];
+    // 剩下的4个高级格
+    const other4Cells = selected5.filter((_, idx) => idx !== centerCellIndex);
+
+    // 生成4个位置：不能与中心格同行(第2行)同列(第2列)
+    // 可用位置是除去第2行和第2列的4x4子矩阵
+    // 行：0,1,3,4；列：0,1,3,4
+    const availableRows = [0, 1, 3, 4];
+    const availableCols = [0, 1, 3, 4];
+
+    // 随机排列列，确保每行一个不同列
+    for (let i = availableCols.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [availableCols[i], availableCols[j]] = [availableCols[j], availableCols[i]];
+    }
+
+    // 4个高级格位置：每行一个，对应随机列
+    const positions4 = availableRows.map((row, idx) => row * 5 + availableCols[idx]);
+
+    // 剩余格子（未被选中的高评级格子 + 其他非空格子）
+    const remainingCells = nonEmptyCells.filter(cell => !selected5.some(s => s.index === cell.index));
+    // 随机洗混剩余格子
+    for (let i = remainingCells.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [remainingCells[i], remainingCells[j]] = [remainingCells[j], remainingCells[i]];
+    }
+
+    // 清空当前面
+    for (let i = 0; i < 25; i++) {
+      targetSpells[i] = createBlankSpell();
+      targetPortals[i] = 0;
+    }
+
+    // 放置中心高级格
+    targetSpells[centerPos] = centerCell.spell;
+    targetPortals[centerPos] = centerCell.isPortal;
+    spellStatus.value[centerPos] = centerCell.status;
+
+    // 放置其余4个高级格
+    other4Cells.forEach((cell, idx) => {
+      const pos = positions4[idx];
+      targetSpells[pos] = cell.spell;
+      targetPortals[pos] = cell.isPortal;
+      spellStatus.value[pos] = cell.status;
+    });
+
+    // 放置剩余格子到剩余位置
+    const usedPositions = new Set([centerPos, ...positions4]);
+    let remainingIdx = 0;
+    for (let i = 0; i < 25 && remainingIdx < remainingCells.length; i++) {
+      if (!usedPositions.has(i)) {
+        const cell = remainingCells[remainingIdx++];
+        targetSpells[i] = cell.spell;
+        targetPortals[i] = cell.isPortal;
+        spellStatus.value[i] = cell.status;
+      }
+    }
+
+    return { success: true, message: '操作成功' };
   };
 
   // --- 预设管理逻辑 ---
@@ -277,6 +424,46 @@ export const useEditorStore = defineStore("editor", () => {
     }
   };
 
+  // 自动存档保存逻辑：轮询保存到101-110
+  let lastAutoSaveId = AUTO_SAVE_START_ID;
+  const saveAutoSave = () => {
+    // 找到当前要保存的自动存档位置
+    const targetId = lastAutoSaveId;
+    
+    // 保存预设
+    const presetData: EditorPreset = {
+      id: targetId,
+      note: `自动存档 #${targetId - AUTO_SAVE_START_ID + 101}`,
+      timestamp: Date.now(),
+      data: {
+        spells: JSON.parse(JSON.stringify(spells.value)),
+        spells2: JSON.parse(JSON.stringify(spells2.value)),
+        spellStatus: [...spellStatus.value],
+        roomConfig: JSON.parse(JSON.stringify(roomStore.roomConfig)),
+        initialLeftTime: initialLeftTime.value,
+        initialCountDown: initialCountDown.value,
+        initialCdTimeA: initialCdTimeA.value,
+        initialCdTimeB: initialCdTimeB.value,
+        isPortalA: [...normalGameData.is_portal_a],
+        isPortalB: [...normalGameData.is_portal_b],
+      }
+    };
+
+    const index = presets.value.findIndex(p => p.id === targetId);
+    if (index > -1) {
+      presets.value[index] = presetData;
+    } else {
+      presets.value.push(presetData);
+    }
+    local.set("editor_presets", presets.value);
+
+    // 更新下一个保存位置
+    lastAutoSaveId++;
+    if (lastAutoSaveId >= AUTO_SAVE_START_ID + AUTO_SAVE_COUNT) {
+      lastAutoSaveId = AUTO_SAVE_START_ID;
+    }
+  };
+
   const exportPresets = (ids: number[]) => {
     const exportData = presets.value.filter(p => ids.includes(p.id));
     const cleanData = exportData.map(p => {
@@ -330,6 +517,137 @@ export const useEditorStore = defineStore("editor", () => {
     } catch (e) {
       console.error("Import failed", e);
       return false;
+    }
+  };
+
+  // 从指定页开始，顺序寻找空栏位导入预设
+  const importPresetsToEmptySlots = (code: string, startPage: number) => {
+    const result = {
+      success: false,
+      message: '',
+      importedCount: 0,
+      skippedCount: 0
+    };
+
+    try {
+      const binary = atob(code);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const json = pako.inflate(bytes, { to: 'string' });
+      const importedData: Omit<EditorPreset, 'id'>[] = JSON.parse(json);
+
+      // 从起始页开始收集所有空栏位（排除自动存档区域 100-109）
+      const emptySlots: number[] = [];
+      for (let page = startPage; page <= 10; page++) {
+        const pageStartId = (page - 1) * 10;
+        for (let i = 0; i < 10; i++) {
+          const slotId = pageStartId + i;
+          if (slotId >= 100) break; // 跳过自动存档区域
+          if (!presets.value.some(p => p.id === slotId)) {
+            emptySlots.push(slotId);
+          }
+        }
+      }
+
+      let importedCount = 0;
+      importedData.forEach((p, index) => {
+        if (index < emptySlots.length) {
+          const targetId = emptySlots[index];
+          const newPreset: EditorPreset = {
+            ...p,
+            id: targetId
+          };
+          presets.value.push(newPreset);
+          importedCount++;
+        }
+      });
+
+      local.set("editor_presets", presets.value);
+
+      result.importedCount = importedCount;
+      result.skippedCount = importedData.length - importedCount;
+      
+      if (importedCount === 0) {
+        result.success = false;
+        result.message = '没有足够的空栏位，导入失败';
+      } else if (result.skippedCount > 0) {
+        result.success = true;
+        result.message = `成功导入 ${importedCount} 个预设，${result.skippedCount} 个预设因栏位不足未导入`;
+      } else {
+        result.success = true;
+        result.message = `成功导入全部 ${importedCount} 个预设`;
+      }
+
+      return result;
+    } catch (e) {
+      console.error("Import failed", e);
+      result.success = false;
+      result.message = '导入失败，代码格式错误';
+      return result;
+    }
+  };
+
+  // 导入单个预设到指定栏位
+  const importSinglePreset = (code: string, targetId: number) => {
+    const result = {
+      success: false,
+      message: '',
+      warning: false
+    };
+
+    try {
+      const binary = atob(code);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const json = pako.inflate(bytes, { to: 'string' });
+      const importedData: Omit<EditorPreset, 'id'>[] = JSON.parse(json);
+
+      if (importedData.length === 0) {
+        result.success = false;
+        result.message = '导入代码中没有预设数据';
+        return result;
+      }
+
+      // 如果导入代码中有多个预设，选择时间戳最新的一个
+      let selectedPreset = importedData[0];
+      if (importedData.length > 1) {
+        selectedPreset = importedData.reduce((latest, current) => {
+          return (current.timestamp || 0) > (latest.timestamp || 0) ? current : latest;
+        });
+        result.warning = true;
+      }
+
+      const newPreset: EditorPreset = {
+        ...selectedPreset,
+        id: targetId
+      };
+
+      const existingIdx = presets.value.findIndex(existing => existing.id === targetId);
+      if (existingIdx > -1) {
+        presets.value[existingIdx] = newPreset;
+      } else {
+        presets.value.push(newPreset);
+      }
+
+      local.set("editor_presets", presets.value);
+
+      result.success = true;
+      if (result.warning) {
+        result.message = `导入成功（从 ${importedData.length} 个预设中选择了最新的）`;
+      } else {
+        result.message = '导入成功';
+      }
+
+      return result;
+    } catch (e) {
+      console.error("Single import failed", e);
+      result.success = false;
+      result.message = '导入失败，代码格式错误';
+      return result;
     }
   };
 
@@ -507,6 +825,7 @@ export const useEditorStore = defineStore("editor", () => {
     updatePortalStatus,
     clearSpell,
     clearAllSpells,
+    shuffleSpells,
     copySpell,
     pasteSpell,
     closeModal,
@@ -532,6 +851,8 @@ export const useEditorStore = defineStore("editor", () => {
     deletePreset,
     exportPresets,
     importPresets,
+    importPresetsToEmptySlots,
+    importSinglePreset,
     importReplay,
     presetManagerMode,
     openPresetManager,

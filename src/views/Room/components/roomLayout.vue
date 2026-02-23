@@ -537,9 +537,13 @@ defineExpose({ showAlert, hideAlert, warnGamePoint,
   }
 
   & > .sub-button {
-    width: 80px;
+    width: auto;
+    min-width: 80px;
     margin: 0 10px;
-    height: 24px;
+    height: auto;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
   }
 }
 

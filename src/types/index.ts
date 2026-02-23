@@ -121,7 +121,7 @@ export interface RoomConfig {
 }
 
 export interface EditorPreset {
-  id: number; // 0-99, 99为自动存档
+  id: number; // 0-99 为用户预设栏位, 100-109 为自动存档栏位(对应101-110)
   note: string;
   timestamp: number;
   data: {

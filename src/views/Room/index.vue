@@ -238,12 +238,6 @@
             >
               预设管理
             </el-button>
-            <el-button
-              type="danger"
-              @click="handleClearAll"
-            >
-              清空格子
-            </el-button>
           </div>
         </template>
 
@@ -264,6 +258,22 @@
             <el-button v-if="isPlayerA && !inGame" size="small" @click="resetRoom">重置房间</el-button>
             <el-button v-if="isPlayerA && inGame" size="small" @click="stopGame">结束比赛</el-button>
           </template>
+        </div>
+        <div v-else-if="editorStore.isEditorMode">
+          <el-button
+            type="danger"
+            size="small"
+            @click="handleClearAll"
+          >
+            清空格子
+          </el-button>
+          <el-button
+            type="warning"
+            size="small"
+            @click="handleShuffleSpells"
+          >
+            洗混格子
+          </el-button>
         </div>
       </template>
 
@@ -1467,6 +1477,19 @@ const handleClearAll = () => {
   }).then(() => {
     editorStore.clearAllSpells();
     ElMessage.success('已清空');
+  }).catch(() => {});
+};
+
+const handleShuffleSpells = () => {
+  ElMessageBox.confirm('确定要洗混当前盘面的格子吗？此操作不可恢复。', '提示', {
+    type: 'warning',
+    confirmButtonText: '确认洗混',
+    cancelButtonText: '取消'
+  }).then(() => {
+    const result = editorStore.shuffleSpells();
+    if (result.success) {
+      ElMessage.success(result.message);
+    }
   }).catch(() => {});
 };
 
