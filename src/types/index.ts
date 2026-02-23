@@ -102,6 +102,8 @@ export interface RoomConfig {
   need_win: 3; // 需要胜利的局数，例如2表示bo3
   difficulty: 3; // 难度（影响不同星级的卡的分布），1对应E，2对应N，3对应L，其它对应随机
   cd_time: 30; // 选卡cd，收卡后要多少秒才能选下一张卡
+  cd_modifier_a?: number; // 左侧选手CD修正值
+  cd_modifier_b?: number; // 右侧选手CD修正值
   reserved_type: 1; // 纯客户端用的一个类型字段，服务器只负责透传
   blind_setting: 1;
   spell_version: 1;

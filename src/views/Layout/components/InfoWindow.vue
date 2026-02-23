@@ -94,297 +94,326 @@
         <el-tab-pane label="房间设置" :name="1" class="tab-content">
           <el-scrollbar>
             <template v-if="(!soloMode && isHost) || (soloMode && isPlayerA)">
-              <div class="setting-title">基本设置</div>
-              <el-form label-width="90px">
-                <el-form-item label="规则：">
-                  <div class="label-with-button">
-                    <div>
-                      <el-select v-if="showTypeInput" v-model="roomSettings.type" style="width: 150px">
+              <el-collapse v-model="activeCollapseNames">
+                <!-- 基本设置 -->
+                <el-collapse-item title="基本设置" name="basic">
+                  <el-form label-width="90px">
+                    <el-form-item label="规则：">
+                      <div class="label-with-button">
+                        <div>
+                          <el-select v-if="showTypeInput" v-model="roomSettings.type" style="width: 150px">
+                            <el-option
+                              v-for="(item, index) in gameTypeList"
+                              :key="index"
+                              :label="item.name"
+                              :value="item.type"
+                            ></el-option>
+                          </el-select>
+                          <span v-else> {{ roomTypeText }}</span>
+                        </div>
+                        <el-button link type="primary" @click="editType" v-if="!inGame">{{
+                            showTypeInput ? "确认" : "修改"
+                          }}</el-button>
+                      </div>
+                    </el-form-item>
+                    <el-form-item label="比赛时长：" v-if="roomData.type !== BingoType.LINK">
+                      <el-input-number
+                        class="input-number"
+                        v-model="roomSettings.gameTimeLimit[roomData.type]"
+                        :min="10"
+                        :max="180"
+                        :disabled="inGame"
+                        size="small"
+                        controls-position="right"
+                        @change="roomStore.updateRoomConfig('game_time')"
+                      />
+                      <span class="input-number-text">分钟</span>
+                    </el-form-item>
+                    <el-form-item label="倒计时：">
+                      <el-input-number
+                        class="input-number"
+                        v-model="roomSettings.countdownTime[roomData.type]"
+                        :min="0"
+                        :disabled="inGame"
+                        size="small"
+                        controls-position="right"
+                        @change="roomStore.updateRoomConfig('countdown')"
+                      />
+                      <span class="input-number-text">秒</span>
+                    </el-form-item>
+                    <el-form-item label="选卡CD：">
+                      <el-input-number
+                        class="input-number"
+                        v-model="roomSettings.cdTime"
+                        :min="1"
+                        :max="999"
+                        :disabled="inGame"
+                        size="small"
+                        controls-position="right"
+                        @change="roomStore.updateRoomConfig('cd_time')"
+                      />
+                      <span class="input-number-text">秒</span>
+                    </el-form-item>
+                    <el-form-item label="CD修正：">
+                      <el-input-number
+                        class="input-number"
+                        v-model="roomSettings.cdModifierA"
+                        :min="-roomSettings.cdTime+1"
+                        :max="2*roomSettings.cdTime"
+                        :disabled="inGame"
+                        size="small"
+                        controls-position="right"
+                        @change="roomStore.updateRoomConfig('cd_modifier_a')"
+                      />
+                      <span class="input-number-text">秒</span>
+                    </el-form-item>
+                    <el-form-item label="CD修正：">
+                      <el-input-number
+                        class="input-number"
+                        v-model="roomSettings.cdModifierB"
+                        :min="-roomSettings.cdTime+1"
+                        :max="2*roomSettings.cdTime"
+                        :disabled="inGame"
+                        size="small"
+                        controls-position="right"
+                        @change="roomStore.updateRoomConfig('cd_modifier_b')"
+                      />
+                      <span class="input-number-text">秒</span>
+                    </el-form-item>
+                    <el-form-item label="赛制：">
+                      <span style="margin-right: 5px">BO</span>
+                      <el-input-number
+                        class="input-number"
+                        v-model="roomSettings.format"
+                        :min="1"
+                        :max="9"
+                        :step="2"
+                        :disabled="inMatch"
+                        size="small"
+                        controls-position="right"
+                        @change="onFormatChange"
+                      />
+                    </el-form-item>
+                  </el-form>
+                </el-collapse-item>
+
+                <!-- 玩法设置 -->
+                <el-collapse-item title="玩法设置" name="gameplay">
+                  <el-form label-width="90px">
+                    <el-form-item label="卡池设定：">
+                      <el-select
+                          v-model="roomSettings.spell_version"
+                          style="width: 120px"
+                          @change="roomStore.updateRoomConfig()"
+                          :disabled="inGame"
+                      >
                         <el-option
-                          v-for="(item, index) in gameTypeList"
+                            v-for="(item, index) in Config.spellVersionList"
+                            :key="index"
+                            :label="item.name"
+                            :value="item.type"
+                        ></el-option>
+                      </el-select>
+                    </el-form-item>
+                    <el-form-item label="AI练习：" v-if="roomStore.practiceMode && Config.spellListWithTimer.includes(roomSettings.spell_version) ">
+                      <el-checkbox
+                          v-model="roomSettings.use_ai"
+                          :disabled="inGame || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0"
+                          @change="roomStore.updateRoomConfig()"
+                          style="margin-right: 0"
+                      ></el-checkbox>
+                    </el-form-item>
+                    <el-form-item label="AI策略：" v-if="roomSettings.use_ai">
+                      <el-select
+                          v-model="roomSettings.ai_strategy_level"
+                          style="width: 120px"
+                          @change="roomStore.updateRoomConfig('ai_strategy_level')"
+                          :disabled="inGame"
+                      >
+                        <el-option
+                            v-for="(item, index) in aiStrategyLevelList"
+                            :key="index"
+                            :label="item.name"
+                            :value="item.type"
+                        ></el-option>
+                      </el-select>
+                    </el-form-item>
+                    <!--
+                    <el-form-item label="AI风格：" v-if="roomSettings.use_ai && roomSettings.ai_strategy_level >= 3">
+                      <el-select
+                        v-model="roomSettings.ai_style"
+                        style="width: 120px"
+                        @change="roomStore.updateRoomConfig('ai_style')"
+                        :disabled="inGame"
+                      >
+                        <el-option
+                          v-for="(item, index) in aiStyleLevelList"
                           :key="index"
                           :label="item.name"
                           :value="item.type"
                         ></el-option>
                       </el-select>
-                      <span v-else> {{ roomTypeText }}</span>
-                    </div>
-                    <el-button link type="primary" @click="editType" v-if="!inGame">{{
-                        showTypeInput ? "确认" : "修改"
-                      }}</el-button>
-                  </div>
-                </el-form-item>
-                <el-form-item label="比赛时长：" v-if="roomData.type !== BingoType.LINK">
-                  <el-input-number
-                    class="input-number"
-                    v-model="roomSettings.gameTimeLimit[roomData.type]"
-                    :min="10"
-                    :max="180"
-                    :disabled="inGame"
-                    size="small"
-                    controls-position="right"
-                    @change="roomStore.updateRoomConfig('game_time')"
-                  />
-                  <span class="input-number-text">分钟</span>
-                </el-form-item>
-                <el-form-item label="倒计时：">
-                  <el-input-number
-                    class="input-number"
-                    v-model="roomSettings.countdownTime[roomData.type]"
-                    :min="0"
-                    :disabled="inGame"
-                    size="small"
-                    controls-position="right"
-                    @change="roomStore.updateRoomConfig('countdown')"
-                  />
-                  <span class="input-number-text">秒</span>
-                </el-form-item>
-                <el-form-item label="选卡CD：">
-                  <el-input-number
-                    class="input-number"
-                    v-model="roomSettings.cdTime"
-                    :min="0"
-                    :disabled="inGame"
-                    size="small"
-                    controls-position="right"
-                    @change="roomStore.updateRoomConfig('cd_time')"
-                  />
-                  <span class="input-number-text">秒</span>
-                </el-form-item>
-                <el-form-item label="赛制：">
-                  <span style="margin-right: 5px">BO</span>
-                  <el-input-number
-                    class="input-number"
-                    v-model="roomSettings.format"
-                    :min="1"
-                    :max="9"
-                    :step="2"
-                    :disabled="inMatch"
-                    size="small"
-                    controls-position="right"
-                    @change="onFormatChange"
-                  />
-                </el-form-item>
-              </el-form>
-              <el-divider style="margin: 10px 0"></el-divider>
-            </template>
-            <template v-if="(!soloMode && isHost) || (soloMode && isPlayerA)">
-              <div class="setting-title">玩法设置</div>
-              <el-form label-width="90px">
-                <el-form-item label="卡池设定：">
-                  <el-select
-                      v-model="roomSettings.spell_version"
-                      style="width: 120px"
-                      @change="roomStore.updateRoomConfig()"
-                      :disabled="inGame"
-                  >
-                    <el-option
-                        v-for="(item, index) in Config.spellVersionList"
-                        :key="index"
-                        :label="item.name"
-                        :value="item.type"
-                    ></el-option>
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="AI练习：" v-if="roomStore.practiceMode && Config.spellListWithTimer.includes(roomSettings.spell_version) ">
-                  <el-checkbox
-                      v-model="roomSettings.use_ai"
-                      :disabled="inGame || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0"
-                      @change="roomStore.updateRoomConfig()"
-                      style="margin-right: 0"
-                  ></el-checkbox>
-                </el-form-item>
-                <el-form-item label="AI策略：" v-if="roomSettings.use_ai">
-                  <el-select
-                      v-model="roomSettings.ai_strategy_level"
-                      style="width: 120px"
-                      @change="roomStore.updateRoomConfig('ai_strategy_level')"
-                      :disabled="inGame"
-                  >
-                    <el-option
-                        v-for="(item, index) in aiStrategyLevelList"
-                        :key="index"
-                        :label="item.name"
-                        :value="item.type"
-                    ></el-option>
-                  </el-select>
-                </el-form-item>
-                <!--
-                <el-form-item label="AI风格：" v-if="roomSettings.use_ai && roomSettings.ai_strategy_level >= 3">
-                  <el-select
-                    v-model="roomSettings.ai_style"
-                    style="width: 120px"
-                    @change="roomStore.updateRoomConfig('ai_style')"
-                    :disabled="inGame"
-                  >
-                    <el-option
-                      v-for="(item, index) in aiStyleLevelList"
-                      :key="index"
-                      :label="item.name"
-                      :value="item.type"
-                    ></el-option>
-                  </el-select>
-                </el-form-item>
-                -->
-                <el-form-item label="AI底力：" v-if="roomSettings.use_ai">
-                  <div style="display: flex; align-items: center; width: 100%;">
-                    <el-slider
-                      v-model="roomSettings.ai_base_power"
-                      :min="0"
-                      :max="10"
-                      :step="0.1"
-                      :disabled="inGame"
-                      @change="roomStore.updateRoomConfig('ai_base_power')"
-                      style="flex-grow: 1; margin-right: 15px;"
-                    />
-                    <el-input-number
-                      v-model="roomSettings.ai_base_power"
-                      :min="0"
-                      :max="10"
-                      :step="0.1"
-                      :disabled="inGame"
-                      size="small"
-                      controls-position="right"
-                      @change="roomStore.updateRoomConfig('ai_base_power')"
-                      style="width: 130px;"
-                    />
-                  </div>
-                </el-form-item>
-                <el-form-item label="AI熟练度：" v-if="roomSettings.use_ai">
-                  <div style="display: flex; align-items: center; width: 100%;">
-                    <el-slider
-                      v-model="roomSettings.ai_experience"
-                      :min="0"
-                      :max="10"
-                      :step="0.1"
-                      :disabled="inGame"
-                      @change="roomStore.updateRoomConfig('ai_experience')"
-                      style="flex-grow: 1; margin-right: 15px;"
-                    />
-                    <el-input-number
-                      v-model="roomSettings.ai_experience"
-                      :min="0"
-                      :max="10"
-                      :step="0.1"
-                      :disabled="inGame"
-                      size="small"
-                      controls-position="right"
-                      @change="roomStore.updateRoomConfig('ai_experience')"
-                      style="width: 130px;"
-                    />
-                  </div>
-                </el-form-item>
-                <el-form-item label="选卡温度：" v-if="roomSettings.use_ai && roomSettings.ai_strategy_level >= 3">
-                  <div style="display: flex; align-items: center; width: 100%;">
-                    <el-slider
-                      v-model="roomSettings.ai_temperature"
-                      :min="0"
-                      :max="2"
-                      :step="0.05"
-                      :disabled="inGame"
-                      @change="roomStore.updateRoomConfig('ai_temperature')"
-                      style="flex-grow: 1; margin-right: 15px;"
-                    />
-                    <el-input-number
-                      v-model="roomSettings.ai_temperature"
-                      :min="0"
-                      :max="2"
-                      :step="0.05"
-                      :disabled="inGame"
-                      size="small"
-                      controls-position="right"
-                      @change="roomStore.updateRoomConfig('ai_temperature')"
-                      style="width: 130px;"
-                    />
-                  </div>
-                </el-form-item>
-                <el-form-item label="AI相性：" v-if="roomSettings.use_ai">
-                  <el-button
-                      type="primary"
-                      @click="showAIPreferenceBalancer"
-                      size="small"
-                  >
-                    设置相性
-                  </el-button>
-                </el-form-item>
-                <el-form-item label="盲盒设定：">
-                  <el-select
-                      v-model="roomSettings.blind_setting"
-                      style="width: 120px"
-                      @change="roomStore.updateRoomConfig()"
-                      :disabled="inGame"
-                  >
-                    <el-option
-                        v-for="(item, index) in blindTypeList"
-                        :key="index"
-                        :label="item.name"
-                        :value="item.type"
-                    ></el-option>
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="揭示等级" v-if="roomSettings.blind_setting > 1 &&
-                  !(roomSettings.type == BingoType.BP && roomSettings.blind_setting == 3)">
-                  <el-input-number
-                      class="input-number"
-                      v-model="roomSettings.blind_reveal_level"
-                      :min="0"
-                      :max="4"
-                      :step="1"
-                      :disabled="inGame"
-                      size="small"
-                      controls-position="right"
-                      @change="roomStore.updateRoomConfig('blind_reveal_level')"
-                  />
-                  <span class="input-number-text"></span>
-                </el-form-item>
-                <el-form-item label="双重盘面：" v-if="roomSettings.type == BingoType.STANDARD">
-                  <el-select
-                      v-model="roomSettings.dual_board"
-                      style="width: 120px"
-                      @change="roomStore.updateRoomConfig()"
-                      :disabled="inGame"
-                  >
-                    <el-option
-                        v-for="(item, index) in dualTypeList"
-                        :key="index"
-                        :label="item.name"
-                        :value="item.type"
-                    ></el-option>
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="转换格数：" v-if="roomSettings.dual_board > 0 && roomSettings.type == BingoType.STANDARD">
-                  <el-input-number
-                      class="input-number"
-                      v-model="roomSettings.portal_count"
-                      :min="1"
-                      :max="25"
-                      :step="1"
-                      :disabled="inGame"
-                      size="small"
-                      controls-position="right"
-                      @change="roomStore.updateRoomConfig('portal_count')"
-                  />
-                  <span class="input-number-text">格</span>
-                </el-form-item>
-                <el-form-item label="差异等级：" v-if="roomSettings.dual_board > 0 && roomSettings.type == BingoType.STANDARD">
-                  <el-input-number
-                      class="input-number"
-                      v-model="roomSettings.diff_level"
-                      :min="-1"
-                      :max="5"
-                      :step="1"
-                      :disabled="inGame"
-                      size="small"
-                      controls-position="right"
-                      @change="roomStore.updateRoomConfig('diff_level')"
-                  />
-                  <span class="input-number-text"></span>
-                </el-form-item>
-              </el-form>
-              <el-divider style="margin: 10px 0"></el-divider>
-            </template>
-            <template v-if="(!soloMode && isHost) || (soloMode && isPlayerA)">
-              <div class="setting-title">作品设置</div>
+                    </el-form-item>
+                    -->
+                    <el-form-item label="AI底力：" v-if="roomSettings.use_ai">
+                      <div style="display: flex; align-items: center; width: 100%;">
+                        <el-slider
+                          v-model="roomSettings.ai_base_power"
+                          :min="0"
+                          :max="10"
+                          :step="0.1"
+                          :disabled="inGame"
+                          @change="roomStore.updateRoomConfig('ai_base_power')"
+                          style="flex-grow: 1; margin-right: 15px;"
+                        />
+                        <el-input-number
+                          v-model="roomSettings.ai_base_power"
+                          :min="0"
+                          :max="10"
+                          :step="0.1"
+                          :disabled="inGame"
+                          size="small"
+                          controls-position="right"
+                          @change="roomStore.updateRoomConfig('ai_base_power')"
+                          style="width: 130px;"
+                        />
+                      </div>
+                    </el-form-item>
+                    <el-form-item label="AI熟练度：" v-if="roomSettings.use_ai">
+                      <div style="display: flex; align-items: center; width: 100%;">
+                        <el-slider
+                          v-model="roomSettings.ai_experience"
+                          :min="0"
+                          :max="10"
+                          :step="0.1"
+                          :disabled="inGame"
+                          @change="roomStore.updateRoomConfig('ai_experience')"
+                          style="flex-grow: 1; margin-right: 15px;"
+                        />
+                        <el-input-number
+                          v-model="roomSettings.ai_experience"
+                          :min="0"
+                          :max="10"
+                          :step="0.1"
+                          :disabled="inGame"
+                          size="small"
+                          controls-position="right"
+                          @change="roomStore.updateRoomConfig('ai_experience')"
+                          style="width: 130px;"
+                        />
+                      </div>
+                    </el-form-item>
+                    <el-form-item label="选卡温度：" v-if="roomSettings.use_ai && roomSettings.ai_strategy_level >= 3">
+                      <div style="display: flex; align-items: center; width: 100%;">
+                        <el-slider
+                          v-model="roomSettings.ai_temperature"
+                          :min="0"
+                          :max="2"
+                          :step="0.05"
+                          :disabled="inGame"
+                          @change="roomStore.updateRoomConfig('ai_temperature')"
+                          style="flex-grow: 1; margin-right: 15px;"
+                        />
+                        <el-input-number
+                          v-model="roomSettings.ai_temperature"
+                          :min="0"
+                          :max="2"
+                          :step="0.05"
+                          :disabled="inGame"
+                          size="small"
+                          controls-position="right"
+                          @change="roomStore.updateRoomConfig('ai_temperature')"
+                          style="width: 130px;"
+                        />
+                      </div>
+                    </el-form-item>
+                    <el-form-item label="AI相性：" v-if="roomSettings.use_ai">
+                      <el-button
+                          type="primary"
+                          @click="showAIPreferenceBalancer"
+                          size="small"
+                      >
+                        设置相性
+                      </el-button>
+                    </el-form-item>
+                    <el-form-item label="盲盒设定：">
+                      <el-select
+                          v-model="roomSettings.blind_setting"
+                          style="width: 120px"
+                          @change="roomStore.updateRoomConfig()"
+                          :disabled="inGame"
+                      >
+                        <el-option
+                            v-for="(item, index) in blindTypeList"
+                            :key="index"
+                            :label="item.name"
+                            :value="item.type"
+                        ></el-option>
+                      </el-select>
+                    </el-form-item>
+                    <el-form-item label="揭示等级" v-if="roomSettings.blind_setting > 1 &&
+                      !(roomSettings.type == BingoType.BP && roomSettings.blind_setting == 3)">
+                      <el-input-number
+                          class="input-number"
+                          v-model="roomSettings.blind_reveal_level"
+                          :min="0"
+                          :max="4"
+                          :step="1"
+                          :disabled="inGame"
+                          size="small"
+                          controls-position="right"
+                          @change="roomStore.updateRoomConfig('blind_reveal_level')"
+                      />
+                      <span class="input-number-text"></span>
+                    </el-form-item>
+                    <el-form-item label="双重盘面：" v-if="roomSettings.type == BingoType.STANDARD">
+                      <el-select
+                          v-model="roomSettings.dual_board"
+                          style="width: 120px"
+                          @change="roomStore.updateRoomConfig()"
+                          :disabled="inGame"
+                      >
+                        <el-option
+                            v-for="(item, index) in dualTypeList"
+                            :key="index"
+                            :label="item.name"
+                            :value="item.type"
+                        ></el-option>
+                      </el-select>
+                    </el-form-item>
+                    <el-form-item label="转换格数：" v-if="roomSettings.dual_board > 0 && roomSettings.type == BingoType.STANDARD">
+                      <el-input-number
+                          class="input-number"
+                          v-model="roomSettings.portal_count"
+                          :min="1"
+                          :max="25"
+                          :step="1"
+                          :disabled="inGame"
+                          size="small"
+                          controls-position="right"
+                          @change="roomStore.updateRoomConfig('portal_count')"
+                      />
+                      <span class="input-number-text">格</span>
+                    </el-form-item>
+                    <el-form-item label="差异等级：" v-if="roomSettings.dual_board > 0 && roomSettings.type == BingoType.STANDARD">
+                      <el-input-number
+                          class="input-number"
+                          v-model="roomSettings.diff_level"
+                          :min="-1"
+                          :max="5"
+                          :step="1"
+                          :disabled="inGame"
+                          size="small"
+                          controls-position="right"
+                          @change="roomStore.updateRoomConfig('diff_level')"
+                      />
+                      <span class="input-number-text"></span>
+                    </el-form-item>
+                  </el-form>
+                </el-collapse-item>
+            
+            <!-- 作品设置 -->
+            <el-collapse-item title="作品设置" name="game">
               <el-form label-width="90px">
                 <el-form-item label="作品BP：">
                   <el-checkbox
@@ -426,7 +455,7 @@
                 </el-form-item>
                 <el-form-item label="生成权重：">
                   <el-button
-                      type="primary"
+                      :type="isWeightModified ? 'success' : 'primary'"
                       @click="showWeightBalancer"
                       :disabled="gameList.length <= 1 || inGame"
                       size="small"
@@ -457,11 +486,12 @@
                   </el-button>
                 </el-form-item>
               </el-form>
-              <el-divider style="margin: 10px 0"></el-divider>
-            </template>
-            <div class="setting-title">左侧玩家设置</div>
-            <el-form label-width="90px">
-              <el-form-item label="颜色：">
+            </el-collapse-item>
+
+            <!-- 左侧玩家设置 -->
+            <el-collapse-item title="左侧玩家设置" name="playerA">
+              <el-form label-width="90px">
+                <el-form-item label="颜色：">
                 <el-color-picker
                   v-model="roomSettings.playerA.color"
                   size="small"
@@ -497,8 +527,10 @@
                 </el-form-item>
               </template>
             </el-form>
-            <el-divider style="margin: 10px 0"></el-divider>
-            <div class="setting-title">右侧玩家设置</div>
+          </el-collapse-item>
+
+          <!-- 右侧玩家设置 -->
+          <el-collapse-item title="右侧玩家设置" name="playerB">
             <el-form label-width="90px">
               <el-form-item label="颜色：">
                 <el-color-picker
@@ -536,8 +568,10 @@
                 </el-form-item>
               </template>
             </el-form>
-            <el-divider style="margin: 10px 0"></el-divider>
-            <div class="setting-title">通用设置</div>
+          </el-collapse-item>
+
+          <!-- 通用设置 -->
+          <el-collapse-item title="通用设置" name="general">
             <el-form label-width="90px">
               <el-form-item label="BGM静音：">
                 <el-checkbox v-model="roomSettings.bgmMuted" @change="saveRoomSettings"></el-checkbox>
@@ -590,10 +624,13 @@
                 />
                 <span class="input-number-text">秒</span>
               </el-form-item>
-              <el-form-item label="单人练习不判定胜利：">
+              <el-form-item label="练习不结束">
                 <el-checkbox v-model="roomSettings.noWinningDeclaration" @change="saveRoomSettings" :disabled="inGame"></el-checkbox>
               </el-form-item>
             </el-form>
+          </el-collapse-item>
+        </el-collapse>
+      </template>
           </el-scrollbar>
         </el-tab-pane>
         <el-tab-pane label="操作记录" :name="2" class="tab-content">
@@ -655,6 +692,7 @@ import {
   ElFormItem,
   ElButton,
   ElMessage,
+  ElMessageBox,
   ElSelect,
   ElOption,
   ElCheckboxGroup,
@@ -668,6 +706,8 @@ import {
   ElInput,
   ElIcon,
   ElSlider,
+  ElCollapse,
+  ElCollapseItem,
 } from "element-plus";
 import Config from "@/config";
 import { useRoomStore } from "@/store/RoomStore";
@@ -961,7 +1001,20 @@ const customDifficultyButtonType = computed(() => {
   return sum === 25 ? 'success' : 'danger';
 });
 
+// 检查生成权重是否有任何非默认值
+const isWeightModified = computed(() => {
+  const weights = roomSettings.value.game_weight;
+  if (!weights || Object.keys(weights).length === 0) {
+    return false;
+  }
+  // 检查是否有任何权重值不等于1（默认值为1）
+  return Object.values(weights).some(value => value !== 0);
+});
+
 const showDoc = ref(false);
+
+// 折叠面板的展开状态，默认全部展开
+const activeCollapseNames = ref(['basic', 'gameplay', 'game', 'playerA', 'playerB', 'general']);
 </script>
 
 <style scoped lang="scss">
@@ -1075,5 +1128,35 @@ const showDoc = ref(false);
   width: 40px;
   height: 40px;
   font-size: 20px;
+}
+
+:deep(.el-collapse) {
+  border: none;
+  background-color: rgba(0, 0, 0, 0.0);
+}
+
+:deep(.el-collapse-item__header) {
+  font-size: 15px;
+  font-weight: 600;
+  background-color: rgba(0, 0, 0, 0.0);
+  border-radius: 2px;
+  margin-bottom: 6px;
+  height: 28px;
+  line-height: 28px;
+  display: flex;
+  align-items: center; /* 垂直居中 */
+  min-height: 28px;
+  padding: 0 4px;
+  width: 280px;
+}
+
+:deep(.el-collapse-item__wrap) {
+  border: none;
+  background-color: transparent;
+}
+
+:deep(.el-collapse-item__content) {
+  padding-bottom: 10px;
+  background-color: transparent;
 }
 </style>

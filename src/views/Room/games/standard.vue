@@ -88,7 +88,7 @@
             @click="confirmSelect"
             :disabled="selectedSpellIndex < 0 || gamePaused"
             v-if="!spellCardSelected"
-            :cooldown="gameStore.leftCdTime || roomStore.roomConfig.cd_time || 30"
+            :cooldown="gameStore.leftCdTime >= 0 ? gameStore.leftCdTime : (isPlayerA.value ? roomStore.actualCdTimeA : roomStore.actualCdTimeB)"
             :immediate="gamePhase > 1"
             text="选择符卡"
           ></confirm-select-button>

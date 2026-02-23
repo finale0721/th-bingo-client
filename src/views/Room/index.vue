@@ -736,7 +736,8 @@ const selectCooldown = computed(() => {
   if (!gameStore.inited) {
     return -1;
   }
-  const c = gameStore.leftCdTime < 0 ? roomConfig.value.cd_time * 1000 : gameStore.leftCdTime;
+  const c = gameStore.leftCdTime >= 0 ? gameStore.leftCdTime :
+    isPlayerA.value ? roomStore.actualCdTimeA : roomStore.actualCdTimeB;
   return c;
 });
 

@@ -54,6 +54,8 @@ export const useRoomStore = defineStore("room", () => {
     gameTimeLimit,
     countdownTime,
     cdTime: 30,
+    cdModifierA: 0, // 左侧选手CD修正值
+    cdModifierB: 0, // 右侧选手CD修正值
     format: 1,
     checkList: ["6", "7", "8", "10", "11", "12", "13", "14", "15", "16", "17", "18"],
     rankList: ["L", "EX"],
@@ -127,6 +129,8 @@ export const useRoomStore = defineStore("room", () => {
     need_win: 3, // 需要胜利的局数，例如2表示bo3
     difficulty: 3, // 难度（影响不同星级的卡的分布），1对应E，2对应N，3对应L，其它对应随机
     cd_time: 30, // 选卡cd，收卡后要多少秒才能选下一张卡
+    cd_modifier_a: 0, // 左侧选手CD修正值
+    cd_modifier_b: 0, // 右侧选手CD修正值
     reserved_type: 1, // 纯客户端用的一个类型字段，服务器只负责透传
     blind_setting: 1,
     spell_version: 1,
@@ -158,6 +162,7 @@ export const useRoomStore = defineStore("room", () => {
 
   const updateRoomConfig = (
     key?: "type" | "game_time" | "countdown" | "games" | "ranks" | "need_win" | "difficulty" | "cd_time"
+      | "cd_modifier_a" | "cd_modifier_b"
       | "blind_setting" | "spell_version" | "dual_board" | "portal_count" | "blind_reveal_level" | "diff_level"
       | "use_ai" | "ai_strategy_level" | "ai_style" | "ai_base_power" | "ai_experience" | "ai_temperature"
       | "game_weight" | "ai_preference" | "custom_level_count",
@@ -173,6 +178,8 @@ export const useRoomStore = defineStore("room", () => {
       need_win: (roomSettings.format + 1) / 2,
       difficulty: roomSettings.difficulty,
       cd_time: roomSettings.cdTime,
+      cd_modifier_a: roomSettings.cdModifierA,
+      cd_modifier_b: roomSettings.cdModifierB,
       blind_setting : roomSettings.blind_setting,
       spell_version : roomSettings.spell_version,
       dual_board: roomSettings.dual_board,
@@ -249,6 +256,8 @@ export const useRoomStore = defineStore("room", () => {
           need_win: (roomSettings.format + 1) / 2,
           difficulty: roomSettings.difficulty,
           cd_time: roomSettings.cdTime,
+          cd_modifier_a: roomSettings.cdModifierA,
+          cd_modifier_b: roomSettings.cdModifierB,
           blind_setting: roomSettings.blind_setting,
           spell_version: roomSettings.spell_version,
           dual_board: roomSettings.dual_board,
@@ -457,6 +466,23 @@ export const useRoomStore = defineStore("room", () => {
     return ws.send(WebSocketActionType.GET_ROOM_LIST);
   };
 
+  // 计算各选手的实际CD时间（毫秒）
+  const actualCdTimeA = computed(() => {
+    const baseCd = (roomConfig.cd_time || 0) * 1000;
+    const modifier = (roomConfig.cd_modifier_a || 0) * 1000;
+    const actual = baseCd + modifier;
+    // 最低1秒，最高为基础值的3倍
+    return Math.max(1000, Math.min(actual, baseCd * 3));
+  });
+
+  const actualCdTimeB = computed(() => {
+    const baseCd = (roomConfig.cd_time || 0) * 1000;
+    const modifier = (roomConfig.cd_modifier_b || 0) * 1000;
+    const actual = baseCd + modifier;
+    // 最低1秒，最高为基础值的3倍
+    return Math.max(1000, Math.min(actual, baseCd * 3));
+  });
+
   return {
     roomId,
     soloMode,
@@ -488,5 +514,7 @@ export const useRoomStore = defineStore("room", () => {
     startBanPick,
     banPickCard,
     getRoomList,
+    actualCdTimeA,
+    actualCdTimeB,
   };
 });

@@ -56,6 +56,8 @@ class Replay {
     need_win: 3, // 需要胜利的局数，例如2表示bo3
     difficulty: 3, // 难度（影响不同星级的卡的分布），1对应E，2对应N，3对应L，其它对应随机
     cd_time: 30, // 选卡cd，收卡后要多少秒才能选下一张卡
+    cd_modifier_a: 0, // 左侧选手CD修正值
+    cd_modifier_b: 0, // 右侧选手CD修正值
     reserved_type: 1, // 纯客户端用的一个类型字段，服务器只负责透传
     blind_setting: 1,
     spell_version: 1,
@@ -502,9 +504,18 @@ class Replay {
     output.push("---");
 
     // 2. 游戏设置
-    output.push("【游戏设置】");
+    output.push("【游戎设置】");
     output.push(`模式: ${Config.gameTypeList.find((g) => g.type === roomConfig.type)?.name || "未知"}`);
-    output.push(`时长: ${roomConfig.game_time}分钟, 倒计时: ${roomConfig.countdown}秒, cd： ${roomConfig.cd_time}秒`);
+        
+    // 显示CD信息，如果有修正值则显示实际CD
+    let cdInfo = `时长: ${roomConfig.game_time}分钟, 倒计时: ${roomConfig.countdown}秒, cd： ${roomConfig.cd_time}秒`;
+    if (roomConfig.cd_modifier_a !== undefined && roomConfig.cd_modifier_a !== 0 || 
+        roomConfig.cd_modifier_b !== undefined && roomConfig.cd_modifier_b !== 0) {
+      const actualA = Math.max(1, Math.min(roomConfig.cd_time + (roomConfig.cd_modifier_a || 0), roomConfig.cd_time * 3));
+      const actualB = Math.max(1, Math.min(roomConfig.cd_time + (roomConfig.cd_modifier_b || 0), roomConfig.cd_time * 3));
+      cdInfo += ` (左侧: ${actualA}秒, 右侧: ${actualB}秒)`;
+    }
+    output.push(cdInfo);
     // 1. 添加符卡来源与游戏难度
     if(isCustomGame){
       output.push(`卡池：自定义`);
