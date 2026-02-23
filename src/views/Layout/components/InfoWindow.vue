@@ -186,7 +186,7 @@
                     ></el-option>
                   </el-select>
                 </el-form-item>
-                <el-form-item label="AI练习：" v-if="roomStore.practiceMode && roomSettings.spell_version == 1 ">
+                <el-form-item label="AI练习：" v-if="roomStore.practiceMode && Config.spellListWithTimer.includes(roomSettings.spell_version) ">
                   <el-checkbox
                       v-model="roomSettings.use_ai"
                       :disabled="inGame || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0"

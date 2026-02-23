@@ -347,13 +347,12 @@ class Replay {
     }
   }
 
-  public getDifficultyFix = (difficulty: number): number => {
-    if (difficulty < 4) return 1.0;
-    if (difficulty < 8) return 1.0 - (difficulty - 4) * 0.025;
-    if (difficulty < 12) return 0.9 - (difficulty - 8) * 0.0375;
-    if (difficulty < 14) return 0.75 - (difficulty - 12) * 0.05;
-    if (difficulty < 16) return 0.65 - (difficulty - 14) * 0.1;
-    return 0.45;
+  public getDifficultyFix = (spell: Spell): number => {
+    const difficulty = spell.difficulty;
+    const max = spell.max_cap_rate;
+    if(difficulty < 7) return max;
+    if(difficulty < 17) return max * (1.0 - (difficulty - 7) * 0.03);
+    return max * 0.7;
   };
 
   public uint8ArrayToBase64 = (array: Uint8Array): string => {
@@ -813,7 +812,7 @@ class Replay {
               stats.totalTime += duration;
               stats.totalFastest += spell.fastest;
               stats.totalStars[spell.star - 1] += 1;
-              stats.totalFastestWeighted += spell.fastest + 3.5 + (1 / this.getDifficultyFix(spell.difficulty) - 1) * (spell.miss_time + 1.5);
+              stats.totalFastestWeighted += spell.fastest + 3.5 + (1 / this.getDifficultyFix(spell) - 1) * (spell.miss_time + 1.5);
               stats.completedTasks.push(`- "${spell.name}": ${(duration / 1000).toFixed(2)}s`);
             }
           } else {
@@ -844,7 +843,7 @@ class Replay {
             stats.totalTime += duration;
             stats.totalFastest += spell.fastest;
             stats.totalStars[spell.star - 1] += 1;
-            stats.totalFastestWeighted += spell.fastest + 3.5 + (1 / this.getDifficultyFix(spell.difficulty) - 1) * (spell.miss_time + 1.5);
+            stats.totalFastestWeighted += spell.fastest + 3.5 + (1 / this.getDifficultyFix(spell) - 1) * (spell.miss_time + 1.5);
             stats.completedTasks.push(`- "${spell.name}": ${(duration / 1000).toFixed(2)}s`);
           }
         } else {
@@ -905,7 +904,7 @@ class Replay {
       output.push(`总计收取 ${stats.completedTasks.length} 张符卡，等级分布: [${stats.totalStars.join(',')}]`);
       output.push(`总用时: ${formatTimestamp(totalEffectiveTime)} (收取: ${formatTimestamp(stats.totalTime)}, 被抢损失: ${formatTimestamp(stats.stolenTime)})`);
 
-      if (roomConfig.spell_version === Config.spellListWithTimer && !isCustomGame) {
+      if (Config.spellListWithTimer.includes(roomConfig.spell_version) && !isCustomGame) {
         const efficiency = stats.totalTime > 0 ? ((stats.totalFastest * 1000) / stats.totalTime * 100).toFixed(2) : 'N/A';
         output.push(`全局效率（理论值，不含抢卡）: ${efficiency}%`);
 

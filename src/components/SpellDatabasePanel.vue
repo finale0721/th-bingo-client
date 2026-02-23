@@ -87,7 +87,7 @@
               {{ scope.row.star }} <el-icon color="#e6a23c"><StarFilled /></el-icon>
             </template>
           </el-table-column>
-          <el-table-column prop="desc" label="位置" min-width="100" show-overflow-tooltip />
+          <el-table-column prop="desc" label="位置" min-width="100" sortable="custom"  show-overflow-tooltip />
 
           <el-table-column label="操作" width="140" fixed="right" align="center">
             <template #default="scope">
@@ -212,7 +212,7 @@ const stopDrag = () => {
 const activeTab = ref<'local' | 'server'>('local');
 const cooldown = ref(0);
 const currentPage = ref(1);
-const pageSize = ref(20);
+const pageSize = ref(12);
 
 // 排序状态
 const sortState = reactive({

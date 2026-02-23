@@ -111,7 +111,7 @@ export const useRoomStore = defineStore("room", () => {
   };
 
   const checkAIPracticeEnabled = () => {
-    if(!(practiceMode.value) || roomSettings.spell_version != 1 || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0){
+    if(!(practiceMode.value) || !Config.spellListWithTimer.includes(roomSettings.spell_version) || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0){
       roomSettings.use_ai = false;
     }
   }
