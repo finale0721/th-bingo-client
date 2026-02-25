@@ -504,7 +504,7 @@ class Replay {
     output.push("---");
 
     // 2. 游戏设置
-    output.push("【游戎设置】");
+    output.push("【游戏设置】");
     output.push(`模式: ${Config.gameTypeList.find((g) => g.type === roomConfig.type)?.name || "未知"}`);
         
     // 显示CD信息，如果有修正值则显示实际CD
@@ -521,7 +521,7 @@ class Replay {
       output.push(`卡池：自定义`);
     }else{
       output.push(`卡池：${Config.spellVersionList.find((n) => n.type === roomConfig.spell_version)?.name}`);
-      const gameNames = roomConfig.games
+      const gameNames = roomConfig.games.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
         .map((code) => Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === code)?.name)
         .filter(Boolean)
         .join(", ");
@@ -747,6 +747,7 @@ class Replay {
       const opponentStats = playerStats[opponent];
 
       const playerIndex = players.indexOf(player);
+      const isHost = playerIndex === -1;
 
       if (action.actionType === 'select') {
         stats.selectStack.push(action);
@@ -789,8 +790,9 @@ class Replay {
         }
 
         // 1) set-X as a selection
-        const isPlayerASelect = playerIndex === 0 && (status === SpellStatus.A_SELECTED || status === SpellStatus.BOTH_SELECTED);
-        const isPlayerBSelect = playerIndex === 1 && (status === SpellStatus.B_SELECTED || status === SpellStatus.BOTH_SELECTED);
+        // host select also accounts for both players
+        const isPlayerASelect = (playerIndex === 0 || isHost) && (status === SpellStatus.A_SELECTED || status === SpellStatus.BOTH_SELECTED);
+        const isPlayerBSelect = (playerIndex === 1 || isHost) && (status === SpellStatus.B_SELECTED || status === SpellStatus.BOTH_SELECTED);
         if (isPlayerASelect || isPlayerBSelect) {
           stats.selectStack.push(action);
         }
