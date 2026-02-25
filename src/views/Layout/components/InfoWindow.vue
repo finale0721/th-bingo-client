@@ -93,10 +93,10 @@
         </el-tab-pane>
         <el-tab-pane label="房间设置" :name="1" class="tab-content">
           <el-scrollbar>
-            <template v-if="(!soloMode && isHost) || (soloMode && isPlayerA)">
+            <template v-if="inRoom">
               <el-collapse v-model="activeCollapseNames">
                 <!-- 基本设置 -->
-                <el-collapse-item title="基本设置" name="basic">
+                <el-collapse-item title="基本设置" name="basic" v-if="(!soloMode && isHost) || (soloMode && isPlayerA)">
                   <el-form label-width="90px">
                     <el-form-item label="规则：">
                       <div class="label-with-button">
@@ -155,11 +155,12 @@
                       <span class="input-number-text">秒</span>
                     </el-form-item>
                     <el-form-item label="CD修正：">
+                      <span style="margin-right: 5px">左侧</span>
                       <el-input-number
                         class="input-number"
                         v-model="roomSettings.cdModifierA"
                         :min="-roomSettings.cdTime+1"
-                        :max="2*roomSettings.cdTime"
+                        :max="999"
                         :disabled="inGame"
                         size="small"
                         controls-position="right"
@@ -168,11 +169,12 @@
                       <span class="input-number-text">秒</span>
                     </el-form-item>
                     <el-form-item label="CD修正：">
+                      <span style="margin-right: 5px">右侧</span>
                       <el-input-number
                         class="input-number"
                         v-model="roomSettings.cdModifierB"
                         :min="-roomSettings.cdTime+1"
-                        :max="2*roomSettings.cdTime"
+                        :max="999"
                         :disabled="inGame"
                         size="small"
                         controls-position="right"
@@ -198,7 +200,7 @@
                 </el-collapse-item>
 
                 <!-- 玩法设置 -->
-                <el-collapse-item title="玩法设置" name="gameplay">
+                <el-collapse-item title="玩法设置" name="gameplay" v-if="(!soloMode && isHost) || (soloMode && isPlayerA)">
                   <el-form label-width="90px">
                     <el-form-item label="卡池设定：">
                       <el-select
@@ -413,7 +415,7 @@
                 </el-collapse-item>
             
             <!-- 作品设置 -->
-            <el-collapse-item title="作品设置" name="game">
+            <el-collapse-item title="作品设置" name="game" v-if="(!soloMode && isHost) || (soloMode && isPlayerA)">
               <el-form label-width="90px">
                 <el-form-item label="作品BP：">
                   <el-checkbox
@@ -489,7 +491,7 @@
             </el-collapse-item>
 
             <!-- 左侧玩家设置 -->
-            <el-collapse-item title="左侧玩家设置" name="playerA">
+            <el-collapse-item title="左侧玩家设置" name="playerA" >
               <el-form label-width="90px">
                 <el-form-item label="颜色：">
                 <el-color-picker
