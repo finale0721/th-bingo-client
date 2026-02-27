@@ -484,9 +484,25 @@ class Replay {
       return `${minutes}:${seconds}`;
     };
 
-    const customPadEnd = (str: string, targetLength: number, padString = " "): string => {
+    // 计算字符串的视觉宽度（中文字符算2个宽度）
+    const getVisualLength = (str: string): number => {
       const wideCharRegex = /[\u4e00-\u9fa5\uff00-\uffef]/g;
-      const visualLength = str.replace(wideCharRegex, "  ").length;
+      return str.replace(wideCharRegex, "  ").length;
+    };
+
+    // 在字符串前面填充，实现右对齐（尾部对齐）
+    const padStart = (str: string, targetLength: number, padString = " "): string => {
+      const visualLength = getVisualLength(str);
+      const paddingLength = targetLength - visualLength;
+      if (paddingLength <= 0) {
+        return str;
+      }
+      return padString.repeat(paddingLength) + str;
+    };
+
+    // 在字符串后面填充，实现左对齐
+    const padEnd = (str: string, targetLength: number, padString = " "): string => {
+      const visualLength = getVisualLength(str);
       const paddingLength = targetLength - visualLength;
       if (paddingLength <= 0) {
         return str;
@@ -584,28 +600,28 @@ class Replay {
     // 3. 盘面符卡
     const formatBoard = (boardSpells: Spell[], portals: number[] | undefined, title: string) => {
       output.push(title);
-      const CELL_WIDTH = 32; // 定义每个单元格的视觉宽度
+      const CELL_WIDTH = 36; // 定义每个单元格的视觉宽度
       for (let i = 0; i < 5; i++) {
-        let row = customPadEnd(`${i + 1} | `, 5);
+        let row = padStart(`${i + 1} | `, 5);
         for (let j = 0; j < 5; j++) {
           const index = i * 5 + j;
           const spell = boardSpells[index];
           const isPortal = portals && portals[index] === 1 ? " (P)" : "";
           const cellContent = `${spell.name.trim()}${isPortal} | `;
-          row += customPadEnd(cellContent, CELL_WIDTH);
+          row += padStart(cellContent, CELL_WIDTH);
         }
         output.push(row);
       }
 
       output.push("【等级分布】");
       for (let i = 0; i < 5; i++) {
-        let row = customPadEnd(`${i + 1} | `, 5);
+        let row = padStart(`${i + 1} | `, 5);
         for (let j = 0; j < 5; j++) {
           const index = i * 5 + j;
           const spell = boardSpells[index];
-          const isPortal = portals && portals[index] === 1 ? " (P)" : "";
-          const cellContent = `${spell.star}${isPortal} | `;
-          row += customPadEnd(cellContent, 8);
+          const isPortal = portals && portals[index] === 1 ? "(P)" : "";
+          const cellContent = `${spell.star}${isPortal}`;
+          row += padStart(cellContent, 10);
         }
         output.push(row);
       }
@@ -741,7 +757,7 @@ class Replay {
       // getOnWhichBoard: 0x1: Left/A, 0x2: Left/B, 0x10: Right/A, 0x20: Right/B
       const getInfo = normalData.get_on_which_board[action.spellIndex];
       const playerIndex = players.indexOf(action.playerName);
-      const boardFlag = playerIndex === 0 ? (getInfo & 0x0F) : (getInfo >> 4);
+      const boardFlag = playerIndex === 0 ? (getInfo & 0x0F) : ((getInfo >> 4) & 0x0F);
 
       if (boardFlag === 1) return spells[action.spellIndex]; // 在盘面A收取
       if (boardFlag === 2) return spells2[action.spellIndex]; // 在盘面B收取
@@ -803,14 +819,14 @@ class Replay {
         }
 
         // 1) set-X as a selection
-        // host select also accounts for both players
-        const isPlayerASelect = (playerIndex === 0 || isHost) && (status === SpellStatus.A_SELECTED || status === SpellStatus.BOTH_SELECTED);
-        const isPlayerBSelect = (playerIndex === 1 || isHost) && (status === SpellStatus.B_SELECTED || status === SpellStatus.BOTH_SELECTED);
+        const isPlayerASelect = (status === SpellStatus.A_SELECTED || status === SpellStatus.BOTH_SELECTED);
+        const isPlayerBSelect = (status === SpellStatus.B_SELECTED || status === SpellStatus.BOTH_SELECTED);
         if (isPlayerASelect || isPlayerBSelect) {
           stats.selectStack.push(action);
         }
 
         // 2) set-X as a collection
+        // Here, we regard opponent-set get as INVALID
         const isPlayerAAttain = playerIndex === 0 && status === SpellStatus.A_ATTAINED;
         const isPlayerBAttain = playerIndex === 1 && status === SpellStatus.B_ATTAINED;
         if (isPlayerAAttain || isPlayerBAttain) {
@@ -941,15 +957,26 @@ class Replay {
         const maxGameTimeMs = roomConfig.game_time * 60 * 1000;
         // min(全局最后一次得分时间 - countdown, 游戏设定最大时间)
         const availableTimeBase = Math.min(lastScoreTime - countdownMs, maxGameTimeMs);
+        // 计算全局总暂停时间
+        let totalPauseTime = 0;
+        let pauseStart = 0;
+        for (const action of actions) {
+          if (action.actionType === 'pause') {
+            pauseStart = action.timestamp;
+          } else if (action.actionType === 'resume' && pauseStart > 0) {
+            totalPauseTime += action.timestamp - pauseStart;
+            pauseStart = 0;
+          }
+        }
         // 该选手的CD（毫秒），考虑CD修正值
         const playerIndex = players.indexOf(player);
         const cdModifier = playerIndex === 0 ? (roomConfig.cd_modifier_a || 0) : (roomConfig.cd_modifier_b || 0);
         const playerCdMs = (Math.max(1, Math.min(roomConfig.cd_time + cdModifier, roomConfig.cd_time * 3))) * 1000;
         // 该选手比分
         const playerScore = score[playerIndex] || 0;
-        // 可行动时间 = 基础可用时间 - 选手CD * min(11, 选手比分 - 1)
+        // 可行动时间 = 基础可用时间 - 全局总暂停时间 - 选手CD * min(11, 选手比分 - 1)
         const cdPenalty = playerCdMs * Math.min(11, Math.max(0, playerScore - 1));
-        const totalAvailableTime = Math.max(0, availableTimeBase - cdPenalty);
+        const totalAvailableTime = Math.max(0, availableTimeBase - totalPauseTime - cdPenalty);
         
         const eff_weighted = totalAvailableTime > 0 ? ((stats.totalFastestWeighted * 1000) / totalAvailableTime * 100).toFixed(2) : 'N/A';
         output.push(`总时间效率: ${eff_weighted}%`);

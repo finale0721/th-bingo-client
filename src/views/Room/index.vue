@@ -466,13 +466,13 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
             ...data,
             {
               label: "选择",
-              value: 3,
-              tag: "playerB",
+              value: 1,
+              tag: "playerA",
             },
             {
               label: "收取",
-              value: 7,
-              tag: "playerB",
+              value: 5,
+              tag: "playerA",
             },
             {
               label: "选择",
@@ -822,7 +822,7 @@ const decideStandard = (status) => {
   playerBScore.value = scoreB;
 
   gameStore.normalGameData?.get_on_which_board.forEach((item: number, index: number) => {
-    const sp = (item === 0x1 || item === 0x10) ? gameStore.spells[index] : gameStore.spells2[index];
+    const sp = (item === 0x2 || item === 0x20) ? gameStore.spells2[index] : gameStore.spells[index];
     if(status[index] === 5){
       levelA += sp.star;
     }else if(status[index] === 7){
@@ -1006,6 +1006,8 @@ watch(
         playerBScore.value = 0;
         playerAFailure.value = 0;
         playerBFailure.value = 0;
+        playerALevel.value = 0;
+        playerBLevel.value = 0;
         break;
       case GameStatus.COUNT_DOWN:
         nextTick(() => {
