@@ -596,6 +596,19 @@ class Replay {
         }
         output.push(row);
       }
+
+      output.push("【等级分布】");
+      for (let i = 0; i < 5; i++) {
+        let row = customPadEnd(`${i + 1} | `, 5);
+        for (let j = 0; j < 5; j++) {
+          const index = i * 5 + j;
+          const spell = boardSpells[index];
+          const isPortal = portals && portals[index] === 1 ? " (P)" : "";
+          const cellContent = `${spell.star}${isPortal} | `;
+          row += customPadEnd(cellContent, 8);
+        }
+        output.push(row);
+      }
     };
     formatBoard(spells, normalData?.is_portal_a, "【盘面A】");
     if (roomConfig.dual_board > 0 && spells2) {
@@ -921,7 +934,24 @@ class Replay {
         const efficiency = stats.totalTime > 0 ? ((stats.totalFastest * 1000) / stats.totalTime * 100).toFixed(2) : 'N/A';
         output.push(`纯收卡效率: ${efficiency}%`);
         
-        const eff_weighted = totalEffectiveTime > 0 ? ((stats.totalFastestWeighted * 1000) / totalEffectiveTime * 100).toFixed(2) : 'N/A';
+        // 计算该选手在本局游戏内可行动的总时间
+        // 获取全局最后一次得分时间
+        const lastScoreTime = actions.length > 0 ? actions[actions.length - 1].timestamp : 0;
+        // 游戏设定最大时间（毫秒）
+        const maxGameTimeMs = roomConfig.game_time * 60 * 1000;
+        // min(全局最后一次得分时间 - countdown, 游戏设定最大时间)
+        const availableTimeBase = Math.min(lastScoreTime - countdownMs, maxGameTimeMs);
+        // 该选手的CD（毫秒），考虑CD修正值
+        const playerIndex = players.indexOf(player);
+        const cdModifier = playerIndex === 0 ? (roomConfig.cd_modifier_a || 0) : (roomConfig.cd_modifier_b || 0);
+        const playerCdMs = (Math.max(1, Math.min(roomConfig.cd_time + cdModifier, roomConfig.cd_time * 3))) * 1000;
+        // 该选手比分
+        const playerScore = score[playerIndex] || 0;
+        // 可行动时间 = 基础可用时间 - 选手CD * min(11, 选手比分 - 1)
+        const cdPenalty = playerCdMs * Math.min(11, Math.max(0, playerScore - 1));
+        const totalAvailableTime = Math.max(0, availableTimeBase - cdPenalty);
+        
+        const eff_weighted = totalAvailableTime > 0 ? ((stats.totalFastestWeighted * 1000) / totalAvailableTime * 100).toFixed(2) : 'N/A';
         output.push(`总时间效率: ${eff_weighted}%`);
       }
       output.push('');
