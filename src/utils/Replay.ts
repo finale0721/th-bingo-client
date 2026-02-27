@@ -591,7 +591,7 @@ class Replay {
           const index = i * 5 + j;
           const spell = boardSpells[index];
           const isPortal = portals && portals[index] === 1 ? " (P)" : "";
-          const cellContent = `${spell.name.trim()}${isPortal}`;
+          const cellContent = `${spell.name.trim()}${isPortal} | `;
           row += customPadEnd(cellContent, CELL_WIDTH);
         }
         output.push(row);
@@ -915,14 +915,14 @@ class Replay {
       }
 
       output.push(`总计收取 ${stats.completedTasks.length} 张符卡，等级分布: [${stats.totalStars.join(',')}]`);
-      output.push(`总用时: ${formatTimestamp(totalEffectiveTime)} (收取: ${formatTimestamp(stats.totalTime)}, 被抢损失: ${formatTimestamp(stats.stolenTime)})`);
+      output.push(`总收卡时间: ${formatTimestamp(totalEffectiveTime)} (收取: ${formatTimestamp(stats.totalTime)}, 被抢损失: ${formatTimestamp(stats.stolenTime)})`);
 
       if (Config.spellListWithTimer.includes(roomConfig.spell_version) && !isCustomGame) {
         const efficiency = stats.totalTime > 0 ? ((stats.totalFastest * 1000) / stats.totalTime * 100).toFixed(2) : 'N/A';
-        output.push(`全局效率（理论值，不含抢卡）: ${efficiency}%`);
-
+        output.push(`纯收卡效率: ${efficiency}%`);
+        
         const eff_weighted = totalEffectiveTime > 0 ? ((stats.totalFastestWeighted * 1000) / totalEffectiveTime * 100).toFixed(2) : 'N/A';
-        output.push(`全局效率（含难度与时间修正）: ${eff_weighted}%`);
+        output.push(`总时间效率: ${eff_weighted}%`);
       }
       output.push('');
     });
