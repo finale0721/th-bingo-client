@@ -265,80 +265,122 @@ export const useGameStore = defineStore("game", () => {
     const playerA = `<span style="padding:0 2px;color:var(--A-color)">${roomStore.roomData.names[0]}</span>`;
     const playerB = `<span style="padding:0 2px;color:var(--B-color)">${roomStore.roomData.names[1]}</span>`;
     const host = `<span style="padding:0 2px;font-weight:600">${roomStore.roomData.host}</span>`;
-    const curSpellList = computed(() => currentBoard.value == 0 ? spells.value : spells2.value)
-    const spellCard = `<span style="padding:0 2px;font-weight:600">
-      ${curSpellList.value[index].name}</span>`;
+
+    let side = 0;
+    //操作是谁发出的？
+    const fromPlayerA = roomStore.roomData.names[0] === causer;
+    const fromPlayerB = roomStore.roomData.names[1] === causer;
+    const fromHost = roomStore.roomData.host === causer;
+    //目前前端是谁？
+    const isPA = roomStore.isPlayerA;
+    const isPB = roomStore.isPlayerB;
+
+    //考虑状态转换带来的事件
+    //注意事件需要符合发起者身份，不符合则认为是直接设置
+    //选卡两种情况
+    const actASelect = ((oldStatus === 0 && status === 1) || (oldStatus === 3 && status === 2)) && fromPlayerA;
+    const actBSelect = ((oldStatus === 0 && status === 3) || (oldStatus === 1 && status === 2)) && fromPlayerB;
+    //收卡只需要判断最终状态
+    const actAGet = status === 5 && fromPlayerA;
+    const actBGet = status === 7 && fromPlayerB;
+    //被抢卡只有自己可见
+    const actALost = (oldStatus === 1 || oldStatus === 2) && status === 7 && isPA && fromPlayerB;
+    const actBLost = (oldStatus === 3 || oldStatus === 2) && status === 5 && isPB && fromPlayerA;
+    //否则，为状态设置
+    const isPlayerSet = !(actASelect || actBSelect || actAGet || actBGet || actALost || actBLost);
+
+      //如果是收卡行为，检查在哪一面收卡
+      //导播直接覆盖
+      if (fromHost && (actAGet || actBGet)) {
+        const get = normalGameData.get_on_which_board[index];
+        if ((get === 0x2 || get === 0x20)) {
+          side = 1;
+        }
+      } else if (!fromHost) {
+        //选手考虑2种状态：my-select -> my-get,  my/both-select -> op-get
+        //B被抢卡
+        if (actBLost) {
+          side = normalGameData.which_board_b;
+          //A被抢卡
+        } else if (actALost) {
+          side = normalGameData.which_board_a;
+          //收卡用收取记录判定
+        } else if (actAGet || actBGet) {
+          const get = normalGameData.get_on_which_board[index];
+          if ((get === 0x2 || get === 0x20)) {
+            side = 1;
+          }
+        }
+      }
+
+      //如果是选卡行为，直接返回对应选手所在面
+      if (actASelect) {
+        side = normalGameData.which_board_a;
+      } else if (actBSelect) {
+        side = normalGameData.which_board_b;
+      }
+
+      //如果是设置行为，先定位设置的是谁，再返回其所在面
+      if (isPlayerSet) {
+        if (status === 1) {
+          side = normalGameData.which_board_a;
+        } else if (status === 3) {
+          side = normalGameData.which_board_b;
+        } else if (status === 5 || status === 7) {
+          //设置收取同导播
+          const get = normalGameData.get_on_which_board[index];
+          if ((get === 0x2 || get === 0x20)) {
+            side = 1;
+          }
+        } else if (status === 2) {
+          if (oldStatus === 1) {
+            side = normalGameData.which_board_b;
+          } else if (oldStatus === 3) {
+            side = normalGameData.which_board_a;
+          }
+        }
+      }
+
+      //roomSettings对非房主无效？所以用Spell2判定
+    const isDual = spells2.value.length > 0;
+    const curSpellList = computed(() => (side === 1 && isDual ? spells2.value : spells.value) )
+    const spellCard = isDual ?
+      `<span style="padding:0 2px;font-weight:600;background-color: var(--${side === 0 ? 'bg-color':'bg-color-reverse'})">
+      ${curSpellList.value[index].name}</span>`
+    :
+        `<span style="padding:0 2px;font-weight:600;">${curSpellList.value[index].name}</span>`
+    ;
 
     const row = Math.floor(index/5)+1;
     const col = index%5+1;
 
-    if (roomStore.roomData.names[0] === causer) {
-      str += playerA;
-      switch (status) {
-        case -1:
-          str += `禁用了${row}行${col}列的符卡`;
-          break;
-        case 0:
-        case 3:
-          if (roomStore.isPlayerA) {
-            if (oldStatus === 5) {
-              str += `取消收取${row}行${col}列的符卡`;
-            } else {
-              str += `取消选择${row}行${col}列的符卡`;
-            }
-          }
-          break;
-        case 1:
-        case 2:
-          str += `选择了${row}行${col}列的符卡`;
-          break;
-        case 5:
-          if (roomStore.isPlayerB && (oldStatus === 3 || oldStatus === 2)) {
-            str += "抢了你选择的符卡";
-            spellCardGrabbedFlag.value = true;
-          } else {
-            str += `收取了${row}行${col}列的符卡`;
-          }
-          break;
-        case 0x100:
-          str += `刷新了${row}行${col}列的符卡`
-          break;
+    if(!fromHost){
+      if(fromPlayerA){
+        str += playerA;
+      }else if(fromPlayerB){
+        str += playerB;
       }
-      str += spellCard;
-    } else if (roomStore.roomData.names[1] === causer) {
-      str += playerB;
-      switch (status) {
-        case -1:
-          str += `禁用了${row}行${col}列的符卡`;
-          break;
-        case 0:
-        case 1:
-          if (roomStore.isPlayerB) {
-            if (oldStatus === 7) {
-              str += `取消收取${row}行${col}列的符卡`;
-            } else {
-              str += `取消选择${row}行${col}列的符卡`;
-            }
-          }
-          break;
-        case 2:
-        case 3:
-          str += `选择了${row}行${col}列的符卡`;
-          break;
-        case 7:
-          if (roomStore.isPlayerA && (oldStatus === 1 || oldStatus === 2)) {
-            str += "抢了你选择的符卡";
-            spellCardGrabbedFlag.value = true;
-          } else {
-            str += `收取了${row}行${col}列的符卡`;
-          }
-          break;
-        case 0x100:
-          str += `刷新了${row}行${col}列的符卡`
-          break;
+
+      if(isPlayerSet){
+        str += `将${row}行${col}列的${spellCard}`;
+        switch(status){
+          case -1: str += `禁用`; break;
+          case 0: str += `置空`; break;
+          case 1: str += `设为左侧选择`; break;
+          case 2: str += `设为双方选择`; break;
+          case 3: str += `设为右侧选择`; break;
+          case 5: str += `设为左侧收取`; break;
+          case 6: str += `设为双方收取`; break;
+          case 7: str += `设为右侧收取`; break;
+        }
+      }else if(actALost || actBLost){
+        str += `抢了你选的符卡${spellCard}`
+      }else if(actAGet || actBGet){
+        str += `收取了${row}行${col}列的符卡${spellCard}`;
+      }else if(actASelect || actBSelect){
+        str += `选择了${row}行${col}列的符卡${spellCard}`;
       }
-      str += spellCard;
-    } else {
+    }else{
       if (roomStore.roomData.type === BingoType.BP) {
         const currentCountA = bpGameData.spell_failed_count_a[index];
         const currentCountB = bpGameData.spell_failed_count_b[index];
