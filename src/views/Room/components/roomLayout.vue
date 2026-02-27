@@ -46,7 +46,7 @@
                     <spell-card-cell
                       :name="item.name"
                       :desc="item.desc"
-                      :level="isBingoStandard ? undefined : item.star"
+                      :level="isBingoStandard ? item.star : item.star + 100"
                       :failCountA="dataSource.bpGameData?.spell_failed_count_a[index] || 0"
                       :failCountB="dataSource.bpGameData?.spell_failed_count_b[index] || 0"
                       @click="isEditorMode ? emits('editor-cell-click', index) : selectSpellCard(index)"

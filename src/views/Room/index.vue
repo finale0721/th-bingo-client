@@ -26,6 +26,7 @@
           :disabled="!inGame"
         ></score-board>
         <score-board class="spell-card-score-card" :size="30" label="得分" v-model="playerAScore"></score-board>
+        <score-board class="spell-card-score-card" :size="24" label="等级" v-model="playerALevel"></score-board>
         <el-button
           class="alert-button"
           type="primary"
@@ -55,6 +56,7 @@
           :disabled="!inGame"
         ></score-board>
         <score-board class="spell-card-score-card" :size="30" label="得分" v-model="playerBScore"></score-board>
+        <score-board class="spell-card-score-card" :size="24" label="等级" v-model="playerBLevel"></score-board>
         <el-button
           class="alert-button"
           type="primary"
@@ -732,6 +734,8 @@ const confirmOpenEX = (flag: boolean) => {
 const oldSumArr = ref<number[]>([]);
 const playerAScore = ref(0);
 const playerBScore = ref(0);
+const playerALevel = ref(0);
+const playerBLevel = ref(0);
 const selectCooldown = computed(() => {
   if (!gameStore.inited) {
     return -1;
@@ -752,6 +756,8 @@ const decideStandard = (status) => {
   let countB = 0;
   let scoreA = 0;
   let scoreB = 0;
+  let levelA = 0;
+  let levelB = 0;
   status.forEach((item: number, index: number) => {
     const rowIndex = Math.floor(index / 5);
     const columnIndex = index % 5;
@@ -814,6 +820,18 @@ const decideStandard = (status) => {
 
   playerAScore.value = scoreA;
   playerBScore.value = scoreB;
+
+  gameStore.normalGameData?.get_on_which_board.forEach((item: number, index: number) => {
+    const sp = (item === 0x1 || item === 0x10) ? gameStore.spells[index] : gameStore.spells2[index];
+    if(status[index] === 5){
+      levelA += sp.star;
+    }else if(status[index] === 7){
+      levelB += sp.star;
+    }
+  });
+
+  playerALevel.value = levelA;
+  playerBLevel.value = levelB;
 
   if (countA >= 13) {
     winFlag.value = -13;

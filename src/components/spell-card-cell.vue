@@ -1,14 +1,14 @@
 <template>
   <div :class="cellClass" @click="onClick">
     <div class="spell-card-info">
-      <div class="level" v-if="level">
+      <div class="level" v-if="level && level > 100">
         <div class="level-icons" :class="levelClass">
-          <el-icon v-for="(item, index) in new Array(level)" :key="index"><StarFilled /></el-icon>
+          <el-icon v-for="(item, index) in new Array(level-100)" :key="index"><StarFilled /></el-icon>
         </div>
       </div>
       <div class="desc">
         <!-- 使用split方法截取破折号前的内容 -->
-        {{ status === SpellStatus.ONLY_REVEAL_GAME ? (desc?.split('-')[0] || '') : desc }}
+        {{ status === SpellStatus.ONLY_REVEAL_GAME ? (desc?.split('-')[0] || '') : (desc + (level > 100 ? '' : `~${level}`)) }}
       </div>
       <div class="name">{{ name }}</div>
       <div class="fail-count-a" v-if="failCountA && status < 5">失败：{{ failCountA }}</div>
@@ -65,13 +65,13 @@ const emits = defineEmits(["click"]);
 const isPlayerA = computed(() => roomStore.isPlayerA);
 const isPlayerB = computed(() => roomStore.isPlayerB);
 
-const playerAOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 || isPlayerB.value ||
+const playerAOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 ||
   gameStore.currentBoard == gameStore.normalGameData.which_board_a)
-const playerBOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 || isPlayerA.value ||
+const playerBOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 ||
   gameStore.currentBoard == gameStore.normalGameData.which_board_b)
-const playerAAttainOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 || isPlayerB.value ||
+const playerAAttainOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 ||
   gameStore.normalGameData.get_on_which_board[props.spellIndex] == (1 << gameStore.currentBoard))
-const playerBAttainOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 || isPlayerA.value ||
+const playerBAttainOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 ||
   gameStore.normalGameData.get_on_which_board[props.spellIndex] == (0x10 << gameStore.currentBoard))
 
 const cellClass = computed(() => ({
@@ -144,23 +144,23 @@ const onClick = () => {
       top: 0;
       left: 0;
       z-index: -1;
-      .level1 {
+      .level101 {
         color: rgb(223, 233, 36);
       }
 
-      .level2 {
+      .level102 {
         color: rgb(214, 181, 31);
       }
 
-      .level3 {
+      .level103 {
         color: rgb(212, 124, 9);
       }
 
-      .level4 {
+      .level104 {
         color: rgb(213, 86, 18);
       }
 
-      .level5 {
+      .level105 {
         color: red;
       }
     }
