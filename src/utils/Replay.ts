@@ -974,8 +974,8 @@ class Replay {
         const playerCdMs = (Math.max(1, Math.min(roomConfig.cd_time + cdModifier, roomConfig.cd_time * 3))) * 1000;
         // 该选手比分
         const playerScore = score[playerIndex] || 0;
-        // 可行动时间 = 基础可用时间 - 全局总暂停时间 - 选手CD * min(11, 选手比分 - 1)
-        const cdPenalty = playerCdMs * Math.min(11, Math.max(0, playerScore - 1));
+        // 可行动时间 = 基础可用时间 - 全局总暂停时间 - 选手CD * min(24, 选手比分 - 1)
+        const cdPenalty = playerCdMs * Math.min( 24, Math.max(0, playerScore - 1));
         const totalAvailableTime = Math.max(0, availableTimeBase - totalPauseTime - cdPenalty);
         
         const eff_weighted = totalAvailableTime > 0 ? ((stats.totalFastestWeighted * 1000) / totalAvailableTime * 100).toFixed(2) : 'N/A';

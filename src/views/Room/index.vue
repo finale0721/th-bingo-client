@@ -155,7 +155,6 @@
           <template v-if="isPlayer">
             <template v-if="inGame">
               <template v-if="isBingoStandard">
-
                 <confirm-select-button
                   @click="confirmSelect"
                   :disabled="selectedSpellIndex < 0 || gamePaused"

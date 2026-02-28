@@ -279,7 +279,7 @@ watch(() => editorStore.isEditorMode, (value) => {
 })
 
 const warnGamePoint = () => {
-  //gamePointAudioRef.value?.play();
+  lineWarnAudioRef.value?.stop();
   lineWarnAudioRef.value?.play();
 };
 
@@ -314,6 +314,7 @@ watch(
   () => gameStore.spellCardGrabbedFlag,
   (val) => {
     if (val) {
+      spellCardGrabbedAudioRef.value?.stop();
       spellCardGrabbedAudioRef.value?.play();
     }
   }
@@ -323,6 +324,7 @@ const gameStarted = computed(() => gameStore.gameStatus === GameStatus.STARTED)
 watch(gameStarted,
   (started) =>{
     if(started){
+      startGameAudioRef.value?.stop();
       startGameAudioRef.value?.play();
     }
   }
@@ -332,6 +334,7 @@ const gameCountDown = computed(() => gameStore.gameStatus === GameStatus.COUNT_D
 watch(gameCountDown,
   (started) =>{
     if(started){
+      startGameAudioRef.value?.stop();
       startGameAudioRef.value?.play();
     }
   }
@@ -340,6 +343,7 @@ watch(gameCountDown,
 const gamePaused = computed(() => gameStore.gameStatus === GameStatus.PAUSED);
 watch(gamePaused, (paused) => {
   if (paused) {
+    pauseAudioRef.value?.stop();
     pauseAudioRef.value?.play();
   }
 });

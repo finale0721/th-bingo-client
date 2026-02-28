@@ -289,6 +289,18 @@ export const useGameStore = defineStore("game", () => {
     //否则，为状态设置
     const isPlayerSet = !(actASelect || actBSelect || actAGet || actBGet || actALost || actBLost);
 
+    if (actALost || actBLost) {
+      spellCardGrabbedFlag.value = true;
+    }
+
+    if(isPlayerSet || fromHost){
+      if((oldStatus === 1 || oldStatus === 2) && status === 7 && isPA){
+        spellCardGrabbedFlag.value = true;
+      }else if((oldStatus === 3 || oldStatus === 2) && status === 5 && isPB){
+        spellCardGrabbedFlag.value = true;
+      }
+    }
+
       //如果是收卡行为，检查在哪一面收卡
       //导播直接覆盖
       if (fromHost && (actAGet || actBGet)) {
