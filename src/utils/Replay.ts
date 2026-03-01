@@ -943,16 +943,50 @@ class Replay {
         output.push(`(有 ${stats.stolenCount} 张选择的符卡被对手抢走)`);
       }
 
-      output.push(`总计收取 ${stats.completedTasks.length} 张符卡，等级分布: [${stats.totalStars.join(',')}]`);
+      output.push(`总计收取 ${stats.completedTasks.length} 张符卡，等级分布: [${stats.totalStars.join(',')}]，总等级：${stats.totalStars.reduce((sum, value, index) => sum + value * (index + 1), 0)}`);
       output.push(`总收卡时间: ${formatTimestamp(totalEffectiveTime)} (收取: ${formatTimestamp(stats.totalTime)}, 被抢损失: ${formatTimestamp(stats.stolenTime)})`);
 
       if (Config.spellListWithTimer.includes(roomConfig.spell_version) && !isCustomGame) {
         const efficiency = stats.totalTime > 0 ? ((stats.totalFastest * 1000) / stats.totalTime * 100).toFixed(2) : 'N/A';
-        output.push(`纯收卡效率: ${efficiency}%`);
+        output.push(`纯收卡效率: ${efficiency}% (${stats.totalFastest.toFixed(2)}s / ${(stats.totalTime/1000).toFixed(2)}s)`);
         
         // 计算该选手在本局游戏内可行动的总时间
+        // 该选手的CD（毫秒），考虑CD修正值
+        const playerIndex = players.indexOf(player);
+        const cdModifier = playerIndex === 0 ? (roomConfig.cd_modifier_a || 0) : (roomConfig.cd_modifier_b || 0);
+        const playerCdMs = (Math.max(1, Math.min(roomConfig.cd_time + cdModifier, roomConfig.cd_time * 3))) * 1000;
         // 获取全局最后一次得分时间
-        const lastScoreTime = actions.length > 0 ? actions[actions.length - 1].timestamp : 0;
+        let lastScoreTime = 0;
+        let actLen = actions.length - 1;
+        while(actLen >= 0){
+          const act = actions[actLen];
+          //不区分是谁的得分行为
+          if(act.actionType === 'finish' || act.actionType === 'contest_win' || act.actionType === 'set-5' || act.actionType === 'set-7'){
+            lastScoreTime = act.timestamp;
+            break;
+          }
+          actLen--;
+        }
+        actLen = actions.length - 1;
+        //由于不是最后收卡的一方计算效率会多算一个cd，所以手动扣除这段cd
+        while(actLen >= 0){
+          const act = actions[actLen];
+          //需要找到自己的最后一个行动
+          if(player !== act.playerName){
+            actLen--;
+            continue;
+          }
+          //如果是收取，扣除最后得分时间与该选手最后有效行动之间的时差，最多扣除一个cd
+          if(act.actionType === 'finish' || act.actionType === 'contest_win' || act.actionType === 'set-5' || act.actionType === 'set-7'){
+            lastScoreTime -= Math.min(Math.max(0, lastScoreTime - act.timestamp), playerCdMs);
+            break;
+          }
+          //如果是选择，就扣除一个cd（已经等完了）
+          if(act.actionType === 'select' || act.actionType === 'set-1' || act.actionType === 'set-2' || act.actionType === 'set-3'){
+            lastScoreTime -= playerCdMs;
+          }
+          actLen--;
+        }
         // 游戏设定最大时间（毫秒）
         const maxGameTimeMs = roomConfig.game_time * 60 * 1000;
         // min(全局最后一次得分时间 - countdown, 游戏设定最大时间)
@@ -968,10 +1002,6 @@ class Replay {
             pauseStart = 0;
           }
         }
-        // 该选手的CD（毫秒），考虑CD修正值
-        const playerIndex = players.indexOf(player);
-        const cdModifier = playerIndex === 0 ? (roomConfig.cd_modifier_a || 0) : (roomConfig.cd_modifier_b || 0);
-        const playerCdMs = (Math.max(1, Math.min(roomConfig.cd_time + cdModifier, roomConfig.cd_time * 3))) * 1000;
         // 该选手比分
         const playerScore = score[playerIndex] || 0;
         // 可行动时间 = 基础可用时间 - 全局总暂停时间 - 选手CD * min(24, 选手比分 - 1)
@@ -979,7 +1009,7 @@ class Replay {
         const totalAvailableTime = Math.max(0, availableTimeBase - totalPauseTime - cdPenalty);
         
         const eff_weighted = totalAvailableTime > 0 ? ((stats.totalFastestWeighted * 1000) / totalAvailableTime * 100).toFixed(2) : 'N/A';
-        output.push(`总时间效率: ${eff_weighted}%`);
+        output.push(`总时间效率: ${eff_weighted}% (${stats.totalFastestWeighted.toFixed(2)}s / ${(totalAvailableTime/1000.0).toFixed(2)}s)`);
       }
       output.push('');
     });

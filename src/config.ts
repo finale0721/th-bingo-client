@@ -239,20 +239,16 @@ const gameTypeList = [
 
 const spellVersionList = [
   {
-    name: "S6卡池",
-    type: 1
-  },
-  {
     name: "S7卡池",
     type: 2
   },
   {
-    name: "S5卡池",
-    type: 4
+    name: "S6卡池",
+    type: 1
   },
   {
-    name: "S7卡池（未大改难度）",
-    type: 9
+    name: "S5卡池",
+    type: 4
   },
   {
     name: "史卡池（你确定吗）",
@@ -272,7 +268,7 @@ const spellVersionList = [
   }
 ];
 
-const spellListWithTimer = [1, 2, 9]
+const spellListWithTimer = [1, 2]
 
 const realSpellList = (version: number) => {
   if(version === 6) return gameOptionListPoint1

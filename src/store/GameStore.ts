@@ -350,6 +350,13 @@ export const useGameStore = defineStore("game", () => {
           } else if (oldStatus === 3) {
             side = normalGameData.which_board_a;
           }
+          //其余情况不分人，只需要找到发起者
+        } else {
+          if (fromPlayerA) {
+            side = normalGameData.which_board_a;
+          } else if (fromPlayerB) {
+            side = normalGameData.which_board_b;
+          }
         }
       }
 
