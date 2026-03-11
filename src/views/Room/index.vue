@@ -99,11 +99,24 @@
             style="width: 144px; margin: 0 15px;"
             @change="changeReplaySpeed"
           />
+          <el-button
+            :icon="ArrowLeft"
+            @click="jumpToPreviousReplayAction"
+            :disabled="replayInstance.state.currentTime <= 0"
+            circle
+          />
+
           <!-- 回放控制按钮 -->
           <el-button
             :icon="replayInstance.state.isPlaying ? VideoPause : VideoPlay"
             @click="toggleReplay"
             :disabled="replayInstance.state.isReplayFinished"
+            circle
+          />
+          <el-button
+            :icon="ArrowRight"
+            @click="jumpToNextReplayAction"
+            :disabled="replayInstance.state.currentTime <= 0"
             circle
           />
           <!-- 时间轴滑块 -->
@@ -337,7 +350,7 @@ import ws from "@/utils/webSocket/WebSocketBingo";
 import { useRoomStore } from "@/store/RoomStore";
 import { useGameStore } from "@/store/GameStore";
 import { WebSocketActionType } from "@/utils/webSocket/types";
-import { VideoPlay, VideoPause } from '@element-plus/icons-vue';
+import { VideoPlay, VideoPause, ArrowLeft, ArrowRight } from '@element-plus/icons-vue';
 import Replay from '@/utils/Replay';
 import { useEditorStore } from "@/store/EditorStore";
 import SpellEditorModal from '@/components/SpellEditorModal.vue';
@@ -1423,6 +1436,16 @@ onUnmounted(() => {
 
 const handleTimelineChange = (value: number) => {
   replayInstance.jumpToTime(value);
+  layoutRef.value?.hideAlert();
+};
+
+const jumpToPreviousReplayAction = () => {
+  replayInstance.jumpToPreviousAction();
+  layoutRef.value?.hideAlert();
+};
+
+const jumpToNextReplayAction = () => {
+  replayInstance.jumpToNextAction();
   layoutRef.value?.hideAlert();
 };
 

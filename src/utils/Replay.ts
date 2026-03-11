@@ -41,6 +41,13 @@ export interface ReplayPayload {
   data: GameLogData;
 }
 
+export interface ReadableLogBuildResult {
+  content: string;
+  logData: GameLogData;
+  replayCode: string;
+  fileName: string;
+}
+
 const REPLAY_DATA_VERSION = "1.0";
 
 class Replay {
@@ -349,6 +356,28 @@ class Replay {
     }
   }
 
+  public jumpToPreviousAction(): void {
+    if (!this.gameLogData || this.gameLogData.actions.length === 0) {
+      return;
+    }
+    if (this.actionIndex <= 1) {
+      this.jumpToTime(0);
+      return;
+    }
+    this.jumpToTime(this.gameLogData.actions[this.actionIndex - 2].timestamp);
+  }
+
+  public jumpToNextAction(): void {
+    if (!this.gameLogData || this.gameLogData.actions.length === 0) {
+      return;
+    }
+    if (this.actionIndex >= this.gameLogData.actions.length) {
+      this.jumpToTime(this.state.totalTime);
+      return;
+    }
+    this.jumpToTime(this.gameLogData.actions[this.actionIndex].timestamp);
+  }
+
   public getDifficultyFix = (spell: Spell): number => {
     const difficulty = spell.difficulty;
     const max = spell.max_cap_rate;
@@ -418,6 +447,107 @@ class Replay {
     }
   };
 
+  public normalizeGameLog = (logObject: GameLogData): GameLogData => {
+    if (typeof logObject !== "object" || logObject === null) {
+      throw new Error("收到的日志格式不正确，期望是一个对象");
+    }
+
+    const normalizedLog: GameLogData = {
+      ...logObject,
+      actions: logObject.actions.map((action) => ({ ...action })),
+    };
+
+    normalizedLog.actions.forEach((action) => {
+      if (action.spellIndex >= 0) {
+        action.spell = normalizedLog.spells[action.spellIndex];
+      }
+    });
+
+    return normalizedLog;
+  };
+
+  public buildReplayCode = (logObject: GameLogData): string => {
+    const normalizedLog = this.normalizeGameLog(logObject);
+    const dataToEncode: ReplayPayload = {
+      version: REPLAY_DATA_VERSION,
+      data: normalizedLog,
+    };
+    const originalLogString = JSON.stringify(dataToEncode);
+    const compressedData = pako.deflate(originalLogString);
+    return this.uint8ArrayToBase64(compressedData);
+  };
+
+  public sanitizeFileName = (value: string): string => {
+    const sanitized = value.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, " ").trim();
+    return sanitized || "unknown";
+  };
+
+  public buildReadableLogFileName = (logData: GameLogData, prefix = "BingoLog"): string => {
+    const date = new Date(logData.gameStartTimestamp || Date.now());
+    const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date
+      .getDate()
+      .toString()
+      .padStart(2, "0")}`;
+    const timeStr = `${date.getHours().toString().padStart(2, "0")}${date.getMinutes().toString().padStart(2, "0")}`;
+    const leftPlayer = this.sanitizeFileName(logData.players[0] || "playerA");
+    const rightPlayer = this.sanitizeFileName(logData.players[1] || "playerB");
+    return `${prefix}_${dateStr}_${timeStr}_${leftPlayer}_vs_${rightPlayer}.txt`;
+  };
+
+  public buildReadableLogContent = (logObject: GameLogData): ReadableLogBuildResult => {
+    const normalizedLog = this.normalizeGameLog(logObject);
+    const replayCode = this.buildReplayCode(normalizedLog);
+    return {
+      content: this.formatLogForDownload(normalizedLog, replayCode),
+      logData: normalizedLog,
+      replayCode,
+      fileName: this.buildReadableLogFileName(normalizedLog),
+    };
+  };
+
+  public buildReadablePreviewContent = (logObject: GameLogData): ReadableLogBuildResult => {
+    const result = this.buildReadableLogContent(logObject);
+    const marker = "\n\n--- DO NOT EDIT BELOW THIS LINE ---";
+    const markerIndex = result.content.indexOf(marker);
+    return {
+      ...result,
+      content: markerIndex >= 0 ? result.content.slice(0, markerIndex).trimEnd() : result.content,
+    };
+  };
+
+  public getSetStatusLabel = (status: number): string => {
+    if (status === SpellStatus.NONE) return "重置状态";
+    if (status === SpellStatus.A_SELECTED) return "左侧选择";
+    if (status === SpellStatus.B_SELECTED) return "右侧选择";
+    if (status === SpellStatus.BOTH_SELECTED) return "双方选择";
+    if (status === SpellStatus.A_ATTAINED) return "左侧收取";
+    if (status === SpellStatus.B_ATTAINED) return "右侧收取";
+    if (status === SpellStatus.BOTH_ATTAINED) return "双方收取";
+    if (status === SpellStatus.BANNED) return "禁用符卡";
+    if (status === SpellStatus.BOTH_HIDDEN) return "双方隐藏";
+    if (status === SpellStatus.ONLY_REVEAL_GAME) return "仅显示游戏";
+    if (status === SpellStatus.ONLY_REVEAL_GAME_STAGE) return "仅显示来源";
+    if (status === SpellStatus.ONLY_REVEAL_STAR) return "仅显示星级";
+    return `设置状态 ${status}`;
+  };
+
+  public getActionTypeLabel = (actionType: string): string => {
+    if (actionType === "select") return "选择符卡";
+    if (actionType === "finish") return "收取符卡";
+    if (actionType === "contest_win") return "抢卡成功";
+    if (actionType === "pause") return "暂停比赛";
+    if (actionType === "resume") return "恢复比赛";
+    if (actionType.startsWith("set-")) {
+      return this.getSetStatusLabel(parseInt(actionType.split("-")[1], 10));
+    }
+    return actionType;
+  };
+
+  public downloadReadableLog = (logObject: GameLogData) => {
+    const result = this.buildReadableLogContent(logObject);
+    this.triggerDownload(result.content, result.fileName);
+  };
+
   public fetchAndProcessGameLog = async () => {
     try {
       const logObject: GameLogData = await ws.send(WebSocketActionType.PRINT_LOG);
@@ -433,38 +563,21 @@ class Replay {
         }
       });
 
-      const dataToEncode: ReplayPayload = {
-        version: REPLAY_DATA_VERSION,
-        data: logObject,
-      };
-
-      const originalLogString = JSON.stringify(dataToEncode);
-
-      const compressedData = pako.deflate(originalLogString);
-
-      const replayDataB64 = this.uint8ArrayToBase64(compressedData);
-
-      const formattedLog = this.formatLogForDownload(logObject, replayDataB64);
-      this.triggerDownload(formattedLog, logObject);
+      const result = this.buildReadableLogContent(logObject);
+      this.triggerDownload(result.content, result.fileName);
     } catch (error) {
       console.error("获取或处理游戏日志失败:", error);
       throw error;
     }
   };
 
-  public triggerDownload = (content: string, logData: GameLogData) => {
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  public triggerDownload = (content: BlobPart, fileName: string, mimeType = "text/plain;charset=utf-8") => {
+    const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     //文件命名加入时分信息
-    const date = new Date(logData.gameStartTimestamp);
-    const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date
-      .getDate()
-      .toString()
-      .padStart(2, "0")}`;
-    const timeStr = `${date.getHours().toString().padStart(2, "0")}${date.getMinutes().toString().padStart(2, "0")}`;
-    a.download = `BingoLog_${dateStr}_${timeStr}_${logData.players[0]}_vs_${logData.players[1]}.txt`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

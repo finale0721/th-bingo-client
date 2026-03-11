@@ -46,6 +46,13 @@ const props = withDefaults(
     isACurrentBoard?: boolean;
     isBCurrentBoard?: boolean;
     spellIndex?: number;
+    previewCurrentBoard?: number | null;
+    previewDualBoard?: number | null;
+    previewPlayerABoard?: number | null;
+    previewPlayerBBoard?: number | null;
+    previewGetOnWhichBoard?: number[] | null;
+    previewViewerIsPlayerA?: boolean | null;
+    previewViewerIsPlayerB?: boolean | null;
   }>(),
   {
     level: 0,
@@ -61,29 +68,41 @@ const props = withDefaults(
     isACurrentBoard: true,
     isBCurrentBoard: false,
     spellIndex: -1,
+    previewCurrentBoard: null,
+    previewDualBoard: null,
+    previewPlayerABoard: null,
+    previewPlayerBBoard: null,
+    previewGetOnWhichBoard: null,
+    previewViewerIsPlayerA: null,
+    previewViewerIsPlayerB: null,
   }
 );
 
 const emits = defineEmits(["click"]);
 
-const isPlayerA = computed(() => roomStore.isPlayerA);
-const isPlayerB = computed(() => roomStore.isPlayerB);
+const resolvedDualBoard = computed(() => props.previewDualBoard ?? roomStore.roomConfig.dual_board);
+const resolvedCurrentBoard = computed(() => props.previewCurrentBoard ?? gameStore.currentBoard);
+const resolvedPlayerABoard = computed(() => props.previewPlayerABoard ?? gameStore.normalGameData.which_board_a);
+const resolvedPlayerBBoard = computed(() => props.previewPlayerBBoard ?? gameStore.normalGameData.which_board_b);
+const resolvedGetOnWhichBoard = computed(() => props.previewGetOnWhichBoard ?? gameStore.normalGameData.get_on_which_board);
+const isPlayerA = computed(() => props.previewViewerIsPlayerA ?? roomStore.isPlayerA);
+const isPlayerB = computed(() => props.previewViewerIsPlayerB ?? roomStore.isPlayerB);
 
 const playerAOnCurBoard = computed(
-  () => roomStore.roomConfig.dual_board == 0 || gameStore.currentBoard == gameStore.normalGameData.which_board_a
+  () => resolvedDualBoard.value == 0 || resolvedCurrentBoard.value == resolvedPlayerABoard.value
 );
 const playerBOnCurBoard = computed(
-  () => roomStore.roomConfig.dual_board == 0 || gameStore.currentBoard == gameStore.normalGameData.which_board_b
+  () => resolvedDualBoard.value == 0 || resolvedCurrentBoard.value == resolvedPlayerBBoard.value
 );
 const playerAAttainOnCurBoard = computed(
   () =>
-    roomStore.roomConfig.dual_board == 0 ||
-    gameStore.normalGameData.get_on_which_board[props.spellIndex] == 1 << gameStore.currentBoard
+    resolvedDualBoard.value == 0 ||
+    resolvedGetOnWhichBoard.value?.[props.spellIndex] == 1 << resolvedCurrentBoard.value
 );
 const playerBAttainOnCurBoard = computed(
   () =>
-    roomStore.roomConfig.dual_board == 0 ||
-    gameStore.normalGameData.get_on_which_board[props.spellIndex] == 0x10 << gameStore.currentBoard
+    resolvedDualBoard.value == 0 ||
+    resolvedGetOnWhichBoard.value?.[props.spellIndex] == 0x10 << resolvedCurrentBoard.value
 );
 
 const cellClass = computed(() => ({
