@@ -3,12 +3,16 @@
     <div class="spell-card-info">
       <div class="level" v-if="level && level > 100">
         <div class="level-icons" :class="levelClass">
-          <el-icon v-for="(item, index) in new Array(level-100)" :key="index"><StarFilled /></el-icon>
+          <el-icon v-for="(item, index) in new Array(level - 100)" :key="index"><StarFilled /></el-icon>
         </div>
       </div>
       <div class="desc">
         <!-- 使用split方法截取破折号前的内容 -->
-        {{ status === SpellStatus.ONLY_REVEAL_GAME ? (desc?.split('-')[0] || '') : (desc + (level > 100 ? '' : `~${level}`)) }}
+        {{
+          status === SpellStatus.ONLY_REVEAL_GAME
+            ? desc?.split("-")[0] || ""
+            : desc + (level > 100 ? "" : `-${levelStarString(level)}`)
+        }}
       </div>
       <div class="name">{{ name }}</div>
       <div class="fail-count-a" v-if="failCountA && status < 5">失败：{{ failCountA }}</div>
@@ -65,33 +69,43 @@ const emits = defineEmits(["click"]);
 const isPlayerA = computed(() => roomStore.isPlayerA);
 const isPlayerB = computed(() => roomStore.isPlayerB);
 
-const playerAOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 ||
-  gameStore.currentBoard == gameStore.normalGameData.which_board_a)
-const playerBOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 ||
-  gameStore.currentBoard == gameStore.normalGameData.which_board_b)
-const playerAAttainOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 ||
-  gameStore.normalGameData.get_on_which_board[props.spellIndex] == (1 << gameStore.currentBoard))
-const playerBAttainOnCurBoard = computed(() => roomStore.roomConfig.dual_board == 0 ||
-  gameStore.normalGameData.get_on_which_board[props.spellIndex] == (0x10 << gameStore.currentBoard))
+const playerAOnCurBoard = computed(
+  () => roomStore.roomConfig.dual_board == 0 || gameStore.currentBoard == gameStore.normalGameData.which_board_a
+);
+const playerBOnCurBoard = computed(
+  () => roomStore.roomConfig.dual_board == 0 || gameStore.currentBoard == gameStore.normalGameData.which_board_b
+);
+const playerAAttainOnCurBoard = computed(
+  () =>
+    roomStore.roomConfig.dual_board == 0 ||
+    gameStore.normalGameData.get_on_which_board[props.spellIndex] == 1 << gameStore.currentBoard
+);
+const playerBAttainOnCurBoard = computed(
+  () =>
+    roomStore.roomConfig.dual_board == 0 ||
+    gameStore.normalGameData.get_on_which_board[props.spellIndex] == 0x10 << gameStore.currentBoard
+);
 
 const cellClass = computed(() => ({
   "spell-card-cell": true,
   banned: props.status === SpellStatus.BANNED,
-  "A-selected": props.status === SpellStatus.A_SELECTED || props.status === SpellStatus.BOTH_SELECTED
-    && playerAOnCurBoard.value,
-  "A-attained": props.status === SpellStatus.A_ATTAINED || props.status === SpellStatus.BOTH_ATTAINED
-    && playerAAttainOnCurBoard.value,
-  "B-selected": props.status === SpellStatus.B_SELECTED || props.status === SpellStatus.BOTH_SELECTED
-    && playerBOnCurBoard.value,
-  "B-attained": props.status === SpellStatus.B_ATTAINED || props.status === SpellStatus.BOTH_ATTAINED
-    && playerBAttainOnCurBoard.value,
+  "A-selected":
+    props.status === SpellStatus.A_SELECTED || (props.status === SpellStatus.BOTH_SELECTED && playerAOnCurBoard.value),
+  "A-attained":
+    props.status === SpellStatus.A_ATTAINED ||
+    (props.status === SpellStatus.BOTH_ATTAINED && playerAAttainOnCurBoard.value),
+  "B-selected":
+    props.status === SpellStatus.B_SELECTED || (props.status === SpellStatus.BOTH_SELECTED && playerBOnCurBoard.value),
+  "B-attained":
+    props.status === SpellStatus.B_ATTAINED ||
+    (props.status === SpellStatus.BOTH_ATTAINED && playerBAttainOnCurBoard.value),
   "A-local-selected": props.selected && isPlayerA.value,
   "B-local-selected": props.selected && isPlayerB.value,
   //see-only为非选手的视觉效果
   "A-see-only": props.status === SpellStatus.LEFT_SEE_ONLY,
   "B-see-only": props.status === SpellStatus.RIGHT_SEE_ONLY,
   //完全隐藏
-  "Hidden": props.status === SpellStatus.BOTH_HIDDEN,
+  Hidden: props.status === SpellStatus.BOTH_HIDDEN,
   //只显示TH[0-9]+
   "Only-reveal-game": props.status === SpellStatus.ONLY_REVEAL_GAME,
   //只显示完整的游戏信息
@@ -100,16 +114,35 @@ const cellClass = computed(() => ({
   "Only-reveal-star": props.status === SpellStatus.ONLY_REVEAL_STAR,
 
   "is-portal": (props.isPortalA && props.isACurrentBoard) || (props.isPortalB && props.isBCurrentBoard),
-  "A-selected-other-board": (props.status === SpellStatus.A_SELECTED || props.status === SpellStatus.BOTH_SELECTED)
-    && !playerAOnCurBoard.value,
-  "B-selected-other-board": (props.status === SpellStatus.B_SELECTED || props.status === SpellStatus.BOTH_SELECTED)
-    && !playerBOnCurBoard.value,
-  "A-attained-other-board": (props.status === SpellStatus.A_ATTAINED || props.status === SpellStatus.BOTH_ATTAINED)
-    && !playerAAttainOnCurBoard.value,
-  "B-attained-other-board": (props.status === SpellStatus.B_ATTAINED || props.status === SpellStatus.BOTH_ATTAINED)
-    && !playerBAttainOnCurBoard.value,
+  "A-selected-other-board":
+    (props.status === SpellStatus.A_SELECTED || props.status === SpellStatus.BOTH_SELECTED) && !playerAOnCurBoard.value,
+  "B-selected-other-board":
+    (props.status === SpellStatus.B_SELECTED || props.status === SpellStatus.BOTH_SELECTED) && !playerBOnCurBoard.value,
+  "A-attained-other-board":
+    (props.status === SpellStatus.A_ATTAINED || props.status === SpellStatus.BOTH_ATTAINED) &&
+    !playerAAttainOnCurBoard.value,
+  "B-attained-other-board":
+    (props.status === SpellStatus.B_ATTAINED || props.status === SpellStatus.BOTH_ATTAINED) &&
+    !playerBAttainOnCurBoard.value,
 }));
 const levelClass = computed(() => `level${props.level}`);
+
+const levelStarString = (level: number) => {
+  switch (level) {
+    case 5:
+      return "★5";
+    case 4:
+      return "★4";
+    case 3:
+      return "☆3";
+    case 2:
+      return "☆2";
+    case 1:
+      return "☆1";
+    default:
+      return level.toString();
+  }
+};
 
 const onClick = () => {
   if (!props.disabled) {
@@ -328,7 +361,7 @@ const onClick = () => {
     }
   }
 
-  &.Only-reveal-game{
+  &.Only-reveal-game {
     .spell-card-info > *:not(.desc) {
       visibility: hidden;
     }
@@ -340,13 +373,13 @@ const onClick = () => {
     }
   }
 
-  &.Only-reveal-star{
+  &.Only-reveal-star {
     .spell-card-info > *:not(.level) {
       visibility: hidden;
     }
   }
 
-  &.A-selected-other-board{
+  &.A-selected-other-board {
     &::before {
       background-image: linear-gradient(var(--A-color) 60%, var(--A-color-dark));
       -webkit-animation: breath 3s infinite linear;
@@ -355,7 +388,7 @@ const onClick = () => {
     }
   }
 
-  &.B-selected-other-board{
+  &.B-selected-other-board {
     &::after {
       background-image: linear-gradient(var(--B-color) 60%, var(--B-color-dark));
       -webkit-animation: breath 3s infinite linear;
@@ -398,12 +431,12 @@ const onClick = () => {
     // 此处不改变 spell-card-cell 自身的位置
     // 而是通过其子元素的伪元素来添加图标，以避免样式冲突
     .spell-card-info::before {
-      content: '🔄';
+      content: "🔄";
       position: absolute;
-      top: 0;      // 距离顶部边缘一点距离，视觉效果更好
-      left: 0;     // 距离左侧边缘一点距离
+      top: 0; // 距离顶部边缘一点距离，视觉效果更好
+      left: 0; // 距离左侧边缘一点距离
       font-size: 16px; // 可根据需要调整图标大小
-      z-index: 5;      // 确保图标显示在最上层
+      z-index: 5; // 确保图标显示在最上层
       text-shadow: 0 0 1px rgba(0, 0, 0, 0.7);
       opacity: 0.5;
     }

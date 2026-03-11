@@ -26,7 +26,7 @@
           :disabled="!inGame"
         ></score-board>
         <score-board class="spell-card-score-card" :size="30" label="得分" v-model="playerAScore"></score-board>
-        <score-board class="spell-card-score-card" :size="24" label="等级" v-model="playerALevel"></score-board>
+        <score-board class="spell-card-score-card" :size="30" label="等级" v-model="playerALevel"></score-board>
         <el-button
           class="alert-button"
           type="primary"
@@ -56,7 +56,7 @@
           :disabled="!inGame"
         ></score-board>
         <score-board class="spell-card-score-card" :size="30" label="得分" v-model="playerBScore"></score-board>
-        <score-board class="spell-card-score-card" :size="24" label="等级" v-model="playerBLevel"></score-board>
+        <score-board class="spell-card-score-card" :size="30" label="等级" v-model="playerBLevel"></score-board>
         <el-button
           class="alert-button"
           type="primary"

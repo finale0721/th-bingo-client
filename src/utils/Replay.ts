@@ -984,6 +984,7 @@ class Replay {
           //如果是选择，就扣除一个cd（已经等完了）
           if(act.actionType === 'select' || act.actionType === 'set-1' || act.actionType === 'set-2' || act.actionType === 'set-3'){
             lastScoreTime -= playerCdMs;
+            break;
           }
           actLen--;
         }
