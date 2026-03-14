@@ -635,23 +635,34 @@ class Replay {
     // 2. 游戏设置
     output.push("【游戏设置】");
     output.push(`模式: ${Config.gameTypeList.find((g) => g.type === roomConfig.type)?.name || "未知"}`);
-        
+
     // 显示CD信息，如果有修正值则显示实际CD
     let cdInfo = `时长: ${roomConfig.game_time}分钟, 倒计时: ${roomConfig.countdown}秒, cd： ${roomConfig.cd_time}秒`;
-    if (roomConfig.cd_modifier_a !== undefined && roomConfig.cd_modifier_a !== 0 || 
-        roomConfig.cd_modifier_b !== undefined && roomConfig.cd_modifier_b !== 0) {
-      const actualA = Math.max(1, Math.min(roomConfig.cd_time + (roomConfig.cd_modifier_a || 0), roomConfig.cd_time * 3));
-      const actualB = Math.max(1, Math.min(roomConfig.cd_time + (roomConfig.cd_modifier_b || 0), roomConfig.cd_time * 3));
+    if (
+      (roomConfig.cd_modifier_a !== undefined && roomConfig.cd_modifier_a !== 0) ||
+      (roomConfig.cd_modifier_b !== undefined && roomConfig.cd_modifier_b !== 0)
+    ) {
+      const actualA = Math.max(
+        1,
+        Math.min(roomConfig.cd_time + (roomConfig.cd_modifier_a || 0), roomConfig.cd_time * 3)
+      );
+      const actualB = Math.max(
+        1,
+        Math.min(roomConfig.cd_time + (roomConfig.cd_modifier_b || 0), roomConfig.cd_time * 3)
+      );
       cdInfo += ` (左侧: ${actualA}秒, 右侧: ${actualB}秒)`;
     }
     output.push(cdInfo);
     // 1. 添加符卡来源与游戏难度
-    if(isCustomGame){
+    if (isCustomGame) {
       output.push(`卡池：自定义`);
-    }else{
+    } else {
       output.push(`卡池：${Config.spellVersionList.find((n) => n.type === roomConfig.spell_version)?.name}`);
-      const gameNames = roomConfig.games.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-        .map((code) => Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === code)?.name)
+      const gameNames = roomConfig.games
+        .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(
+          (code) => Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === code)?.name
+        )
         .filter(Boolean)
         .join(", ");
       output.push(`作品来源: ${gameNames || "未指定"}`);
@@ -665,7 +676,7 @@ class Replay {
             gameCode === "weight_balancer"
               ? "生成波动"
               : Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === gameCode)?.name ||
-              "";
+                "";
           if (gameName === "") {
             continue;
           }
@@ -695,7 +706,8 @@ class Replay {
         for (const [gameCode, pref] of Object.entries(roomConfig.ai_preference)) {
           if (pref != 0) {
             const gameName =
-              Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === gameCode)?.name || "";
+              Config.gameOptionList(this.roomStore.roomConfig.spell_version).find((g) => g.code === gameCode)?.name ||
+              "";
             if (gameName === "") {
               continue;
             }
@@ -843,12 +855,12 @@ class Replay {
 
     // 5. 评价汇总
     // 5. 评价汇总
-    output.push('【数据分析】');
+    output.push("【数据分析】");
     const countdownMs = roomConfig.countdown * 1000;
 
     // New data structure for player stats
     const playerStats: { [key: string]: any } = {};
-    players.forEach(player => {
+    players.forEach((player) => {
       playerStats[player] = {
         selectStack: [],
         totalTime: 0,
@@ -863,20 +875,25 @@ class Replay {
       };
     });
 
-    const getSpellForAction = (action: PlayerAction): Spell | undefined => {
+    const getSpellForAction = (action: PlayerAction, isCapture: boolean = true, isOpponent: boolean = false): Spell | undefined => {
       if (!roomConfig.dual_board || !normalData || !spells2) {
         return spells[action.spellIndex];
       }
-      // getOnWhichBoard: 0x1: Left/A, 0x2: Left/B, 0x10: Right/A, 0x20: Right/B
-      const getInfo = normalData.get_on_which_board[action.spellIndex];
-      const playerIndex = players.indexOf(action.playerName);
-      const boardFlag = playerIndex === 0 ? (getInfo & 0x0F) : ((getInfo >> 4) & 0x0F);
 
-      if (boardFlag === 1) return spells[action.spellIndex]; // 在盘面A收取
-      if (boardFlag === 2) return spells2[action.spellIndex]; // 在盘面B收取
+      let playerIndex = players.indexOf(action.playerName);
+      if(isOpponent) playerIndex = 1 - playerIndex;
+
+      if (isCapture) {
+        // getOnWhichBoard: 0x1: Left/A, 0x2: Left/B, 0x10: Right/A, 0x20: Right/B
+        const getInfo = normalData.get_on_which_board[action.spellIndex];
+        const boardFlag = playerIndex === 0 ? getInfo & 0x0f : (getInfo >> 4) & 0x0f;
+
+        if (boardFlag === 1) return spells[action.spellIndex]; // 在盘面A收取
+        if (boardFlag === 2) return spells2[action.spellIndex]; // 在盘面B收取
+      }
 
       // 如果没有收取信息（比如只是select），则根据当前玩家所在盘面判断
-      const playerBoard = playerBoards[action.playerName] || 0;
+      const playerBoard = playerBoards[players[playerIndex]];
       return playerBoard === 0 ? spells[action.spellIndex] : spells2[action.spellIndex];
     };
 
@@ -884,24 +901,24 @@ class Replay {
     for (const action of actions) {
       const player = action.playerName;
       if (!player) continue;
-      const opponent = players.find(p => p !== player)!;
+      const opponent = players.find((p) => p !== player)!;
       const stats = playerStats[player];
       const opponentStats = playerStats[opponent];
 
       const playerIndex = players.indexOf(player);
       const isHost = playerIndex === -1;
 
-      if (action.actionType === 'select') {
+      if (action.actionType === "select") {
         stats.selectStack.push(action);
-      } else if (action.actionType.startsWith('set-')) {
-        const status_string = action.actionType.split('-')[1];
+      } else if (action.actionType.startsWith("set-")) {
+        const status_string = action.actionType.split("-")[1];
         const status = parseInt(status_string, 10);
 
         // New Rule: If this set action overwrites an opponent's selection, it's a steal.
         const opponentLastSelect = opponentStats.selectStack[opponentStats.selectStack.length - 1];
         if (opponentLastSelect && opponentLastSelect.spellIndex === action.spellIndex) {
-          const isPlayerAStealing = playerIndex === 0 && (status === SpellStatus.A_ATTAINED);
-          const isPlayerBStealing = playerIndex === 1 && (status === SpellStatus.B_ATTAINED);
+          const isPlayerAStealing = playerIndex === 0 && status === SpellStatus.A_ATTAINED;
+          const isPlayerBStealing = playerIndex === 1 && status === SpellStatus.B_ATTAINED;
 
           if (isPlayerAStealing || isPlayerBStealing) {
             opponentStats.selectStack.pop(); // Remove the stolen selection
@@ -913,10 +930,10 @@ class Replay {
               const endTime = action.timestamp;
               let pauseDurationInInterval = 0;
               let pStart = 0;
-              actions.forEach(pAction => {
+              actions.forEach((pAction) => {
                 if (pAction.timestamp > startTime && pAction.timestamp < endTime) {
-                  if (pAction.actionType === 'pause') pStart = pAction.timestamp;
-                  if (pAction.actionType === 'resume' && pStart > 0) {
+                  if (pAction.actionType === "pause") pStart = pAction.timestamp;
+                  if (pAction.actionType === "resume" && pStart > 0) {
                     pauseDurationInInterval += pAction.timestamp - pStart;
                     pStart = 0;
                   }
@@ -932,8 +949,8 @@ class Replay {
         }
 
         // 1) set-X as a selection
-        const isPlayerASelect = (status === SpellStatus.A_SELECTED || status === SpellStatus.BOTH_SELECTED);
-        const isPlayerBSelect = (status === SpellStatus.B_SELECTED || status === SpellStatus.BOTH_SELECTED);
+        const isPlayerASelect = status === SpellStatus.A_SELECTED || status === SpellStatus.BOTH_SELECTED;
+        const isPlayerBSelect = status === SpellStatus.B_SELECTED || status === SpellStatus.BOTH_SELECTED;
         if (isPlayerASelect || isPlayerBSelect) {
           stats.selectStack.push(action);
         }
@@ -953,10 +970,10 @@ class Replay {
             const endTime = action.timestamp;
             let pauseDurationInInterval = 0;
             let pStart = 0;
-            actions.forEach(pAction => {
+            actions.forEach((pAction) => {
               if (pAction.timestamp > startTime && pAction.timestamp < endTime) {
-                if (pAction.actionType === 'pause') pStart = pAction.timestamp;
-                if (pAction.actionType === 'resume' && pStart > 0) {
+                if (pAction.actionType === "pause") pStart = pAction.timestamp;
+                if (pAction.actionType === "resume" && pStart > 0) {
                   pauseDurationInInterval += pAction.timestamp - pStart;
                   pStart = 0;
                 }
@@ -967,14 +984,15 @@ class Replay {
               stats.totalTime += duration;
               stats.totalFastest += spell.fastest;
               stats.totalStars[spell.star - 1] += 1;
-              stats.totalFastestWeighted += spell.fastest + 3.5 + (1 / this.getDifficultyFix(spell) - 1) * (spell.miss_time + 1.5);
+              stats.totalFastestWeighted +=
+                spell.fastest + 3.5 + (1 / this.getDifficultyFix(spell) - 1) * (spell.miss_time + 1.5);
               stats.completedTasks.push(`- "${spell.name}": ${(duration / 1000).toFixed(2)}s`);
             }
           } else {
             stats.untrackedFinishes++;
           }
         }
-      } else if (action.actionType === 'finish' || action.actionType === 'contest_win') {
+      } else if (action.actionType === "finish" || action.actionType === "contest_win") {
         const lastSelect = stats.selectStack.pop();
         if (lastSelect) {
           const spell = getSpellForAction(action);
@@ -984,10 +1002,10 @@ class Replay {
           const endTime = action.timestamp;
           let pauseDurationInInterval = 0;
           let pStart = 0;
-          actions.forEach(pAction => {
+          actions.forEach((pAction) => {
             if (pAction.timestamp > startTime && pAction.timestamp < endTime) {
-              if (pAction.actionType === 'pause') pStart = pAction.timestamp;
-              if (pAction.actionType === 'resume' && pStart > 0) {
+              if (pAction.actionType === "pause") pStart = pAction.timestamp;
+              if (pAction.actionType === "resume" && pStart > 0) {
                 pauseDurationInInterval += pAction.timestamp - pStart;
                 pStart = 0;
               }
@@ -998,7 +1016,8 @@ class Replay {
             stats.totalTime += duration;
             stats.totalFastest += spell.fastest;
             stats.totalStars[spell.star - 1] += 1;
-            stats.totalFastestWeighted += spell.fastest + 3.5 + (1 / this.getDifficultyFix(spell) - 1) * (spell.miss_time + 1.5);
+            stats.totalFastestWeighted +=
+              spell.fastest + 3.5 + (1 / this.getDifficultyFix(spell) - 1) * (spell.miss_time + 1.5);
             stats.completedTasks.push(`- "${spell.name}": ${(duration / 1000).toFixed(2)}s`);
           }
         } else {
@@ -1006,23 +1025,23 @@ class Replay {
         }
 
         // 3) Contest loss for opponent
-        if (action.actionType === 'contest_win') {
+        if (action.actionType === "contest_win") {
           const opponentLastSelect = opponentStats.selectStack[opponentStats.selectStack.length - 1];
           if (opponentLastSelect && opponentLastSelect.spellIndex === action.spellIndex) {
             opponentStats.selectStack.pop();
             opponentStats.stolenCount++;
 
-            const spell = getSpellForAction(action);
+            const spell = getSpellForAction(action, false, true);
             if (!spell) continue;
 
             const startTime = Math.max(opponentLastSelect.timestamp, countdownMs);
             const endTime = action.timestamp;
             let pauseDurationInInterval = 0;
             let pStart = 0;
-            actions.forEach(pAction => {
+            actions.forEach((pAction) => {
               if (pAction.timestamp > startTime && pAction.timestamp < endTime) {
-                if (pAction.actionType === 'pause') pStart = pAction.timestamp;
-                if (pAction.actionType === 'resume' && pStart > 0) {
+                if (pAction.actionType === "pause") pStart = pAction.timestamp;
+                if (pAction.actionType === "resume" && pStart > 0) {
                   pauseDurationInInterval += pAction.timestamp - pStart;
                   pStart = 0;
                 }
@@ -1039,7 +1058,7 @@ class Replay {
     }
 
     // Generate output from processed stats
-    players.forEach(player => {
+    players.forEach((player) => {
       output.push(`[玩家: ${player}]`);
       const stats = playerStats[player];
 
@@ -1056,25 +1075,41 @@ class Replay {
         output.push(`(有 ${stats.stolenCount} 张选择的符卡被对手抢走)`);
       }
 
-      output.push(`总计收取 ${stats.completedTasks.length} 张符卡，等级分布: [${stats.totalStars.join(',')}]，总等级：${stats.totalStars.reduce((sum, value, index) => sum + value * (index + 1), 0)}`);
-      output.push(`总收卡时间: ${formatTimestamp(totalEffectiveTime)} (收取: ${formatTimestamp(stats.totalTime)}, 被抢损失: ${formatTimestamp(stats.stolenTime)})`);
+      output.push(
+        `总计收取 ${stats.completedTasks.length} 张符卡，等级分布: [${stats.totalStars.join(
+          ","
+        )}]，总等级：${stats.totalStars.reduce((sum, value, index) => sum + value * (index + 1), 0)}`
+      );
+      output.push(
+        `总收卡时间: ${formatTimestamp(totalEffectiveTime)} (收取: ${formatTimestamp(
+          stats.totalTime
+        )}, 被抢损失: ${formatTimestamp(stats.stolenTime)})`
+      );
 
       if (Config.spellListWithTimer.includes(roomConfig.spell_version) && !isCustomGame) {
-        const efficiency = stats.totalTime > 0 ? ((stats.totalFastest * 1000) / stats.totalTime * 100).toFixed(2) : 'N/A';
-        output.push(`纯收卡效率: ${efficiency}% (${stats.totalFastest.toFixed(2)}s / ${(stats.totalTime/1000).toFixed(2)}s)`);
-        
+        const efficiency =
+          stats.totalTime > 0 ? (((stats.totalFastest * 1000) / stats.totalTime) * 100).toFixed(2) : "N/A";
+        output.push(
+          `纯收卡效率: ${efficiency}% (${stats.totalFastest.toFixed(2)}s / ${(stats.totalTime / 1000).toFixed(2)}s)`
+        );
+
         // 计算该选手在本局游戏内可行动的总时间
         // 该选手的CD（毫秒），考虑CD修正值
         const playerIndex = players.indexOf(player);
-        const cdModifier = playerIndex === 0 ? (roomConfig.cd_modifier_a || 0) : (roomConfig.cd_modifier_b || 0);
-        const playerCdMs = (Math.max(1, Math.min(roomConfig.cd_time + cdModifier, roomConfig.cd_time * 3))) * 1000;
+        const cdModifier = playerIndex === 0 ? roomConfig.cd_modifier_a || 0 : roomConfig.cd_modifier_b || 0;
+        const playerCdMs = Math.max(1, Math.min(roomConfig.cd_time + cdModifier, roomConfig.cd_time * 3)) * 1000;
         // 获取全局最后一次得分时间
         let lastScoreTime = 0;
         let actLen = actions.length - 1;
-        while(actLen >= 0){
+        while (actLen >= 0) {
           const act = actions[actLen];
           //不区分是谁的得分行为
-          if(act.actionType === 'finish' || act.actionType === 'contest_win' || act.actionType === 'set-5' || act.actionType === 'set-7'){
+          if (
+            act.actionType === "finish" ||
+            act.actionType === "contest_win" ||
+            act.actionType === "set-5" ||
+            act.actionType === "set-7"
+          ) {
             lastScoreTime = act.timestamp;
             break;
           }
@@ -1082,20 +1117,30 @@ class Replay {
         }
         actLen = actions.length - 1;
         //由于不是最后收卡的一方计算效率会多算一个cd，所以手动扣除这段cd
-        while(actLen >= 0){
+        while (actLen >= 0) {
           const act = actions[actLen];
           //需要找到自己的最后一个行动
-          if(player !== act.playerName){
+          if (player !== act.playerName) {
             actLen--;
             continue;
           }
           //如果是收取，扣除最后得分时间与该选手最后有效行动之间的时差，最多扣除一个cd
-          if(act.actionType === 'finish' || act.actionType === 'contest_win' || act.actionType === 'set-5' || act.actionType === 'set-7'){
+          if (
+            act.actionType === "finish" ||
+            act.actionType === "contest_win" ||
+            act.actionType === "set-5" ||
+            act.actionType === "set-7"
+          ) {
             lastScoreTime -= Math.min(Math.max(0, lastScoreTime - act.timestamp), playerCdMs);
             break;
           }
           //如果是选择，就扣除一个cd（已经等完了）
-          if(act.actionType === 'select' || act.actionType === 'set-1' || act.actionType === 'set-2' || act.actionType === 'set-3'){
+          if (
+            act.actionType === "select" ||
+            act.actionType === "set-1" ||
+            act.actionType === "set-2" ||
+            act.actionType === "set-3"
+          ) {
             lastScoreTime -= playerCdMs;
             break;
           }
@@ -1109,9 +1154,9 @@ class Replay {
         let totalPauseTime = 0;
         let pauseStart = 0;
         for (const action of actions) {
-          if (action.actionType === 'pause') {
+          if (action.actionType === "pause") {
             pauseStart = action.timestamp;
-          } else if (action.actionType === 'resume' && pauseStart > 0) {
+          } else if (action.actionType === "resume" && pauseStart > 0) {
             totalPauseTime += action.timestamp - pauseStart;
             pauseStart = 0;
           }
@@ -1119,13 +1164,20 @@ class Replay {
         // 该选手比分
         const playerScore = score[playerIndex] || 0;
         // 可行动时间 = 基础可用时间 - 全局总暂停时间 - 选手CD * min(24, 选手比分 - 1)
-        const cdPenalty = playerCdMs * Math.min( 24, Math.max(0, playerScore - 1));
+        const cdPenalty = playerCdMs * Math.min(24, Math.max(0, playerScore - 1));
         const totalAvailableTime = Math.max(0, availableTimeBase - totalPauseTime - cdPenalty);
-        
-        const eff_weighted = totalAvailableTime > 0 ? ((stats.totalFastestWeighted * 1000) / totalAvailableTime * 100).toFixed(2) : 'N/A';
-        output.push(`总时间效率: ${eff_weighted}% (${stats.totalFastestWeighted.toFixed(2)}s / ${(totalAvailableTime/1000.0).toFixed(2)}s)`);
+
+        const eff_weighted =
+          totalAvailableTime > 0
+            ? (((stats.totalFastestWeighted * 1000) / totalAvailableTime) * 100).toFixed(2)
+            : "N/A";
+        output.push(
+          `总时间效率: ${eff_weighted}% (${stats.totalFastestWeighted.toFixed(2)}s / ${(
+            totalAvailableTime / 1000.0
+          ).toFixed(2)}s)`
+        );
       }
-      output.push('');
+      output.push("");
     });
 
     const formattedReplayData = this.formatStringWithLineBreaks(replayDataB64, 128);

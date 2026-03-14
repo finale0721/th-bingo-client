@@ -199,13 +199,13 @@
       </div>
       <el-table
         ref="tableRef"
-        :data="records"
+        :data="pagedRecords"
         row-key="id"
         empty-text="暂无记录"
         v-loading="loading"
         @selection-change="handleSelectionChange"
       >
-        <el-table-column type="selection" width="54" />
+        <el-table-column type="selection" width="54" :reserve-selection="true" />
         <el-table-column label="保存时间" min-width="180">
           <template #default="{ row }">{{ formatDate(row.saved_at) }}</template>
         </el-table-column>
@@ -245,6 +245,19 @@
           </template>
         </el-table-column>
       </el-table>
+      <div class="table-pagination">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="pageSizes"
+          :total="records.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+          small
+          @current-change="handlePageChange"
+          @size-change="handlePageSizeChange"
+        />
+      </div>
     </section>
 
     <el-drawer
@@ -346,6 +359,7 @@ import {
   ElInput,
   ElMessage,
   ElOption,
+  ElPagination,
   ElSelect,
   ElTable,
   ElTableColumn,
@@ -378,6 +392,9 @@ const replayCode = ref("");
 const dateRange = ref<string[]>([]);
 const records = ref<AdminGameRecordSummary[]>([]);
 const selectedRows = ref<AdminGameRecordSummary[]>([]);
+const currentPage = ref(1);
+const pageSize = ref(20);
+const pageSizes = [20, 50, 100];
 const selectedRecord = ref<AdminGameRecord | null>(null);
 const analytics = ref<AdminUserOverviewResponse | null>(null);
 const filters = reactive({
@@ -412,6 +429,11 @@ const actionPreview = computed(() => selectedRecord.value?.game_log?.actions || 
 const topUsers = computed(() => overview.value.top_active_users.slice(0, 12));
 const currentReplayableIds = computed(() => records.value.filter((item) => item.has_game_log).map((item) => item.id));
 const selectedReplayableIds = computed(() => selectedRows.value.filter((item) => item.has_game_log).map((item) => item.id));
+const pagedRecords = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return records.value.slice(start, end);
+});
 const dailyBars = computed(() => {
   const items = overview.value.daily_activity;
   const max = Math.max(...items.map((item) => item.record_count), 1);
@@ -521,6 +543,7 @@ const loadDashboard = async () => {
     ]);
     records.value = matchResponse.items;
     analytics.value = overviewResponse;
+    currentPage.value = 1;
     selectedRows.value = selectedRows.value.filter((row) => matchResponse.items.some((item) => item.id === row.id));
   } catch (error) {
     handleApiError(error);
@@ -539,6 +562,15 @@ const resetFilters = () => {
 
 const handleSelectionChange = (rows: AdminGameRecordSummary[]) => {
   selectedRows.value = rows;
+};
+
+const handlePageChange = (page: number) => {
+  currentPage.value = page;
+};
+
+const handlePageSizeChange = (size: number) => {
+  pageSize.value = size;
+  currentPage.value = 1;
 };
 
 const clearSelection = () => {
@@ -678,13 +710,13 @@ onMounted(loadDashboard);
 <style lang="scss" scoped>
 .admin-page {
   min-height: 100%;
-  padding: 22px;
+  padding: 14px;
   background:
     radial-gradient(circle at top left, rgba(54, 170, 217, 0.18), transparent 28%),
     linear-gradient(180deg, #071723, #102b3d 34%, #e7eff3 34%, #f6f9fb 100%);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 .hero,
@@ -697,9 +729,9 @@ onMounted(loadDashboard);
 .hero {
   display: grid;
   grid-template-columns: 1.45fr 0.85fr;
-  gap: 22px;
-  padding: 28px;
-  border-radius: 28px;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
   background: linear-gradient(135deg, rgba(7, 25, 38, 0.96), rgba(11, 55, 78, 0.92));
   color: #fff;
 }
@@ -713,42 +745,43 @@ onMounted(loadDashboard);
 }
 
 .hero h1 {
-  margin: 0 0 12px;
-  font-size: 36px;
+  margin: 0 0 8px;
+  font-size: 28px;
 }
 
 .desc {
   margin: 0;
   color: rgba(231, 241, 247, 0.86);
-  line-height: 1.7;
+  line-height: 1.55;
+  font-size: 13px;
 }
 
 .hero-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 18px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .hero-meta span {
-  padding: 7px 12px;
+  padding: 5px 10px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .hero-actions,
 .inline-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-content: flex-start;
   justify-content: flex-end;
 }
 
 .panel {
-  padding: 22px;
-  border-radius: 22px;
+  padding: 14px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.96);
 }
 
@@ -756,8 +789,8 @@ onMounted(loadDashboard);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .panel-head h2,
@@ -767,23 +800,24 @@ onMounted(loadDashboard);
 }
 
 .panel-head p {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   color: #5a7280;
+  font-size: 12px;
 }
 
 .metrics {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 .metric {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 128px;
-  padding: 18px;
-  border-radius: 20px;
+  gap: 6px;
+  min-height: 96px;
+  padding: 12px;
+  border-radius: 14px;
   background: rgba(247, 251, 253, 0.94);
 }
 
@@ -795,7 +829,7 @@ onMounted(loadDashboard);
 .metric span,
 .metric small {
   color: #637c8b;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .metric.accent span,
@@ -804,7 +838,7 @@ onMounted(loadDashboard);
 }
 
 .metric strong {
-  font-size: 30px;
+  font-size: 24px;
   line-height: 1;
   color: #10293a;
 }
@@ -816,13 +850,13 @@ onMounted(loadDashboard);
 .analytics {
   display: grid;
   grid-template-columns: 1.15fr 1fr 1fr;
-  gap: 12px;
+  gap: 8px;
 }
 
 .bars {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
-  gap: 10px;
+  gap: 8px;
   align-items: end;
 }
 
@@ -830,18 +864,18 @@ onMounted(loadDashboard);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   color: #5b7484;
   font-size: 12px;
 }
 
 .bar-box {
   width: 100%;
-  height: 150px;
+  height: 126px;
   display: flex;
   align-items: flex-end;
-  padding: 10px 6px;
-  border-radius: 16px;
+  padding: 8px 6px;
+  border-radius: 12px;
   background: rgba(11, 57, 82, 0.06);
 }
 
@@ -854,15 +888,15 @@ onMounted(loadDashboard);
 .list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .list-row {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 14px;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   background: rgba(11, 57, 82, 0.05);
 }
 
@@ -873,7 +907,8 @@ onMounted(loadDashboard);
 .list-row small {
   display: block;
   color: #5c7483;
-  line-height: 1.5;
+  line-height: 1.4;
+  font-size: 12px;
 }
 
 .user-side {
@@ -883,24 +918,31 @@ onMounted(loadDashboard);
 .distribution {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 .distribution h3 {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   color: #10293a;
 }
 
 .dist-row {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  padding: 6px 0;
+  gap: 8px;
+  padding: 4px 0;
   color: #5a7280;
+  font-size: 12px;
 }
 
 .table-head {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
+}
+
+.table-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
 }
 
 .detail {
@@ -908,39 +950,39 @@ onMounted(loadDashboard);
 }
 
 .detail-actions {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .summary {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .detail-stack {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
 }
 
 .detail-grid {
   display: grid;
   grid-template-columns: minmax(320px, 0.82fr) minmax(420px, 1.18fr);
-  gap: 16px;
+  gap: 12px;
   align-items: start;
 }
 
 .detail-card {
-  padding: 20px;
-  border-radius: 18px;
+  padding: 14px;
+  border-radius: 12px;
   border: 1px solid rgba(7, 34, 51, 0.12);
   background: rgba(247, 251, 253, 0.96);
 }
 
 .replay-card {
-  padding: 22px;
+  padding: 14px;
 }
 
 .action-list {
-  max-height: 620px;
+  max-height: 520px;
   overflow: auto;
 }
 
@@ -959,11 +1001,11 @@ onMounted(loadDashboard);
 
 .preview {
   margin: 0;
-  min-height: 560px;
-  max-height: 720px;
+  min-height: 420px;
+  max-height: 600px;
   overflow: auto;
-  padding: 16px;
-  border-radius: 14px;
+  padding: 12px;
+  border-radius: 10px;
   background: #081926;
   color: #d5ebf6;
   text-align: left;
@@ -979,11 +1021,25 @@ onMounted(loadDashboard);
   --el-table-row-hover-bg-color: rgba(29, 127, 190, 0.06);
 }
 
+:deep(.el-table th.el-table__cell),
+:deep(.el-table td.el-table__cell) {
+  padding: 8px 0;
+}
+
 :deep(.el-input__wrapper),
 :deep(.el-select__wrapper),
 :deep(.el-date-editor.el-input__wrapper) {
   box-shadow: none;
   border: 1px solid rgba(7, 34, 51, 0.12);
+}
+
+:deep(.el-form--inline .el-form-item) {
+  margin-right: 10px;
+  margin-bottom: 8px;
+}
+
+:deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 @media (max-width: 1380px) {
@@ -1001,7 +1057,7 @@ onMounted(loadDashboard);
 
 @media (max-width: 860px) {
   .admin-page {
-    padding: 14px;
+    padding: 10px;
   }
 
   .metrics {
@@ -1009,7 +1065,7 @@ onMounted(loadDashboard);
   }
 
   .hero h1 {
-    font-size: 30px;
+    font-size: 24px;
   }
 }
 
