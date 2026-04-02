@@ -73,7 +73,7 @@ class Replay {
     blind_reveal_level: 2,
     diff_level: 3,
     use_ai: false,
-    ai_strategy_level: 2,
+    ai_strategy_level: 3,
     ai_style: 0,
     ai_base_power: 5,
     ai_experience: 5,
