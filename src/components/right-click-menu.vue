@@ -165,7 +165,7 @@ watch(
   background-color: white;
   z-index: 999;
   border-radius: 4px;
-  min-width: 150px;
+  min-width: 180px;
   border: 1px solid #ccc;
   display: flex;
   flex-direction: column;

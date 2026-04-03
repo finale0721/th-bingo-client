@@ -36,6 +36,15 @@
         >
           警告
         </el-button>
+        <el-button
+          class="alert-button"
+          type="primary"
+          v-if="isHost && isDualBoard"
+          @click="hostSwitchPlayerSide(0)"
+          :disabled="!inGame"
+        >
+          换面
+        </el-button>
       </template>
 
       <template #right>
@@ -66,6 +75,15 @@
         >
           警告
         </el-button>
+        <el-button
+          class="alert-button"
+          type="primary"
+          v-if="isHost && isDualBoard"
+          @click="hostSwitchPlayerSide(1)"
+          :disabled="!inGame"
+        >
+          换面
+        </el-button>
       </template>
 
       <template #extra>
@@ -73,8 +91,9 @@
           <bingo-link-effect :route-a="routeA" :route-b="routeB" />
         </div> -->
         <game-bp v-if="isBpPhase" v-model="bpCode"></game-bp>
-        <div :class="{ page: gameStore.currentBoard === 0, 'page-reverse': gameStore.currentBoard === 1 }"
-             v-if = "isDualBoard"
+        <div
+          :class="{ page: gameStore.currentBoard === 0, 'page-reverse': gameStore.currentBoard === 1 }"
+          v-if="isDualBoard"
         ></div>
       </template>
 
@@ -96,7 +115,7 @@
             :step="1"
             :min="1"
             :max="8"
-            style="width: 144px; margin: 0 15px;"
+            style="width: 144px; margin: 0 15px"
             @change="changeReplaySpeed"
           />
           <el-button
@@ -120,34 +139,26 @@
             circle
           />
           <!-- 时间轴滑块 -->
-          <el-slider v-if="replayInstance.state.totalTime > 0"
-                     v-model="replayInstance.state.currentTime"
-                     :max="replayInstance.state.totalTime"
-                     :format-tooltip="formatReplayTime"
-                     @change="handleTimelineChange"
-                     style="width: 144px; margin: 0 15px;"
+          <el-slider
+            v-if="replayInstance.state.totalTime > 0"
+            v-model="replayInstance.state.currentTime"
+            :max="replayInstance.state.totalTime"
+            :format-tooltip="formatReplayTime"
+            @change="handleTimelineChange"
+            style="width: 144px; margin: 0 15px"
           />
 
           <div class="replay-time">
-            {{ formatReplayTime(replayInstance.state.currentTime) }} / {{ formatReplayTime(replayInstance.state.totalTime) }}
+            {{ formatReplayTime(replayInstance.state.currentTime) }} /
+            {{ formatReplayTime(replayInstance.state.totalTime) }}
           </div>
 
-          <el-button
-            type="primary"
-            @click="confirmExitReplay"
-            style="margin-left: 15px;"
-          >
-            退出回放
-          </el-button>
+          <el-button type="primary" @click="confirmExitReplay" style="margin-left: 15px"> 退出回放 </el-button>
         </div>
 
         <template v-else-if="!editorStore.isEditorMode">
           <template v-if="!soloMode && isHost">
-            <el-button
-              type="primary"
-              v-if="!inGame && !isBpPhase"
-              @click="editorStore.openPresetManager('select')"
-            >
+            <el-button type="primary" v-if="!inGame && !isBpPhase" @click="editorStore.openPresetManager('select')">
               自定义游戏
             </el-button>
             <el-button type="primary" v-if="!inGame && !isBpPhase" @click="startGame">开始比赛</el-button>
@@ -193,14 +204,14 @@
                   @click="confirmBp"
                   :disabled="!isMyTurn || !bingoBpPhase || selectedSpellIndex < 0"
                   v-if="!gameStore.bpGameData.ban_pick"
-                >{{ bingoBpPhase ? (isMyTurn ? "选择符卡" : "等待对手选择符卡") : "等待房主操作" }}</el-button
+                  >{{ bingoBpPhase ? (isMyTurn ? "选择符卡" : "等待对手选择符卡") : "等待房主操作" }}</el-button
                 >
                 <el-button
                   type="primary"
                   @click="confirmBp"
                   v-if="gameStore.bpGameData.ban_pick"
                   :disabled="!isMyTurn || !bingoBpPhase || selectedSpellIndex < 0"
-                >{{ bingoBpPhase ? (isMyTurn ? "禁用符卡" : "等待对手禁用符卡") : "等待房主操作" }}</el-button
+                  >{{ bingoBpPhase ? (isMyTurn ? "禁用符卡" : "等待对手禁用符卡") : "等待房主操作" }}</el-button
                 >
               </template>
               <!-- <template v-if="isBingoLink">
@@ -220,17 +231,13 @@
                 v-if="banPick.phase < 11"
                 :disabled="!(isPlayerA && playerACanBP) && !(isPlayerB && playerBCanBP)"
                 @click="playerBanPick"
-              >确定</el-button
+                >确定</el-button
               >
               <el-button type="primary" v-if="banPick.phase === 11" @click="confirmOpenEX(true)">开启</el-button>
               <el-button type="primary" v-if="banPick.phase === 11" @click="confirmOpenEX(false)">不开启</el-button>
             </template>
 
-            <el-button
-              type="primary"
-              v-if="!inGame && !isBpPhase"
-              @click="editorStore.openPresetManager('select')"
-            >
+            <el-button type="primary" v-if="!inGame && !isBpPhase" @click="editorStore.openPresetManager('select')">
               自定义游戏
             </el-button>
           </template>
@@ -244,17 +251,11 @@
         <template v-else>
           <div>
             <el-button type="primary" @click="editorStore.toggleDatabasePanel">
-              {{ editorStore.isDatabasePanelVisible ? '关闭数据库' : '打开数据库' }}
+              {{ editorStore.isDatabasePanelVisible ? "关闭数据库" : "打开数据库" }}
             </el-button>
-            <el-button
-              type="primary"
-              @click="editorStore.isPresetManagerVisible = true"
-            >
-              预设管理
-            </el-button>
+            <el-button type="primary" @click="editorStore.isPresetManagerVisible = true"> 预设管理 </el-button>
           </div>
         </template>
-
       </template>
 
       <template #button-left-1>
@@ -274,20 +275,8 @@
           </template>
         </div>
         <div v-else-if="editorStore.isEditorMode">
-          <el-button
-            type="danger"
-            size="small"
-            @click="handleClearAll"
-          >
-            清空格子
-          </el-button>
-          <el-button
-            type="warning"
-            size="small"
-            @click="handleShuffleSpells"
-          >
-            洗混格子
-          </el-button>
+          <el-button type="danger" size="small" @click="handleClearAll"> 清空格子 </el-button>
+          <el-button type="warning" size="small" @click="handleShuffleSpells"> 洗混格子 </el-button>
         </div>
       </template>
 
@@ -303,7 +292,7 @@
             </template>
             <template v-if="isBingoBp">
               <el-button size="small" @click="nextRound" :disabled="!inGame || gameStore.bpGameData.ban_pick !== 2"
-              >进入下轮</el-button
+                >进入下轮</el-button
               >
             </template>
           </template>
@@ -312,15 +301,11 @@
 
       <template #button-right-2>
         <template v-if="isDualBoard && roomStore.roomConfig.type == BingoType.STANDARD">
-          <el-button type="primary"
-                     @click="switchDualBoardSide">
-            {{
-              boardNotDecided() ? "切换盘面" : (isOnCurrentBoard() ? "查看另一面" : "返回当前面")
-            }}
+          <el-button type="primary" @click="switchDualBoardSide">
+            {{ boardNotDecided() ? "切换盘面" : isOnCurrentBoard() ? "查看另一面" : "返回当前面" }}
           </el-button>
         </template>
       </template>
-
     </room-layout>
 
     <spell-editor-modal
@@ -338,7 +323,7 @@
 </template>
 
 <script lang="ts" setup>
-import {computed, h, nextTick, onMounted, onUnmounted, ref, watch} from "vue";
+import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { BingoType, BpStatus, GameStatus } from "@/types";
 import RoomLayout from "./components/roomLayout.vue";
 import ScoreBoard from "@/components/score-board.vue";
@@ -349,12 +334,12 @@ import { ElButton, ElMessage, ElMessageBox, ElRadio, ElRadioGroup, ElSlider } fr
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { useRoomStore } from "@/store/RoomStore";
 import { useGameStore } from "@/store/GameStore";
-import { WebSocketActionType } from "@/utils/webSocket/types";
-import { VideoPlay, VideoPause, ArrowLeft, ArrowRight } from '@element-plus/icons-vue';
-import Replay from '@/utils/Replay';
+import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
+import { VideoPlay, VideoPause, ArrowLeft, ArrowRight } from "@element-plus/icons-vue";
+import Replay from "@/utils/Replay";
 import { useEditorStore } from "@/store/EditorStore";
-import SpellEditorModal from '@/components/SpellEditorModal.vue';
-import SpellDatabasePanel from '@/components/SpellDatabasePanel.vue';
+import SpellEditorModal from "@/components/SpellEditorModal.vue";
+import SpellDatabasePanel from "@/components/SpellDatabasePanel.vue";
 import PresetManager from "@/components/PresetManager.vue";
 
 const roomStore = useRoomStore();
@@ -372,9 +357,7 @@ const selectedSpellIndex = computed({
   get: () => {
     // If in editor mode, get the index from the editorStore.
     // Otherwise, get it from our local ref for game mode.
-    return editorStore.isEditorMode
-      ? editorStore.selectedSpellIndex
-      : gameModeSelectedSpellIndex.value;
+    return editorStore.isEditorMode ? editorStore.selectedSpellIndex : gameModeSelectedSpellIndex.value;
   },
   set: (val) => {
     // The setter is ONLY used by the v-model in game mode.
@@ -382,8 +365,10 @@ const selectedSpellIndex = computed({
     if (!editorStore.isEditorMode) {
       gameModeSelectedSpellIndex.value = val;
     }
-  }
+  },
 });
+const playerALeftCd = computed(() => (gameStore.leftCdTime >= 0 ? gameStore.leftCdTime : roomStore.actualCdTimeA));
+const playerBLeftCd = computed(() => (gameStore.leftCdTime >= 0 ? gameStore.leftCdTime : roomStore.actualCdTimeB));
 
 const roomData = computed(() => roomStore.roomData);
 const roomSettings = computed(() => roomStore.roomSettings);
@@ -402,9 +387,9 @@ const isBingoStandard = computed(() => roomStore.roomData.type === BingoType.STA
 const isBingoBp = computed(() => roomStore.roomData.type === BingoType.BP);
 const isBingoLink = computed(() => roomStore.roomData.type === BingoType.LINK);
 
-const isDualBoard = computed(() => roomStore.roomConfig.dual_board > 0 );
-const playerASide = computed(() => isDualBoard.value ? gameStore.normalGameData.which_board_a : 0);
-const playerBSide = computed(() => isDualBoard.value ? gameStore.normalGameData.which_board_b : 0);
+const isDualBoard = computed(() => roomStore.roomConfig.dual_board > 0);
+const playerASide = computed(() => (isDualBoard.value ? gameStore.normalGameData.which_board_a : 0));
+const playerBSide = computed(() => (isDualBoard.value ? gameStore.normalGameData.which_board_b : 0));
 
 const playerACanBP = computed(
   () =>
@@ -506,26 +491,26 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
               value: 0,
             },
             {
-              label: "左侧玩家选择",
+              label: "左侧选择",
               value: 1,
               tag: "playerA",
             },
             {
-              label: "右侧玩家选择",
+              label: "右侧选择",
               value: 3,
               tag: "playerB",
             },
             {
-              label: "两侧玩家选择",
+              label: "两侧选择",
               value: 2,
             },
             {
-              label: "左侧玩家收取",
+              label: "左侧收取",
               value: 5,
               tag: "playerA",
             },
             {
-              label: "右侧玩家收取",
+              label: "右侧收取",
               value: 7,
               tag: "playerB",
             },
@@ -555,26 +540,26 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
             isReset: true,
           },
           {
-            label: "左侧玩家选择",
+            label: "左侧选择",
             value: 1,
             tag: "playerA",
           },
           {
-            label: "右侧玩家选择",
+            label: "右侧选择",
             value: 3,
             tag: "playerB",
           },
           // {
-          //   label: "两侧玩家选择",
+          //   label: "两侧选择",
           //   value: 2,
           // },
           {
-            label: "左侧玩家收取",
+            label: "左侧收取",
             value: 5,
             tag: "playerA",
           },
           {
-            label: "右侧玩家收取",
+            label: "右侧收取",
             value: 7,
             tag: "playerB",
           },
@@ -621,16 +606,16 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
               value: 0,
             },
             {
-              label: "两侧玩家收取",
+              label: "两侧收取",
               value: 6,
             },
             {
-              label: "左侧玩家收取",
+              label: "左侧收取",
               value: 5,
               tag: "playerA",
             },
             {
-              label: "右侧玩家收取",
+              label: "右侧收取",
               value: 7,
               tag: "playerB",
             },
@@ -752,8 +737,12 @@ const selectCooldown = computed(() => {
   if (!gameStore.inited) {
     return -1;
   }
-  const c = gameStore.leftCdTime >= 0 ? gameStore.leftCdTime :
-    isPlayerA.value ? roomStore.actualCdTimeA : roomStore.actualCdTimeB;
+  const c =
+    gameStore.leftCdTime >= 0
+      ? gameStore.leftCdTime
+      : isPlayerA.value
+      ? roomStore.actualCdTimeA
+      : roomStore.actualCdTimeB;
   return c;
 });
 
@@ -834,10 +823,10 @@ const decideStandard = (status) => {
   playerBScore.value = scoreB;
 
   gameStore.normalGameData?.get_on_which_board.forEach((item: number, index: number) => {
-    const sp = (item === 0x2 || item === 0x20) ? gameStore.spells2[index] : gameStore.spells[index];
-    if(status[index] === 5){
+    const sp = item === 0x2 || item === 0x20 ? gameStore.spells2[index] : gameStore.spells[index];
+    if (status[index] === 5) {
       levelA += sp.star;
-    }else if(status[index] === 7){
+    } else if (status[index] === 7) {
       levelB += sp.star;
     }
   });
@@ -858,9 +847,9 @@ const decideStandard = (status) => {
     //如果没有导播...
     if (winFlag.value !== 0) {
       //单人练习模式允许关闭胜利判定
-      if(roomStore.practiceMode && roomSettings.value.noWinningDeclaration){
+      if (roomStore.practiceMode && roomSettings.value.noWinningDeclaration) {
         layoutRef.value?.hideAlert();
-      }else {
+      } else {
         //否则由左侧玩家决定胜利
         layoutRef.value?.showAlert("已满足胜利条件，等待左侧玩家判断胜负", "red");
       }
@@ -1188,10 +1177,10 @@ const confirmSelect = () => {
   gameStore.selectSpell(selectedSpellIndex.value).then(() => {
     gameModeSelectedSpellIndex.value = -1;
   });
-  if(isDualBoard.value) switchToSelfPage();
+  if (isDualBoard.value) switchToSelfPage();
 };
 const confirmAttained = () => {
-  if(isDualBoard.value) switchToSelfPage()
+  if (isDualBoard.value) switchToSelfPage();
   gameStore.finishSpell(isPlayerA.value ? playerASelectedIndex.value : playerBSelectedIndex.value);
 };
 const warnPlayer = (name) => {
@@ -1208,9 +1197,9 @@ const onCountDownComplete = () => {
     }
   } else if (gameStore.gameStatus === GameStatus.STARTED) {
     gameStore.gameStatus = GameStatus.ENDED;
-    if (!isHost.value){
+    if (!isHost.value) {
       layoutRef.value?.showAlert("游戏时间到，等待房主判断胜负", "red");
-    } else{
+    } else {
       layoutRef.value?.showAlert("游戏时间到，等待左侧玩家判断胜负", "red");
     }
   }
@@ -1237,33 +1226,66 @@ const switchDualBoardSide = () => {
   gameStore.currentBoard = 1 - gameStore.currentBoard;
   //仅倒计时期间且未实际选择时允许实际的盘面转换
   if (boardNotDecided()) {
-    ws.send(WebSocketActionType.NORMAL_DUAL_BOARD_CHANGE, {player: isPlayerA.value ? 0:1, to: gameStore.currentBoard});
+    ws.send(WebSocketActionType.NORMAL_DUAL_BOARD_CHANGE, {
+      player: isPlayerA.value ? 0 : 1,
+      to: gameStore.currentBoard,
+    });
   }
 };
-const switchToSelfPage = () =>{
-  if(!boardNotDecided()){
+const switchToSelfPage = () => {
+  if (!boardNotDecided()) {
     gameStore.currentBoard = isPlayerA.value ? playerASide.value : playerBSide.value;
   }
-}
+};
+const switchSideForce = (playerId: number) => {
+  ws.send(WebSocketActionType.NORMAL_DUAL_BOARD_CHANGE, {
+    player: playerId,
+    to: playerId === 0 ? 1 - playerASide.value : 1 - playerBSide.value,
+  });
+};
+const hostSwitchPlayerSide = (playerId: number) => {
+  ElMessageBox.confirm(`是否改变玩家 ` + roomStore.roomData.names[playerId] + ` 到另一面？`, "警告", {
+    confirmButtonText: "确认",
+    cancelButtonText: "取消",
+    type: "warning",
+  })
+    .then(() => {
+      switchSideForce(playerId);
+    });
+};
+
+ws.on(WebSocketPushActionType.PUSH_NORMAL_DUAL_BOARD_CHANGE, (data) => {
+  const playerIndex = data!.playerId;
+  const toSide = data!.to;
+  playerIndex === 0
+    ? (gameStore.normalGameData.which_board_a = toSide)
+    : (gameStore.normalGameData.which_board_b = toSide);
+  if (isPlayerA.value) {
+    gameStore.currentBoard = gameStore.normalGameData.which_board_a;
+  }
+  if (isPlayerB.value) {
+    gameStore.currentBoard = gameStore.normalGameData.which_board_b;
+  }
+});
 //不是选手，始终为查看模式
 //是选手，只有倒计时期间且未实际选卡才有自由进行实际的切换，其余情况以服务器为准
 const boardNotDecided = () => {
-  if(gameStore.isReplayMode) return false;
-  return isPlayer.value && gameStore.gameStatus === GameStatus.COUNT_DOWN && !spellCardSelected.value
-}
+  if (gameStore.isReplayMode) return false;
+  return isPlayer.value && gameStore.gameStatus === GameStatus.COUNT_DOWN && !spellCardSelected.value;
+};
 //在不允许自由切换的时候，判断选手是否与服务器最近返回的数据相符
 const isOnCurrentBoard = () => {
-  if(boardNotDecided()){
+  if (boardNotDecided()) {
     return true;
   }
-  if(isPlayerA.value){
+  if (isPlayerA.value) {
     return gameStore.currentBoard === gameStore.normalGameData.which_board_a;
   }
-  if(isPlayerB.value){
+  if (isPlayerB.value) {
     return gameStore.currentBoard === gameStore.normalGameData.which_board_b;
   }
   return true;
-}
+};
 
 // Auto-switch functionality for dual boards
 const autoSwitchTimer = ref<number | null>(null);
@@ -1272,13 +1294,13 @@ const autoSwitchLeftTime = ref(0);
 // Start auto-switch timer
 const startAutoSwitchTimer = () => {
   if (autoSwitchTimer.value) return;
-  
+
   // Reset left time to interval value
   autoSwitchLeftTime.value = roomSettings.value.autoSwitchInterval;
-  
+
   autoSwitchTimer.value = setInterval(() => {
     autoSwitchLeftTime.value--;
-    
+
     if (autoSwitchLeftTime.value <= 0) {
       // Perform auto-switch
       switchDualBoardSide();
@@ -1307,10 +1329,7 @@ const resetAutoSwitchTimer = () => {
 // Check if auto-switch conditions are met
 const shouldAutoSwitch = computed(() => {
   return (
-    roomSettings.value.autoSwitchInDualMode &&
-    !isPlayer.value &&
-    roomStore.roomConfig.dual_board > 0 &&
-    inGame.value
+    roomSettings.value.autoSwitchInDualMode && !isPlayer.value && roomStore.roomConfig.dual_board > 0 && inGame.value
   );
 });
 
@@ -1378,21 +1397,24 @@ const replayInstance = Replay;
 const replaySpeed = ref(1);
 const speedValues = [1, 1.5, 2, 3, 5, 8, 15, 30];
 const speedMarks = {
-  1: '1',
-  2: '1.5',
-  3: '2',
-  4: '3',
-  5: '5',
-  6: '8',
-  7: '15',
-  8: '30'
+  1: "1",
+  2: "1.5",
+  3: "2",
+  4: "3",
+  5: "5",
+  6: "8",
+  7: "15",
+  8: "30",
 };
-watch(() => gameStore.isReplayMode, (isReplayActive) => {
-  if (isReplayActive) {
-    // 当新的回放开始时，将UI滑块的位置重置为1
-    replaySpeed.value = 1;
+watch(
+  () => gameStore.isReplayMode,
+  (isReplayActive) => {
+    if (isReplayActive) {
+      // 当新的回放开始时，将UI滑块的位置重置为1
+      replaySpeed.value = 1;
+    }
   }
-});
+);
 // 切换回放播放/暂停
 const toggleReplay = () => {
   if (replayInstance.state.isReplayFinished) {
@@ -1420,7 +1442,7 @@ const formatReplayTime = (milliseconds: number): string => {
   const totalSeconds = Math.floor(milliseconds / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 };
 
 // 确认退出回放 (保持不变)
@@ -1490,14 +1512,15 @@ const handleKeyDown = (e: KeyboardEvent) => {
   // 检查是否在输入框内，避免冲突
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-  if (e.ctrlKey || e.metaKey) { // metaKey for macOS
-    if (e.key === 'c') {
+  if (e.ctrlKey || e.metaKey) {
+    // metaKey for macOS
+    if (e.key === "c") {
       e.preventDefault();
       editorStore.copySpell(editorStore.selectedSpellIndex);
-    } else if (e.key === 'v') {
+    } else if (e.key === "v") {
       e.preventDefault();
       editorStore.pasteSpell(editorStore.selectedSpellIndex);
-    } else if (e.key === 'Backspace') {
+    } else if (e.key === "Backspace") {
       e.preventDefault();
       editorStore.clearSpell(editorStore.selectedSpellIndex);
     }
@@ -1505,37 +1528,40 @@ const handleKeyDown = (e: KeyboardEvent) => {
 };
 
 onMounted(() => {
-  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener("keydown", handleKeyDown);
 });
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeyDown);
+  document.removeEventListener("keydown", handleKeyDown);
 });
 
 const handleClearAll = () => {
-  ElMessageBox.confirm('确定要清空所有格子的内容吗？此操作不可恢复。', '警告', {
-    type: 'warning',
-    confirmButtonText: '确认清空',
-    confirmButtonClass: 'el-button--danger'
-  }).then(() => {
-    editorStore.clearAllSpells();
-    ElMessage.success('已清空');
-  }).catch(() => {});
+  ElMessageBox.confirm("确定要清空所有格子的内容吗？此操作不可恢复。", "警告", {
+    type: "warning",
+    confirmButtonText: "确认清空",
+    confirmButtonClass: "el-button--danger",
+  })
+    .then(() => {
+      editorStore.clearAllSpells();
+      ElMessage.success("已清空");
+    })
+    .catch(() => {});
 };
 
 const handleShuffleSpells = () => {
-  ElMessageBox.confirm('确定要洗混当前盘面的格子吗？此操作不可恢复。', '提示', {
-    type: 'warning',
-    confirmButtonText: '确认洗混',
-    cancelButtonText: '取消'
-  }).then(() => {
-    const result = editorStore.shuffleSpells();
-    if (result.success) {
-      ElMessage.success(result.message);
-    }
-  }).catch(() => {});
+  ElMessageBox.confirm("确定要洗混当前盘面的格子吗？此操作不可恢复。", "提示", {
+    type: "warning",
+    confirmButtonText: "确认洗混",
+    cancelButtonText: "取消",
+  })
+    .then(() => {
+      const result = editorStore.shuffleSpells();
+      if (result.success) {
+        ElMessage.success(result.message);
+      }
+    })
+    .catch(() => {});
 };
-
 </script>
 
 <style lang="scss" scoped>
@@ -1568,8 +1594,8 @@ const handleShuffleSpells = () => {
   height: calc(100% - 8px);
   pointer-events: none;
   background: linear-gradient(90deg, transparent 95%, var(--bg-color)),
-  linear-gradient(180deg, transparent 95%, var(--bg-color)), linear-gradient(270deg, transparent 95%, var(--bg-color)),
-  linear-gradient(360deg, transparent 95%, var(--bg-color));
+    linear-gradient(180deg, transparent 95%, var(--bg-color)), linear-gradient(270deg, transparent 95%, var(--bg-color)),
+    linear-gradient(360deg, transparent 95%, var(--bg-color));
 }
 .page-reverse {
   position: absolute;
@@ -1579,9 +1605,9 @@ const handleShuffleSpells = () => {
   height: calc(100% - 8px);
   pointer-events: none;
   background: linear-gradient(90deg, transparent 95%, var(--bg-color-reverse)),
-  linear-gradient(180deg, transparent 95%, var(--bg-color-reverse)),
-  linear-gradient(270deg, transparent 95%, var(--bg-color-reverse)),
-  linear-gradient(360deg, transparent 95%, var(--bg-color-reverse));
+    linear-gradient(180deg, transparent 95%, var(--bg-color-reverse)),
+    linear-gradient(270deg, transparent 95%, var(--bg-color-reverse)),
+    linear-gradient(360deg, transparent 95%, var(--bg-color-reverse));
 }
 .replay-controls {
   display: flex;
@@ -1594,7 +1620,7 @@ const handleShuffleSpells = () => {
   min-width: 100px;
   text-align: center;
 }
-.button-right-2{
+.button-right-2 {
   align-items: first;
 }
 </style>
