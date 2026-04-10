@@ -106,7 +106,7 @@ export interface RoomConfig {
   cd_modifier_b?: number; // 右侧选手CD修正值
   reserved_type: 1; // 纯客户端用的一个类型字段，服务器只负责透传
   blind_setting: 1;
-  spell_version: 1;
+  spell_version: 2;
   dual_board: 0;
   portal_count: 5;
   blind_reveal_level: 2;

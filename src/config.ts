@@ -243,6 +243,10 @@ const spellVersionList = [
     type: 2
   },
   {
+    name: "S7-就这个快",
+    type: 3
+  },
+  {
     name: "S6卡池",
     type: 1
   },
