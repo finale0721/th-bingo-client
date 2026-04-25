@@ -116,6 +116,17 @@
                           }}</el-button>
                       </div>
                     </el-form-item>
+                    <el-form-item label="盘面大小：">
+                      <el-radio-group
+                        v-model="roomSettings.board_size"
+                        :disabled="inGame"
+                        @change="onBoardSizeChange"
+                      >
+                        <el-radio :value="4" :disabled="roomSettings.type !== BingoType.STANDARD">4×4</el-radio>
+                        <el-radio :value="5">5×5</el-radio>
+                        <el-radio :value="6" :disabled="roomSettings.type !== BingoType.STANDARD">6×6</el-radio>
+                      </el-radio-group>
+                    </el-form-item>
                     <el-form-item label="比赛时长：" v-if="roomData.type !== BingoType.LINK">
                       <el-input-number
                         class="input-number"
@@ -220,7 +231,7 @@
                     <el-form-item label="AI练习：" v-if="roomStore.practiceMode && Config.spellListWithTimer.includes(roomSettings.spell_version) ">
                       <el-checkbox
                           v-model="roomSettings.use_ai"
-                          :disabled="inGame || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0"
+                          :disabled="inGame || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0 || roomSettings.board_size !== 5"
                           @change="roomStore.updateRoomConfig()"
                           style="margin-right: 0"
                       ></el-checkbox>
@@ -388,7 +399,7 @@
                           class="input-number"
                           v-model="roomSettings.portal_count"
                           :min="1"
-                          :max="25"
+                          :max="roomSettings.board_size * roomSettings.board_size"
                           :step="1"
                           :disabled="inGame"
                           size="small"
@@ -878,6 +889,19 @@ const onFormatChange = (value) => {
   }
   roomStore.updateRoomConfig("need_win");
 };
+const onBoardSizeChange = (value) => {
+  if (value !== 5) {
+    // Non-5x5 only supports standard mode
+    if (roomSettings.value.type !== BingoType.STANDARD) {
+      roomSettings.value.type = BingoType.STANDARD;
+      roomStore.updateRoomConfig("type");
+    }
+    if (roomSettings.value.use_ai) {
+      roomSettings.value.use_ai = false;
+    }
+  }
+  roomStore.updateRoomConfig("board_size");
+};
 const standUp = () => {
   roomStore.standUp();
 };
@@ -999,8 +1023,9 @@ const customDifficultyButtonType = computed(() => {
   if (!roomSettings.value.custom_level_count || roomSettings.value.custom_level_count.length < 5) {
     return 'danger';
   }
+  const boardArea = roomSettings.value.board_size * roomSettings.value.board_size;
   const sum = roomSettings.value.custom_level_count.slice(0, 5).reduce((a, b) => a + b, 0);
-  return sum === 25 ? 'success' : 'danger';
+  return sum === boardArea ? 'success' : 'danger';
 });
 
 // 检查生成权重是否有任何非默认值
