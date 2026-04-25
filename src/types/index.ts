@@ -120,6 +120,9 @@ export interface RoomConfig {
   game_weight: Record<string, number>;
   ai_preference: Record<string, number>;
   custom_level_count: number[];
+  board_size: number;
+  extra_line_count: number;
+  use_fixed_high_level_layout: boolean;
 }
 
 export interface EditorPreset {
