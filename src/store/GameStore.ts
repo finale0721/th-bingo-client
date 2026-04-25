@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useRoomStore } from "./RoomStore";
 import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStatus, EditorPreset } from "@/types";
+import { BoardSpec } from "@/utils/board";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
 import Config from "@/config"
@@ -370,8 +371,9 @@ export const useGameStore = defineStore("game", () => {
         `<span style="padding:0 2px;font-weight:600;">${curSpellList.value[index].name}</span>`
     ;
 
-    const row = Math.floor(index/5)+1;
-    const col = index%5+1;
+    const board = new BoardSpec(roomStore.roomConfig.board_size || 5);
+    const row = board.row(index)+1;
+    const col = board.col(index)+1;
 
     if(!fromHost){
       if(fromPlayerA){
@@ -437,7 +439,7 @@ export const useGameStore = defineStore("game", () => {
           str += `设置为${playerB}收取`;
           break;
         case 0x100:
-          str += `刷新，该符卡位于${Math.floor(index/5)+1}行${index%5+1}列`
+          str += `刷新，该符卡位于${board.row(index)+1}行${board.col(index)+1}列`
           break;
       }
     }
@@ -449,8 +451,8 @@ export const useGameStore = defineStore("game", () => {
   const bpGameData = reactive({
     whose_turn: 0, // 轮到谁了，0-左边，1-右边
     ban_pick: 1, // 0-选，1-ban，2-轮到收卡了
-    spell_failed_count_a: [] as number[], // 左边玩家25张符卡的失败次数
-    spell_failed_count_b: [] as number[], // 右边玩家25张符卡的失败次数
+    spell_failed_count_a: [] as number[], // 左边玩家符卡的失败次数
+    spell_failed_count_b: [] as number[], // 右边玩家符卡的失败次数
   });
 
   const normalGameData = reactive({

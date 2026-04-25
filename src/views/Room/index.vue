@@ -341,6 +341,7 @@ import { useEditorStore } from "@/store/EditorStore";
 import SpellEditorModal from "@/components/SpellEditorModal.vue";
 import SpellDatabasePanel from "@/components/SpellDatabasePanel.vue";
 import PresetManager from "@/components/PresetManager.vue";
+import { BoardSpec } from "@/utils/board";
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
@@ -373,6 +374,8 @@ const playerBLeftCd = computed(() => (gameStore.leftCdTime >= 0 ? gameStore.left
 const roomData = computed(() => roomStore.roomData);
 const roomSettings = computed(() => roomStore.roomSettings);
 const roomConfig = computed(() => roomStore.roomConfig);
+const boardSpec = computed(() => new BoardSpec(roomConfig.value.board_size || 5));
+const boardArea = computed(() => boardSpec.value.area);
 const soloMode = computed(() => {
   return roomStore.soloMode;
 });
@@ -750,8 +753,11 @@ const setCdTime = () => {
   gameStore.leftCdTime = -1;
 };
 const decideStandard = (status) => {
-  const available: number[] = new Array(12).fill(2);
-  const sumArr: number[] = new Array(12).fill(0);
+  const board = boardSpec.value;
+  const lines = board.winningLines();
+  const lineCount = lines.length;
+  const available: number[] = new Array(lineCount).fill(2);
+  const sumArr: number[] = new Array(lineCount).fill(0);
   winFlag.value = 0;
   let countA = 0;
   let countB = 0;
@@ -759,53 +765,41 @@ const decideStandard = (status) => {
   let scoreB = 0;
   let levelA = 0;
   let levelB = 0;
+  const cellToLines: number[][] = Array.from({ length: board.area }, () => []);
+  lines.forEach((line, li) => {
+    line.forEach((idx) => cellToLines[idx].push(li));
+  });
   status.forEach((item: number, index: number) => {
-    const rowIndex = Math.floor(index / 5);
-    const columnIndex = index % 5;
     if (item === 5) {
       countA++;
       scoreA += 1;
-      if (available[rowIndex] > 0) available[rowIndex] -= 2;
-      if (available[columnIndex + 5] > 0) available[columnIndex + 5] -= 2;
-      sumArr[rowIndex] -= 1;
-      sumArr[columnIndex + 5] -= 1;
-      if (index % 6 === 0) {
-        sumArr[10] -= 1;
-        if (available[10] > 0) available[10] -= 2;
-      }
-      if (index && index !== 24 && index % 4 === 0) {
-        sumArr[11] -= 1;
-        if (available[11] > 0) available[11] -= 2;
+      for (const li of cellToLines[index]) {
+        if (available[li] > 0) available[li] -= 2;
+        sumArr[li] -= 1;
       }
     } else if (item === 7) {
       countB++;
       scoreB += 1;
-      if (available[rowIndex] % 2 === 0) available[rowIndex] -= 1;
-      if (available[columnIndex + 5] % 2 === 0) available[columnIndex + 5] -= 1;
-      sumArr[rowIndex] += 1;
-      sumArr[columnIndex + 5] += 1;
-      if (index % 6 === 0) {
-        sumArr[10] += 1;
-        if (available[10] % 2 === 0) available[10] -= 1;
-      }
-      if (index && index !== 24 && index % 4 === 0) {
-        sumArr[11] += 1;
-        if (available[11] % 2 === 0) available[11] -= 1;
+      for (const li of cellToLines[index]) {
+        if (available[li] % 2 === 0) available[li] -= 1;
+        sumArr[li] += 1;
       }
     }
   });
   //计算是否产生了新的四连
   let gamePointFlag = false;
-  for (let i = 0; i < 12; i++) {
-    if (sumArr[i] === -5) {
+  const fullLine = board.size;
+  const nearLine = fullLine - 1;
+  for (let i = 0; i < lineCount; i++) {
+    if (sumArr[i] === -fullLine) {
       winFlag.value = -(i + 1);
       break;
-    } else if (sumArr[i] === 5) {
+    } else if (sumArr[i] === fullLine) {
       winFlag.value = i + 1;
       break;
     } else if (
-      (sumArr[i] === -4 && oldSumArr.value[i] > -4 && isPlayerB.value) ||
-      (sumArr[i] === 4 && oldSumArr.value[i] < 4 && isPlayerA.value)
+      (sumArr[i] === -nearLine && oldSumArr.value[i] > -nearLine && isPlayerB.value) ||
+      (sumArr[i] === nearLine && oldSumArr.value[i] < nearLine && isPlayerA.value)
     ) {
       gamePointFlag = true;
     }
@@ -834,10 +828,10 @@ const decideStandard = (status) => {
   playerALevel.value = levelA;
   playerBLevel.value = levelB;
 
-  if (countA >= 13) {
+  if (countA >= Math.floor(board.area / 2) + 1) {
     winFlag.value = -13;
   }
-  if (countB >= 13) {
+  if (countB >= Math.floor(board.area / 2) + 1) {
     winFlag.value = 13;
   }
 
@@ -896,56 +890,46 @@ const confirmBp = () => {
   });
 };
 const decideBp = (status) => {
-  const available: number[] = new Array(12).fill(2);
-  const sumArr: number[] = new Array(12).fill(0);
+  const board = boardSpec.value;
+  const lines = board.winningLines();
+  const lineCount = lines.length;
+  const available: number[] = new Array(lineCount).fill(2);
+  const sumArr: number[] = new Array(lineCount).fill(0);
   winFlag.value = 0;
   let count = 0;
   let scoreA = 0;
   let scoreB = 0;
+  const cellToLines: number[][] = Array.from({ length: board.area }, () => []);
+  lines.forEach((line, li) => {
+    line.forEach((idx) => cellToLines[idx].push(li));
+  });
   status.forEach((item: number, index: number) => {
-    const rowIndex = Math.floor(index / 5);
-    const columnIndex = index % 5;
     if (item == -1) {
       count++;
     }
     if (item === 5) {
       count++;
       scoreA += gameStore.spells[index].star;
-      if (available[rowIndex] > 0) available[rowIndex] -= 2;
-      if (available[columnIndex + 5] > 0) available[columnIndex + 5] -= 2;
-      sumArr[rowIndex] -= 1;
-      sumArr[columnIndex + 5] -= 1;
-      if (index % 6 === 0) {
-        sumArr[10] -= 1;
-        if (available[10] > 0) available[10] -= 2;
-      }
-      if (index && index % 4 === 0) {
-        sumArr[11] -= 1;
-        if (available[11] > 0) available[11] -= 2;
+      for (const li of cellToLines[index]) {
+        if (available[li] > 0) available[li] -= 2;
+        sumArr[li] -= 1;
       }
     } else if (item === 7) {
       count++;
       scoreB += gameStore.spells[index].star;
-      if (available[rowIndex] % 2 === 0) available[rowIndex] -= 1;
-      if (available[columnIndex + 5] % 2 === 0) available[columnIndex + 5] -= 1;
-      sumArr[rowIndex] += 1;
-      sumArr[columnIndex + 5] += 1;
-      if (index % 6 === 0) {
-        sumArr[10] += 1;
-        if (available[10] % 2 === 0) available[10] -= 1;
-      }
-      if (index && index % 4 === 0) {
-        sumArr[11] += 1;
-        if (available[11] % 2 === 0) available[11] -= 1;
+      for (const li of cellToLines[index]) {
+        if (available[li] % 2 === 0) available[li] -= 1;
+        sumArr[li] += 1;
       }
     }
   });
 
-  for (let i = 0; i < 12; i++) {
-    if (sumArr[i] === -5) {
+  const fullLine = board.size;
+  for (let i = 0; i < lineCount; i++) {
+    if (sumArr[i] === -fullLine) {
       winFlag.value = -(i + 1);
       break;
-    } else if (sumArr[i] === 5) {
+    } else if (sumArr[i] === fullLine) {
       winFlag.value = i + 1;
       break;
     }
@@ -977,7 +961,7 @@ const decideBp = (status) => {
   playerAFailure.value = playerAFailureNew;
   playerBFailure.value = playerBFailureNew;
 
-  if (count == 25) {
+  if (count == board.area) {
     if (scoreB - scoreA < 0) {
       winFlag.value = -25;
     } else {
