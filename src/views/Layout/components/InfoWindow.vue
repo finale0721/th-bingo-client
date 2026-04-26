@@ -422,6 +422,20 @@
                       />
                       <span class="input-number-text"></span>
                     </el-form-item>
+                    <el-form-item label="额外连线：" v-if="roomSettings.board_size === 6 && roomSettings.type == BingoType.STANDARD">
+                      <el-input-number
+                          class="input-number"
+                          v-model="roomSettings.extra_line_count"
+                          :min="0"
+                          :max="3"
+                          :step="1"
+                          :disabled="inGame"
+                          size="small"
+                          controls-position="right"
+                          @change="roomStore.updateRoomConfig('extra_line_count')"
+                      />
+                      <span class="input-number-text">条</span>
+                    </el-form-item>
                   </el-form>
                 </el-collapse-item>
             
@@ -689,7 +703,9 @@
       v-model:visible="customLevelBalancerVisible"
       :current-counts="roomSettings.custom_level_count"
       :board-area="roomSettings.board_size * roomSettings.board_size"
+      :use-fixed-high-level-layout="roomSettings.use_fixed_high_level_layout"
       @confirm="handleCustomLevelConfirm"
+      @update:use-fixed-high-level-layout="(val) => { roomSettings.use_fixed_high_level_layout = val; roomStore.updateRoomConfig('use_fixed_high_level_layout'); }"
     />
 
     <documentation :visible="showDoc" @close="showDoc = false" />
@@ -890,6 +906,11 @@ const onFormatChange = (value) => {
   }
   roomStore.updateRoomConfig("need_win");
 };
+const boardSizeDefaults: Record<number, { gameTime: number; countdown: number }> = {
+  4: { gameTime: 20, countdown: 90 },
+  5: { gameTime: 30, countdown: 60 },
+  6: { gameTime: 40, countdown: 60 },
+};
 const onBoardSizeChange = (value) => {
   if (value !== 5) {
     // Non-5x5 only supports standard mode
@@ -899,6 +920,24 @@ const onBoardSizeChange = (value) => {
     }
     if (roomSettings.value.use_ai) {
       roomSettings.value.use_ai = false;
+    }
+  }
+  // Reset extra_line_count to 0 when not 6x6
+  if (value !== 6 && roomSettings.value.extra_line_count !== 0) {
+    roomSettings.value.extra_line_count = 0;
+    roomStore.updateRoomConfig("extra_line_count");
+  }
+  // Suggest recommended game time/countdown for the new board size
+  const defaults = boardSizeDefaults[value];
+  if (defaults) {
+    const timeKey = roomData.value.type as number;
+    if (roomSettings.value.gameTimeLimit[timeKey] !== defaults.gameTime) {
+      roomSettings.value.gameTimeLimit[timeKey] = defaults.gameTime;
+      roomStore.updateRoomConfig("game_time");
+    }
+    if (roomSettings.value.countdownTime[timeKey] !== defaults.countdown) {
+      roomSettings.value.countdownTime[timeKey] = defaults.countdown;
+      roomStore.updateRoomConfig("countdown");
     }
   }
   roomStore.updateRoomConfig("board_size");
