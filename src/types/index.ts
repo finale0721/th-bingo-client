@@ -123,7 +123,6 @@ export interface RoomConfig {
   custom_level_count: number[];
   board_size: number;
   extra_line_count: number;
-  use_fixed_high_level_layout: boolean;
 }
 
 export interface EditorPreset {

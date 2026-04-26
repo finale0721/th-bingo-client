@@ -58,10 +58,9 @@ const props = defineProps<{
   visible: boolean;
   currentCounts: number[];
   boardArea?: number;
-  useFixedHighLevelLayout?: boolean;
 }>();
 
-const emit = defineEmits(['update:visible', 'confirm', 'update:useFixedHighLevelLayout']);
+const emit = defineEmits(['update:visible', 'confirm']);
 
 const defaultValues = [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5];
 
@@ -117,7 +116,6 @@ const handleConfirm = () => {
     exCount.value,
   ];
   emit('confirm', newCounts);
-  emit('update:useFixedHighLevelLayout', guaranteeEnabled.value);
   emit('update:visible', false);
 };
 

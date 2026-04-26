@@ -709,9 +709,7 @@
       v-model:visible="customLevelBalancerVisible"
       :current-counts="roomSettings.custom_level_count"
       :board-area="roomSettings.board_size * roomSettings.board_size"
-      :use-fixed-high-level-layout="roomSettings.use_fixed_high_level_layout"
       @confirm="handleCustomLevelConfirm"
-      @update:use-fixed-high-level-layout="(val) => { roomSettings.use_fixed_high_level_layout = val; roomStore.updateRoomConfig('use_fixed_high_level_layout'); }"
     />
 
     <documentation :visible="showDoc" @close="showDoc = false" />

@@ -97,7 +97,6 @@ export const useRoomStore = defineStore("room", () => {
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
     board_size: 5,
     extra_line_count: 0,
-    use_fixed_high_level_layout: true,
   });
 
   //加载本地设置
@@ -108,7 +107,6 @@ export const useRoomStore = defineStore("room", () => {
     }
     if (roomSettings.board_size === undefined) roomSettings.board_size = 5;
     if (roomSettings.extra_line_count === undefined) roomSettings.extra_line_count = 0;
-    if (roomSettings.use_fixed_high_level_layout === undefined) roomSettings.use_fixed_high_level_layout = true;
     //checkAIPracticeEnabled();
   };
   loadRoomSettings();
@@ -155,7 +153,6 @@ export const useRoomStore = defineStore("room", () => {
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
     board_size: 5,
     extra_line_count: 0,
-    use_fixed_high_level_layout: true,
   });
 
   const getRoomConfig = () => {
@@ -184,7 +181,7 @@ export const useRoomStore = defineStore("room", () => {
       | "blind_setting" | "spell_version" | "dual_board" | "portal_count" | "blind_reveal_level" | "diff_level"
       | "use_ai" | "ai_strategy_level" | "ai_style" | "ai_base_power" | "ai_experience" | "ai_temperature"
       | "game_weight" | "ai_preference" | "custom_level_count"
-      | "board_size" | "extra_line_count" | "use_fixed_high_level_layout",
+      | "board_size" | "extra_line_count",
   ) => {
     saveRoomSettings();
     const allParams = {
@@ -216,7 +213,6 @@ export const useRoomStore = defineStore("room", () => {
       custom_level_count: roomSettings.custom_level_count,
       board_size: roomSettings.board_size,
       extra_line_count: roomSettings.extra_line_count,
-      use_fixed_high_level_layout: roomSettings.use_fixed_high_level_layout,
     };
     const params: any = {};
     if (key) {
@@ -301,7 +297,6 @@ export const useRoomStore = defineStore("room", () => {
           custom_level_count: roomSettings.custom_level_count,
           board_size: roomSettings.board_size,
           extra_line_count: roomSettings.extra_line_count,
-          use_fixed_high_level_layout: roomSettings.use_fixed_high_level_layout,
         },
         solo: soloMode,
         add_robot: addRobot,
