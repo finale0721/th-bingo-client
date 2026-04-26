@@ -6,10 +6,10 @@
         <div class="title">数量设置</div>
         <el-form label-width="90px" label-position="left">
           <el-form-item v-for="i in 5" :key="i" :label="`${i}级`">
-            <el-input-number v-model="localCounts[i-1]" :min="getMinCount(i-1)" :max="25" size="small" controls-position="right" />
+            <el-input-number v-model="localCounts[i-1]" :min="getMinCount(i-1)" :max="maxArea" size="small" controls-position="right" />
           </el-form-item>
           <el-form-item label="总数">
-            <span :style="{ color: totalCount === 25 ? 'inherit' : 'red', fontWeight: 'bold' }">{{ totalCount }} / 25</span>
+            <span :style="{ color: totalCount === maxArea ? 'inherit' : 'red', fontWeight: 'bold' }">{{ totalCount }} / {{ maxArea }}</span>
           </el-form-item>
         </el-form>
       </div>
@@ -28,13 +28,13 @@
             <el-checkbox v-model="exGuaranteed" />
           </el-form-item>
           <el-form-item label="4级保底数量">
-            <el-input-number v-model="guaranteed4Star" :min="0" :max="5" size="small" :disabled="!guaranteeEnabled" @change="adjustGuaranteed(4)" />
+            <el-input-number v-model="guaranteed4Star" :min="0" :max="boardSize" size="small" :disabled="!guaranteeEnabled" @change="adjustGuaranteed(4)" />
           </el-form-item>
           <el-form-item label="5级保底数量">
-            <el-input-number v-model="guaranteed5Star" :min="0" :max="5" size="small" :disabled="!guaranteeEnabled" @change="adjustGuaranteed(5)" />
+            <el-input-number v-model="guaranteed5Star" :min="0" :max="boardSize" size="small" :disabled="!guaranteeEnabled" @change="adjustGuaranteed(5)" />
           </el-form-item>
           <el-form-item label="EX自定义数量">
-            <el-input-number v-model="exCount" :min="0" :max="25" size="small" :disabled="exGuaranteed"/>
+            <el-input-number v-model="exCount" :min="0" :max="maxArea" size="small" :disabled="exGuaranteed"/>
           </el-form-item>
         </el-form>
       </div>
@@ -57,6 +57,7 @@ import { ElDialog, ElForm, ElFormItem, ElInputNumber, ElCheckbox, ElButton } fro
 const props = defineProps<{
   visible: boolean;
   currentCounts: number[];
+  boardArea?: number;
 }>();
 
 const emit = defineEmits(['update:visible', 'confirm']);
@@ -71,6 +72,8 @@ const guaranteed5Star = ref(props.currentCounts[8]);
 const exGuaranteed = ref(props.currentCounts[9] === 1);
 const exCount = ref(props.currentCounts[10]);
 
+const maxArea = computed(() => props.boardArea || 25);
+const boardSize = computed(() => Math.round(Math.sqrt(maxArea.value)));
 const totalCount = computed(() => localCounts.value.reduce((sum, val) => sum + val, 0));
 
 const getMinCount = (index: number) => {
@@ -82,11 +85,12 @@ const getMinCount = (index: number) => {
 };
 
 const adjustGuaranteed = (changed: 4 | 5) => {
-  if (guaranteed4Star.value + guaranteed5Star.value != 5) {
+  const sz = boardSize.value;
+  if (guaranteed4Star.value + guaranteed5Star.value != sz) {
     if (changed === 4) {
-      guaranteed5Star.value = 5 - guaranteed4Star.value;
+      guaranteed5Star.value = sz - guaranteed4Star.value;
     } else {
-      guaranteed4Star.value = 5 - guaranteed5Star.value;
+      guaranteed4Star.value = sz - guaranteed5Star.value;
     }
   }
 };

@@ -255,12 +255,14 @@
 import { ref, computed, watch } from "vue";
 import { useEditorStore } from '@/store/EditorStore';
 import { useGameStore } from '@/store/GameStore';
+import { useRoomStore } from '@/store/RoomStore';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { ElDialog, ElButton, ElButtonGroup, ElTable, ElTableColumn, ElPagination, ElInput, ElTag, ElAlert, ElResult, ElIcon } from 'element-plus';
 import { InfoFilled, WarningFilled } from '@element-plus/icons-vue';
 import { EditorPreset, Spell } from "@/types";
 
 const gameStore = useGameStore();
+const roomStore = useRoomStore();
 const editorStore = useEditorStore();
 const currentPage = ref(1);
 const importDialogVisible = ref(false);
@@ -557,20 +559,20 @@ const getCardCountInfo = (preset: EditorPreset) => {
 
 const handleStartGame = (id: number) => {
   const preset = getPreset(id);
+  const area = (preset.data.roomConfig.board_size || 5) ** 2;
 
-  // 校验逻辑
   const validateBoard = (spells: Spell[]) => {
-    return spells.filter(s => s.name && s.name.trim() !== '').length === 25;
+    return spells.filter(s => s.name && s.name.trim() !== '').length === area;
   };
 
   if (!validateBoard(preset.data.spells)) {
-    ElMessage.error('盘面A符卡数量不足25张，无法开始游戏');
+    ElMessage.error(`盘面A符卡数量不足${area}张，无法开始游戏`);
     return;
   }
 
   if (preset.data.roomConfig.dual_board > 0) {
     if (!validateBoard(preset.data.spells2)) {
-      ElMessage.error('盘面B符卡数量不足25张，无法开始游戏');
+      ElMessage.error(`盘面B符卡数量不足${area}张，无法开始游戏`);
       return;
     }
   }

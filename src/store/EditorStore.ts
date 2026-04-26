@@ -1,11 +1,12 @@
 import { defineStore } from "pinia";
-import { reactive, ref, watch } from "vue";
+import { reactive, ref, watch, computed } from "vue";
 import { useRoomStore } from "./RoomStore";
-import { useGameStore } from "./GameStore"; // 引入 GameStore
+import { useGameStore } from "./GameStore";
 import { Spell, SpellStatus, RoomConfig, EditorPreset } from "@/types";
 import { local } from "@/utils/Storage";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType } from "@/utils/webSocket/types";
+import { BoardSpec } from "@/utils/board";
 import pako from "pako";
 
 // 创建一个默认的空白Spell对象
@@ -34,7 +35,10 @@ const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours
 
 export const useEditorStore = defineStore("editor", () => {
   const roomStore = useRoomStore();
-  const gameStore = useGameStore(); // 使用 GameStore
+  const gameStore = useGameStore();
+
+  const boardSpec = computed(() => new BoardSpec(roomStore.roomConfig.board_size || 5));
+  const boardArea = computed(() => boardSpec.value.area);
 
   // --- 基础状态 ---
   const isEditorMode = ref(false);
@@ -91,12 +95,10 @@ export const useEditorStore = defineStore("editor", () => {
       if (!isEditorMode.value) return;
 
       if (newVal > 0) {
-        // 开启双盘面：如果 spells2 为空，则初始化
         if (spells2.value.length === 0) {
-          spells2.value = Array.from({ length: 25 }, () => createBlankSpell());
-          // 注意：这里不重置 is_portal_b，保留可能存在的隐藏数据
+          spells2.value = Array.from({ length: boardArea.value }, () => createBlankSpell());
           if (normalGameData.is_portal_b.length === 0) {
-            normalGameData.is_portal_b = Array(25).fill(0);
+            normalGameData.is_portal_b = Array(boardArea.value).fill(0);
           }
         }
       } else {
@@ -170,37 +172,38 @@ export const useEditorStore = defineStore("editor", () => {
   };
 
   const resetToBlank = () => {
-    spells.value = Array.from({ length: 25 }, () => createBlankSpell());
-    spellStatus.value = Array.from({ length: 25 }, () => SpellStatus.NONE);
+    const area = boardArea.value;
+    spells.value = Array.from({ length: area }, () => createBlankSpell());
+    spellStatus.value = Array.from({ length: area }, () => SpellStatus.NONE);
 
     initialLeftTime.value = roomStore.roomConfig.game_time * 60;
     initialCountDown.value = 0;
     initialCdTimeA.value = 0;
     initialCdTimeB.value = 0;
-    normalGameData.is_portal_a = Array(25).fill(0);
+    normalGameData.is_portal_a = Array(area).fill(0);
 
-    // 即使当前是单盘面，也初始化 spells2 结构以便随时切换，但不显示
-    spells2.value = Array.from({ length: 25 }, () => createBlankSpell());
-    normalGameData.is_portal_b = Array(25).fill(0);
+    spells2.value = Array.from({ length: area }, () => createBlankSpell());
+    normalGameData.is_portal_b = Array(area).fill(0);
   };
 
   const clearAllSpells = () => {
-    spells.value = Array.from({ length: 25 }, () => createBlankSpell());
-    spells2.value = Array.from({ length: 25 }, () => createBlankSpell());
-    spellStatus.value = Array.from({ length: 25 }, () => SpellStatus.NONE);
-    normalGameData.is_portal_a = Array(25).fill(0);
-    normalGameData.is_portal_b = Array(25).fill(0);
+    const area = boardArea.value;
+    spells.value = Array.from({ length: area }, () => createBlankSpell());
+    spells2.value = Array.from({ length: area }, () => createBlankSpell());
+    spellStatus.value = Array.from({ length: area }, () => SpellStatus.NONE);
+    normalGameData.is_portal_a = Array(area).fill(0);
+    normalGameData.is_portal_b = Array(area).fill(0);
   };
 
-  // 洗混格子：只洗混当前面
   const shuffleSpells = () => {
     const currentBoard = gameStore.currentBoard;
     const targetSpells = currentBoard === 0 ? spells.value : spells2.value;
     const targetPortals = currentBoard === 0 ? normalGameData.is_portal_a : normalGameData.is_portal_b;
+    const bs = boardSpec.value;
+    const size = bs.size;
+    const area = bs.area;
 
-    // 收集非空格子的信息（包含原始索引）
     interface CellInfo {
-      index: number;
       spell: Spell;
       status: SpellStatus;
       isPortal: number;
@@ -208,12 +211,10 @@ export const useEditorStore = defineStore("editor", () => {
     }
 
     const nonEmptyCells: CellInfo[] = [];
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < area; i++) {
       const spell = targetSpells[i];
-      // 判断格子是否非空：name、game、rank 至少有一个有值
       if (spell.name || spell.game || spell.rank) {
         nonEmptyCells.push({
-          index: i,
           spell: { ...spell },
           status: spellStatus.value[i],
           isPortal: targetPortals[i],
@@ -222,25 +223,63 @@ export const useEditorStore = defineStore("editor", () => {
       }
     }
 
-    // 筛选出评级>=4的格子
-    const highRatedCells = nonEmptyCells.filter(cell => cell.star >= 4);
-
-    // 如果不足5个评级>=4的格子，直接随机洗混所有非空格子
-    if (highRatedCells.length < 5) {
-      // Fisher-Yates 洗牌算法
-      for (let i = nonEmptyCells.length - 1; i > 0; i--) {
+    // Fisher-Yates shuffle helper
+    const shuffle = <T>(arr: T[]): T[] => {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [nonEmptyCells[i], nonEmptyCells[j]] = [nonEmptyCells[j], nonEmptyCells[i]];
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+
+    // Generate high-level positions: one per row/col, center always high
+    // Mirrors server's SpellFactory.highLevelPositions
+    const generateHighLevelPositions = (): number[] => {
+      const perm = Array.from({ length: size }, (_, i) => i);
+      const shuffled = shuffle(perm);
+
+      if (size % 2 === 1) {
+        const mid = Math.floor(size / 2);
+        const centerCol = mid;
+        const currentColAtMid = shuffled[mid];
+        const indexOfCenterCol = shuffled.indexOf(centerCol);
+        shuffled[mid] = centerCol;
+        shuffled[indexOfCenterCol] = currentColAtMid;
+      } else {
+        const mid1 = size / 2 - 1;
+        const mid2 = size / 2;
+        if (shuffled[mid1] !== mid1 && shuffled[mid1] !== mid2) {
+          const target = (shuffled[mid2] === mid1 || shuffled[mid2] === mid2) ? shuffled[mid2] : mid1;
+          const idx = shuffled.indexOf(target);
+          const tmp = shuffled[mid1];
+          shuffled[mid1] = target;
+          shuffled[idx] = tmp;
+        }
+        if (shuffled[mid2] !== mid1 && shuffled[mid2] !== mid2) {
+          const otherCenterCol = shuffled[mid1] === mid1 ? mid2 : mid1;
+          const idx = shuffled.indexOf(otherCenterCol);
+          const tmp = shuffled[mid2];
+          shuffled[mid2] = otherCenterCol;
+          shuffled[idx] = tmp;
+        }
       }
 
-      // 清空当前面
-      for (let i = 0; i < 25; i++) {
+      return Array.from({ length: size }, (_, row) => bs.index(row, shuffled[row]));
+    };
+
+    const highRatedCells = nonEmptyCells.filter(cell => cell.star >= 4);
+
+    // If not enough high-rated cells for structured placement, just shuffle all
+    if (highRatedCells.length < size) {
+      const shuffled = shuffle(nonEmptyCells);
+
+      for (let i = 0; i < area; i++) {
         targetSpells[i] = createBlankSpell();
         targetPortals[i] = 0;
       }
 
-      // 将洗混后的格子放入前 N 个位置
-      nonEmptyCells.forEach((cell, idx) => {
+      shuffled.forEach((cell, idx) => {
         targetSpells[idx] = cell.spell;
         targetPortals[idx] = cell.isPortal;
         spellStatus.value[idx] = cell.status;
@@ -249,73 +288,33 @@ export const useEditorStore = defineStore("editor", () => {
       return { success: true, message: '操作成功' };
     }
 
-    // 有至少5个评级>=4的格子，需要特殊排布
-    // 新规则：中心格(索引12)固定为高级格，其余4个高级格与中心格不同行不同列
+    // Enough high-rated cells: place them at high-level positions
+    const selectedHigh = shuffle(highRatedCells).slice(0, size);
+    const positions = generateHighLevelPositions();
+    const positionsSet = new Set(positions);
 
-    // 随机选择5个高评级格子
-    const shuffledHighRated = [...highRatedCells];
-    for (let i = shuffledHighRated.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledHighRated[i], shuffledHighRated[j]] = [shuffledHighRated[j], shuffledHighRated[i]];
-    }
-    const selected5 = shuffledHighRated.slice(0, 5);
+    const remainingCells = shuffle(
+      nonEmptyCells.filter(cell => !selectedHigh.includes(cell))
+    );
 
-    // 中心格位置
-    const centerPos = 12; // 第3行第3列 (2*5+2)
-
-    // 从selected5中随机选一个放在中心格
-    const centerCellIndex = Math.floor(Math.random() * 5);
-    const centerCell = selected5[centerCellIndex];
-    // 剩下的4个高级格
-    const other4Cells = selected5.filter((_, idx) => idx !== centerCellIndex);
-
-    // 生成4个位置：不能与中心格同行(第2行)同列(第2列)
-    // 可用位置是除去第2行和第2列的4x4子矩阵
-    // 行：0,1,3,4；列：0,1,3,4
-    const availableRows = [0, 1, 3, 4];
-    const availableCols = [0, 1, 3, 4];
-
-    // 随机排列列，确保每行一个不同列
-    for (let i = availableCols.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [availableCols[i], availableCols[j]] = [availableCols[j], availableCols[i]];
-    }
-
-    // 4个高级格位置：每行一个，对应随机列
-    const positions4 = availableRows.map((row, idx) => row * 5 + availableCols[idx]);
-
-    // 剩余格子（未被选中的高评级格子 + 其他非空格子）
-    const remainingCells = nonEmptyCells.filter(cell => !selected5.some(s => s.index === cell.index));
-    // 随机洗混剩余格子
-    for (let i = remainingCells.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [remainingCells[i], remainingCells[j]] = [remainingCells[j], remainingCells[i]];
-    }
-
-    // 清空当前面
-    for (let i = 0; i < 25; i++) {
+    // Clear current board
+    for (let i = 0; i < area; i++) {
       targetSpells[i] = createBlankSpell();
       targetPortals[i] = 0;
     }
 
-    // 放置中心高级格
-    targetSpells[centerPos] = centerCell.spell;
-    targetPortals[centerPos] = centerCell.isPortal;
-    spellStatus.value[centerPos] = centerCell.status;
-
-    // 放置其余4个高级格
-    other4Cells.forEach((cell, idx) => {
-      const pos = positions4[idx];
+    // Place high-rated cells at designated positions
+    selectedHigh.forEach((cell, idx) => {
+      const pos = positions[idx];
       targetSpells[pos] = cell.spell;
       targetPortals[pos] = cell.isPortal;
       spellStatus.value[pos] = cell.status;
     });
 
-    // 放置剩余格子到剩余位置
-    const usedPositions = new Set([centerPos, ...positions4]);
+    // Place remaining cells in remaining positions
     let remainingIdx = 0;
-    for (let i = 0; i < 25 && remainingIdx < remainingCells.length; i++) {
-      if (!usedPositions.has(i)) {
+    for (let i = 0; i < area && remainingIdx < remainingCells.length; i++) {
+      if (!positionsSet.has(i)) {
         const cell = remainingCells[remainingIdx++];
         targetSpells[i] = cell.spell;
         targetPortals[i] = cell.isPortal;
@@ -404,15 +403,15 @@ export const useEditorStore = defineStore("editor", () => {
     initialCountDown.value = d.initialCountDown;
     initialCdTimeA.value = d.initialCdTimeA;
     initialCdTimeB.value = d.initialCdTimeB;
-    normalGameData.is_portal_a = d.isPortalA || Array(25).fill(0);
-    normalGameData.is_portal_b = d.isPortalB || Array(25).fill(0);
+    normalGameData.is_portal_a = d.isPortalA || Array(boardArea.value).fill(0);
+    normalGameData.is_portal_b = d.isPortalB || Array(boardArea.value).fill(0);
 
     // 确保数据结构完整
     if (spells2.value.length === 0) {
-      spells2.value = Array.from({ length: 25 }, () => createBlankSpell());
+      spells2.value = Array.from({ length: boardArea.value }, () => createBlankSpell());
     }
     if (normalGameData.is_portal_b.length === 0) {
-      normalGameData.is_portal_b = Array(25).fill(0);
+      normalGameData.is_portal_b = Array(boardArea.value).fill(0);
     }
   };
 
@@ -667,19 +666,20 @@ export const useEditorStore = defineStore("editor", () => {
 
       spells.value = data.spells;
       spells2.value = data.spells2 || [];
-      spellStatus.value = data.initStatus || Array(25).fill(0);
+      const area = data.spells.length || boardArea.value;
+      spellStatus.value = data.initStatus || Array(area).fill(0);
 
       Object.assign(roomStore.roomConfig, data.roomConfig);
 
       if (data.normalData) {
-        normalGameData.is_portal_a = data.normalData.is_portal_a || Array(25).fill(0);
-        normalGameData.is_portal_b = data.normalData.is_portal_b || Array(25).fill(0);
+        normalGameData.is_portal_a = data.normalData.is_portal_a || Array(area).fill(0);
+        normalGameData.is_portal_b = data.normalData.is_portal_b || Array(area).fill(0);
       }
 
       initialLeftTime.value = data.roomConfig.game_time * 60;
 
       if (spells2.value.length === 0) {
-        spells2.value = Array.from({ length: 25 }, () => createBlankSpell());
+        spells2.value = Array.from({ length: area }, () => createBlankSpell());
       }
 
       return true;
@@ -812,6 +812,8 @@ export const useEditorStore = defineStore("editor", () => {
     spells,
     spells2,
     spellStatus,
+    boardSpec,
+    boardArea,
     normalGameData,
     bpGameData,
     enterEditorMode,

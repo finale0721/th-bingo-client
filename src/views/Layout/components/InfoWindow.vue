@@ -688,6 +688,7 @@
     <CustomLevelBalancer
       v-model:visible="customLevelBalancerVisible"
       :current-counts="roomSettings.custom_level_count"
+      :board-area="roomSettings.board_size * roomSettings.board_size"
       @confirm="handleCustomLevelConfirm"
     />
 
