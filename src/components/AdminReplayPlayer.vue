@@ -63,7 +63,7 @@
         </div>
 
         <div class="board-shell">
-          <div class="bingo-wrap">
+          <div class="bingo-wrap" :style="{ aspectRatio: '1 / 1' }">
             <div class="bingo-items">
               <div
                 v-for="(spell, index) in displayedSpells"
@@ -722,7 +722,6 @@ defineExpose({
 .bingo-wrap {
   width: 100%;
   height: auto;
-  aspect-ratio: 32 / 25;
   box-sizing: border-box;
   position: relative;
 }
