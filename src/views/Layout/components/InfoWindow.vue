@@ -107,6 +107,7 @@
                               :key="index"
                               :label="item.name"
                               :value="item.type"
+                              :disabled="item.type !== 1 && roomSettings.board_size !== 5"
                             ></el-option>
                           </el-select>
                           <span v-else> {{ roomTypeText }}</span>
@@ -126,6 +127,11 @@
                         <el-radio :value="5">5×5</el-radio>
                         <el-radio :value="6" :disabled="roomSettings.type !== BingoType.STANDARD">6×6</el-radio>
                       </el-radio-group>
+                      <div v-if="boardSizeRecommendation" style="margin-top:4px;font-size:12px;color:var(--text-color-secondary)">
+                        推荐时间：{{ boardSizeRecommendation.gameTime }}分钟 / {{ boardSizeRecommendation.countdown }}秒倒计时
+                        <el-button size="small" type="primary" link @click="applyBoardSizeDefaults">应用</el-button>
+                        <el-button size="small" link @click="dismissBoardSizeDefaults">忽略</el-button>
+                      </div>
                     </el-form-item>
                     <el-form-item label="比赛时长：" v-if="roomData.type !== BingoType.LINK">
                       <el-input-number
@@ -911,9 +917,10 @@ const boardSizeDefaults: Record<number, { gameTime: number; countdown: number }>
   5: { gameTime: 30, countdown: 60 },
   6: { gameTime: 40, countdown: 60 },
 };
+const boardSizeRecommendation = ref<{ gameTime: number; countdown: number } | null>(null);
+
 const onBoardSizeChange = (value) => {
   if (value !== 5) {
-    // Non-5x5 only supports standard mode
     if (roomSettings.value.type !== BingoType.STANDARD) {
       roomSettings.value.type = BingoType.STANDARD;
       roomStore.updateRoomConfig("type");
@@ -922,25 +929,28 @@ const onBoardSizeChange = (value) => {
       roomSettings.value.use_ai = false;
     }
   }
-  // Reset extra_line_count to 0 when not 6x6
   if (value !== 6 && roomSettings.value.extra_line_count !== 0) {
     roomSettings.value.extra_line_count = 0;
     roomStore.updateRoomConfig("extra_line_count");
   }
-  // Suggest recommended game time/countdown for the new board size
   const defaults = boardSizeDefaults[value];
-  if (defaults) {
-    const timeKey = roomData.value.type as number;
-    if (roomSettings.value.gameTimeLimit[timeKey] !== defaults.gameTime) {
-      roomSettings.value.gameTimeLimit[timeKey] = defaults.gameTime;
-      roomStore.updateRoomConfig("game_time");
-    }
-    if (roomSettings.value.countdownTime[timeKey] !== defaults.countdown) {
-      roomSettings.value.countdownTime[timeKey] = defaults.countdown;
-      roomStore.updateRoomConfig("countdown");
-    }
-  }
+  boardSizeRecommendation.value = defaults || null;
   roomStore.updateRoomConfig("board_size");
+};
+
+const applyBoardSizeDefaults = () => {
+  if (boardSizeRecommendation.value) {
+    const timeKey = roomData.value.type as number;
+    roomSettings.value.gameTimeLimit[timeKey] = boardSizeRecommendation.value.gameTime;
+    roomSettings.value.countdownTime[timeKey] = boardSizeRecommendation.value.countdown;
+    roomStore.updateRoomConfig("game_time");
+    roomStore.updateRoomConfig("countdown");
+    boardSizeRecommendation.value = null;
+  }
+};
+
+const dismissBoardSizeDefaults = () => {
+  boardSizeRecommendation.value = null;
 };
 const standUp = () => {
   roomStore.standUp();
