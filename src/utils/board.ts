@@ -61,11 +61,12 @@ export class BoardSpec {
     return [mainDiag, antiDiag];
   }
 
-  winningLines(): number[][] {
+  winningLines(extraLines: number[][] = []): number[][] {
     const lines: number[][] = [];
     lines.push(...this.rows());
     lines.push(...this.cols());
     lines.push(...this.diagonals());
+    lines.push(...extraLines);
     return lines;
   }
 

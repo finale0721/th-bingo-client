@@ -40,7 +40,7 @@
               :disabled="!editorStore.isEditorMode && (!menu || menu.length === 0 || !inGame)"
               @click="onMenuClick"
             >
-              <div class="bingo-items">
+              <div class="bingo-items" ref="bingoItemsRef">
                 <template v-if="dataSource.spells.length > 0">
                   <div class="spell-card" v-for="(item, index) in (gameStore.currentBoard == 0 ? dataSource.spells : dataSource.spells2)" :key="index">
                     <spell-card-cell
@@ -61,6 +61,25 @@
                     ></spell-card-cell>
                   </div>
                 </template>
+                <!-- SVG overlay for extra lines — drawn above cells so always visible -->
+                <svg
+                  v-if="extraLinesForDisplay.length > 0"
+                  class="extra-lines-overlay"
+                  :viewBox="`0 0 ${boardSize} ${boardSize}`"
+                  preserveAspectRatio="none"
+                >
+                  <polyline
+                    v-for="(line, li) in extraLinesForDisplay"
+                    :key="li"
+                    :points="line.points"
+                    :stroke="line.color"
+                    stroke-width="0.18"
+                    fill="none"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    opacity="0.7"
+                  />
+                </svg>
               </div>
             </right-click-menu>
             <game-alert ref="gameAlertRef" />
@@ -147,6 +166,7 @@ import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketPushActionType } from "@/utils/webSocket/types";
 import { BingoType, GameStatus } from "@/types";
 import { useEditorStore } from "@/store/EditorStore";
+import { BoardSpec } from "@/utils/board";
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
@@ -195,6 +215,22 @@ const isPlayerB = computed(() => roomStore.isPlayerB);
 const inGame = computed(() => roomStore.inGame);
 const needWin = computed(() => roomStore.roomConfig.need_win);
 const isBingoStandard = computed(() => roomData.value.type === BingoType.STANDARD);
+
+const boardSize = computed(() => roomStore.roomConfig.board_size || 5);
+const EXTRA_LINE_COLORS = ["#ff4444", "#44cc44", "#4488ff"];
+const extraLinesForDisplay = computed(() => {
+  const lines = gameStore.normalGameData?.extra_lines;
+  if (!lines || lines.length === 0) return [];
+  const bs = boardSize.value;
+  return lines.map((line: number[], li: number) => {
+    const points = line.map((idx: number) => {
+      const r = Math.floor(idx / bs);
+      const c = idx % bs;
+      return `${c + 0.5},${r + 0.5}`;
+    }).join(" ");
+    return { points, color: EXTRA_LINE_COLORS[li % EXTRA_LINE_COLORS.length] };
+  });
+});
 const BGMpaused = computed(
   () =>
     turn1CountdownAudioRef.value?.paused && turn2CountdownAudioRef.value?.paused && turn3CountdownAudioRef.value?.paused
@@ -494,6 +530,16 @@ defineExpose({ showAlert, hideAlert, warnGamePoint,
       border-radius: 4px;
       width: 19.4%;
       height: 19.4%;
+    }
+
+    .extra-lines-overlay {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: calc(100% - 4px);
+      height: calc(100% - 4px);
+      pointer-events: none;
+      z-index: 10;
     }
   }
 }

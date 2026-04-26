@@ -754,7 +754,8 @@ const setCdTime = () => {
 };
 const decideStandard = (status) => {
   const board = boardSpec.value;
-  const lines = board.winningLines();
+  const extraLines = gameStore.normalGameData?.extra_lines || [];
+  const lines = board.winningLines(extraLines);
   const lineCount = lines.length;
   const available: number[] = new Array(lineCount).fill(2);
   const sumArr: number[] = new Array(lineCount).fill(0);
