@@ -461,6 +461,7 @@ export const useGameStore = defineStore("game", () => {
     is_portal_a: [] as number[],
     is_portal_b: [] as number[],
     get_on_which_board: [] as number[],
+    extra_lines: [] as number[][],
   })
 
   const bpGameBanPick = (index: number) => {
