@@ -41,8 +41,8 @@
               @click="onMenuClick"
             >
               <div class="bingo-items" ref="bingoItemsRef">
-                <template v-if="dataSource.spells.length > 0">
-                  <div class="spell-card" v-for="(item, index) in (gameStore.currentBoard == 0 ? dataSource.spells : dataSource.spells2)" :key="index"
+                <template v-if="displayedSpells.length > 0">
+                  <div class="spell-card" v-for="(item, index) in displayedSpells" :key="index"
 	                    :style="{ width: spellCardSizePercent, height: spellCardSizePercent }"
 	                  >
                     <spell-card-cell
@@ -167,6 +167,7 @@ import { useGameStore } from "@/store/GameStore";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketPushActionType } from "@/utils/webSocket/types";
 import { BingoType, GameStatus } from "@/types";
+import type { Spell } from "@/types";
 import { useEditorStore } from "@/store/EditorStore";
 import { BoardSpec } from "@/utils/board";
 
@@ -220,6 +221,35 @@ const isBingoStandard = computed(() => roomData.value.type === BingoType.STANDAR
 
 const boardSize = computed(() => roomStore.roomConfig.board_size || 5);
 const spellCardSizePercent = computed(() => `calc(100% / ${boardSize.value} - 4px)`);
+const boardArea = computed(() => boardSize.value * boardSize.value);
+const createBlankSpell = (): Spell => ({
+  index: 0,
+  game: "",
+  name: "",
+  rank: "",
+  star: 1,
+  desc: "",
+  id: 0,
+  fastest: 0,
+  miss_time: 0,
+  power_weight: 0,
+  difficulty: 0,
+  change_rate: 0,
+  max_cap_rate: 0,
+});
+const displayedSpells = computed(() => {
+  const source = gameStore.currentBoard == 0 ? dataSource.value.spells : dataSource.value.spells2;
+  if (!source || source.length === 0) {
+    return editorStore.isEditorMode ? Array.from({ length: boardArea.value }, createBlankSpell) : [];
+  }
+  if (source.length > boardArea.value) {
+    return source.slice(0, boardArea.value);
+  }
+  if (source.length < boardArea.value) {
+    return [...source, ...Array.from({ length: boardArea.value - source.length }, createBlankSpell)];
+  }
+  return source;
+});
 const EXTRA_LINE_COLORS = ["#ff4444", "#44cc44", "#4488ff"];
 const extraLinesForDisplay = computed(() => {
   const lines = gameStore.normalGameData?.extra_lines;

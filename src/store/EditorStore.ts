@@ -186,6 +186,24 @@ export const useEditorStore = defineStore("editor", () => {
     normalGameData.is_portal_b = Array(area).fill(0);
   };
 
+  const resizeList = <T>(list: T[], size: number, fill: () => T) => {
+    if (list.length > size) return list.slice(0, size);
+    if (list.length < size) return [...list, ...Array.from({ length: size - list.length }, fill)];
+    return list;
+  };
+
+  const resizeBoardData = (area = boardArea.value) => {
+    spells.value = resizeList(spells.value, area, createBlankSpell);
+    spells2.value = resizeList(spells2.value, area, createBlankSpell);
+    spellStatus.value = resizeList(spellStatus.value, area, () => SpellStatus.NONE);
+    normalGameData.is_portal_a = resizeList(normalGameData.is_portal_a, area, () => 0);
+    normalGameData.is_portal_b = resizeList(normalGameData.is_portal_b, area, () => 0);
+    if (selectedSpellIndex.value >= area) {
+      selectedSpellIndex.value = -1;
+      isEditorModalVisible.value = false;
+    }
+  };
+
   const clearAllSpells = () => {
     const area = boardArea.value;
     spells.value = Array.from({ length: area }, () => createBlankSpell());
@@ -805,6 +823,12 @@ export const useEditorStore = defineStore("editor", () => {
 
   watch(() => isEditorMode.value, (value) => {
     presetManagerMode.value = value ? 'manage' : 'select'
+  });
+
+  watch(boardArea, (area) => {
+    if (isEditorMode.value) {
+      resizeBoardData(area);
+    }
   });
 
   return {

@@ -169,6 +169,15 @@ export const useRoomStore = defineStore("room", () => {
     if (id) getRoomConfig();
   });
 
+  const applyRoomConfig = (data: any) => {
+    for (const i in data) {
+      roomConfig[i] = data[i];
+      if (roomData.hasOwnProperty(i)) {
+        roomData[i] = data[i];
+      }
+    }
+  };
+
   const updateRoomConfig = (
     key?: "type" | "game_time" | "countdown" | "games" | "ranks" | "need_win" | "difficulty" | "cd_time"
       | "cd_modifier_a" | "cd_modifier_b"
@@ -221,15 +230,19 @@ export const useRoomStore = defineStore("room", () => {
         params[key] = allParams[key];
       }
     }
-    return ws.send(WebSocketActionType.UPDATE_ROOM_CONFIG, key ? params : allParams);
+    const payload = key ? params : allParams;
+    return ws.send(WebSocketActionType.UPDATE_ROOM_CONFIG, payload)
+      .then((data) => {
+        applyRoomConfig(payload);
+        return data;
+      })
+      .catch((e) => {
+        getRoomConfig().catch(() => {});
+        throw e;
+      });
   };
   ws.on<{ name: string; position: number }>(WebSocketPushActionType.PUSH_UPDATE_ROOM_CONFIG, (data) => {
-    for (const i in data) {
-      roomConfig[i] = data[i];
-      if (roomData.hasOwnProperty(i)) {
-        roomData[i] = data[i];
-      }
-    }
+    applyRoomConfig(data);
   });
 
   //房间数据

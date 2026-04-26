@@ -919,11 +919,10 @@ const boardSizeDefaults: Record<number, { gameTime: number; countdown: number }>
 };
 const boardSizeRecommendation = ref<{ gameTime: number; countdown: number } | null>(null);
 
-const onBoardSizeChange = (value) => {
+const onBoardSizeChange = async (value) => {
   if (value !== 5) {
     if (roomSettings.value.type !== BingoType.STANDARD) {
       roomSettings.value.type = BingoType.STANDARD;
-      roomStore.updateRoomConfig("type");
     }
     if (roomSettings.value.use_ai) {
       roomSettings.value.use_ai = false;
@@ -935,7 +934,7 @@ const onBoardSizeChange = (value) => {
   }
   const defaults = boardSizeDefaults[value];
   boardSizeRecommendation.value = defaults || null;
-  roomStore.updateRoomConfig("board_size");
+  await roomStore.updateRoomConfig();
 };
 
 const applyBoardSizeDefaults = () => {
