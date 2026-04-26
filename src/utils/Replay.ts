@@ -28,6 +28,7 @@ export interface GameLogData {
     is_portal_a: number[];
     is_portal_b: number[];
     get_on_which_board: number[];
+    extra_lines: number[][];
   } | null;
   actions: PlayerAction[];
   gameStartTimestamp: number;
@@ -725,12 +726,14 @@ class Replay {
     // 3. 盘面符卡
     const formatBoard = (boardSpells: Spell[], portals: number[] | undefined, title: string) => {
       output.push(title);
-      const CELL_WIDTH = 36; // 定义每个单元格的视觉宽度
-      for (let i = 0; i < 5; i++) {
+      const bs = roomConfig.board_size || 5;
+      const CELL_WIDTH = 36;
+      for (let i = 0; i < bs; i++) {
         let row = padStart(`${i + 1} | `, 5);
-        for (let j = 0; j < 5; j++) {
-          const index = i * 5 + j;
+        for (let j = 0; j < bs; j++) {
+          const index = i * bs + j;
           const spell = boardSpells[index];
+          if (!spell) continue;
           const isPortal = portals && portals[index] === 1 ? " (P)" : "";
           const cellContent = `${spell.name.trim()}${isPortal} | `;
           row += padStart(cellContent, CELL_WIDTH);
@@ -739,11 +742,12 @@ class Replay {
       }
 
       output.push("【等级分布】");
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < bs; i++) {
         let row = padStart(`${i + 1} | `, 5);
-        for (let j = 0; j < 5; j++) {
-          const index = i * 5 + j;
+        for (let j = 0; j < bs; j++) {
+          const index = i * bs + j;
           const spell = boardSpells[index];
+          if (!spell) continue;
           const isPortal = portals && portals[index] === 1 ? "(P)" : "";
           const cellContent = `${spell.star}${isPortal}`;
           row += padStart(cellContent, 10);
@@ -769,8 +773,9 @@ class Replay {
       const timeStr = `[${formatTimestamp(action.timestamp)}]`;
       let logLine = `${timeStr} `;
       const boardInfo = roomConfig.dual_board > 0 ? `(盘面${playerBoards[action.playerName] === 0 ? "A" : "B"}) ` : "";
+      const bs = roomConfig.board_size || 5;
       const spellLocation =
-        action.spellIndex >= 0 ? `(${Math.floor(action.spellIndex / 5) + 1}, ${(action.spellIndex % 5) + 1}) ` : "";
+        action.spellIndex >= 0 ? `(${Math.floor(action.spellIndex / bs) + 1}, ${(action.spellIndex % bs) + 1}) ` : "";
 
       if (action.actionType === "pause") {
         logLine += `${action.playerName} 暂停了游戏。`;

@@ -42,7 +42,9 @@
             >
               <div class="bingo-items" ref="bingoItemsRef">
                 <template v-if="dataSource.spells.length > 0">
-                  <div class="spell-card" v-for="(item, index) in (gameStore.currentBoard == 0 ? dataSource.spells : dataSource.spells2)" :key="index">
+                  <div class="spell-card" v-for="(item, index) in (gameStore.currentBoard == 0 ? dataSource.spells : dataSource.spells2)" :key="index"
+	                    :style="{ width: spellCardSizePercent, height: spellCardSizePercent }"
+	                  >
                     <spell-card-cell
                       :name="item.name"
                       :desc="item.desc"
@@ -217,6 +219,7 @@ const needWin = computed(() => roomStore.roomConfig.need_win);
 const isBingoStandard = computed(() => roomData.value.type === BingoType.STANDARD);
 
 const boardSize = computed(() => roomStore.roomConfig.board_size || 5);
+const spellCardSizePercent = computed(() => `calc(100% / ${boardSize.value} - 4px)`);
 const EXTRA_LINE_COLORS = ["#ff4444", "#44cc44", "#4488ff"];
 const extraLinesForDisplay = computed(() => {
   const lines = gameStore.normalGameData?.extra_lines;

@@ -69,6 +69,7 @@
                 v-for="(spell, index) in displayedSpells"
                 :key="`${viewBoard}-${index}-${spell?.name || 'spell'}`"
                 class="spell-card"
+                :style="{ width: spellCardSizePercent, height: spellCardSizePercent }"
               >
                 <spell-card-cell
                   :name="spell?.name || ''"
@@ -186,6 +187,11 @@ const totalTime = computed(() => {
 
 const actionCount = computed(() => logData.value?.actions.length || 0);
 const isDualBoard = computed(() => (logData.value?.roomConfig.dual_board || 0) > 0 && !!logData.value?.spells2?.length);
+const replayBoardSize = computed(() => logData.value?.roomConfig.board_size || 5);
+const spellCardSizePercent = computed(() => {
+  const s = replayBoardSize.value;
+  return `calc(100% / ${s} - 4px)`;
+});
 const currentAction = computed(() => simulation.currentAction);
 const processedActionCount = computed(() => actionCursor.value);
 const currentScore = computed(() => simulation.currentScore);
