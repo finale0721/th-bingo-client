@@ -105,6 +105,7 @@ export const useGameStore = defineStore("game", () => {
     normalGameData.is_portal_a = [];
     normalGameData.is_portal_b = [];
     normalGameData.get_on_which_board = [];
+    normalGameData.extra_lines = [];
     currentBoard.value = 0;
   };
 
