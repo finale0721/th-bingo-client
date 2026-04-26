@@ -3,6 +3,8 @@ import Mit from "@/mitt";
 import { Spell } from "@/types";
 import { local } from "./Storage";
 
+// DEPRECATED: This module is not used. AI logic lives in server-side AIAgent.kt.
+
 export const enum AIDifficulty {
   // E = 0,
   // N = 1,
