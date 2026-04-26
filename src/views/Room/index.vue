@@ -1573,10 +1573,11 @@ const handleShuffleSpells = () => {
 }
 .page {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  width: calc(100% - 8px);
-  height: calc(100% - 8px);
+  top: 50%;
+  left: 50%;
+  width: var(--board-overlay-width, calc(100% - 8px));
+  height: var(--board-overlay-height, calc(100% - 8px));
+  transform: translate(-50%, -50%);
   pointer-events: none;
   background: linear-gradient(90deg, transparent 95%, var(--bg-color)),
     linear-gradient(180deg, transparent 95%, var(--bg-color)), linear-gradient(270deg, transparent 95%, var(--bg-color)),
@@ -1584,10 +1585,11 @@ const handleShuffleSpells = () => {
 }
 .page-reverse {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  width: calc(100% - 8px);
-  height: calc(100% - 8px);
+  top: 50%;
+  left: 50%;
+  width: var(--board-overlay-width, calc(100% - 8px));
+  height: var(--board-overlay-height, calc(100% - 8px));
+  transform: translate(-50%, -50%);
   pointer-events: none;
   background: linear-gradient(90deg, transparent 95%, var(--bg-color-reverse)),
     linear-gradient(180deg, transparent 95%, var(--bg-color-reverse)),

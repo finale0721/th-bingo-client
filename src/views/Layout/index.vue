@@ -8,6 +8,10 @@
       '--B-color-dark': roomSettings.playerB && getDarkColor(roomSettings.playerB.color),
       '--bg-color': roomSettings.backgroundColor,
       '--bg-color-reverse': roomSettings.backgroundColorReverse,
+      '--layout-inner-width': layoutInnerWidth,
+      '--main-window-width': mainWindowWidth,
+      '--main-window-height': mainWindowHeight,
+      '--info-window-height': infoWindowHeight,
     }"
   >
     <div class="layout-inner">
@@ -28,6 +32,11 @@ import { useRoomStore } from "@/store/RoomStore";
 
 const roomStore = useRoomStore();
 const roomSettings = computed(() => roomStore.roomSettings);
+const boardSize = computed(() => roomStore.roomConfig.board_size || roomSettings.value.board_size || 5);
+const layoutInnerWidth = computed(() => boardSize.value === 6 ? "1508px" : "1320px");
+const mainWindowWidth = computed(() => boardSize.value === 6 ? "1148px" : "960px");
+const mainWindowHeight = computed(() => boardSize.value === 6 ? "780px" : "680px");
+const infoWindowHeight = computed(() => boardSize.value === 6 ? "780px" : "680px");
 
 const getDarkColor = (color: string) => {
   if (!color) {
@@ -54,13 +63,13 @@ const getDarkColor = (color: string) => {
   position: relative;
 
   .layout-inner {
-    width: $minWidth;
+    width: var(--layout-inner-width, #{$minWidth});
     display: flex;
     justify-content: space-between;
 
     .layout-main-window {
-      width: 960px;
-      height: $minHeight;
+      width: var(--main-window-width, 960px);
+      height: var(--main-window-height, #{$minHeight});
       box-shadow: #00000044 0 0 5px 5px;
       border-radius: 5px;
       padding: 10px;
@@ -71,7 +80,7 @@ const getDarkColor = (color: string) => {
 
     .layout-info-window {
       width: 320px;
-      height: $minHeight;
+      height: var(--info-window-height, #{$minHeight});
       box-shadow: #00000044 0 0 5px 5px;
       border-radius: 5px;
       padding: 10px 15px;

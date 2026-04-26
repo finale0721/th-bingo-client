@@ -33,14 +33,15 @@
           </div>
         </el-col>
         <el-col :span="16">
-          <div class="bingo-wrap">
+          <div class="bingo-wrap" :style="boardWrapStyle">
             <right-click-menu
-              style="width: 100%; height: 100%"
+              style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center"
               :menuData="contextMenuData"
               :disabled="!editorStore.isEditorMode && (!menu || menu.length === 0 || !inGame)"
               @click="onMenuClick"
             >
-              <div class="bingo-items" ref="bingoItemsRef">
+              <div class="bingo-inner-align">
+                <div class="bingo-items" ref="bingoItemsRef" :style="{ width: boardInnerSize, height: boardInnerSize }">
                 <template v-if="displayedSpells.length > 0">
                   <div class="spell-card" v-for="(item, index) in displayedSpells" :key="index"
 	                    :style="{ width: spellCardSizePercent, height: spellCardSizePercent }"
@@ -82,6 +83,7 @@
                     opacity="0.7"
                   />
                 </svg>
+                </div>
               </div>
             </right-click-menu>
             <game-alert ref="gameAlertRef" />
@@ -220,6 +222,25 @@ const needWin = computed(() => roomStore.roomConfig.need_win);
 const isBingoStandard = computed(() => roomData.value.type === BingoType.STANDARD);
 
 const boardSize = computed(() => roomStore.roomConfig.board_size || 5);
+const boardInnerSize = computed(() => boardSize.value === 4 ? "80%" : "100%");
+const boardWrapWidth = computed(() => boardSize.value === 6 ? "752px" : "100%");
+const boardWrapHeight = computed(() => `${Math.max(boardSize.value, 5) * 100}px`);
+const boardOverlayWidth = computed(() => {
+  if (boardSize.value === 4) return "calc(80% - 8px)";
+  if (boardSize.value === 6) return "744px";
+  return "calc(100% - 8px)";
+});
+const boardOverlayHeight = computed(() => {
+  if (boardSize.value === 4) return "392px";
+  if (boardSize.value === 6) return "592px";
+  return "calc(100% - 8px)";
+});
+const boardWrapStyle = computed(() => ({
+  width: boardWrapWidth.value,
+  height: boardWrapHeight.value,
+  "--board-overlay-width": boardOverlayWidth.value,
+  "--board-overlay-height": boardOverlayHeight.value,
+}));
 const spellCardSizePercent = computed(() => `calc(100% / ${boardSize.value} - 4px)`);
 const boardArea = computed(() => boardSize.value * boardSize.value);
 const createBlankSpell = (): Spell => ({
@@ -541,14 +562,22 @@ defineExpose({ showAlert, hideAlert, warnGamePoint,
 }
 
 .bingo-wrap {
-  width: 100%;
-  height: 500px;
   box-sizing: border-box;
   position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
 
-  .bingo-items {
+  .bingo-inner-align {
     width: 100%;
     height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .bingo-items {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
@@ -557,6 +586,7 @@ defineExpose({ showAlert, hideAlert, warnGamePoint,
     border-radius: 4px;
     padding: 2px;
     box-sizing: border-box;
+    position: relative;
 
     .spell-card {
       border: 1px solid #000;
