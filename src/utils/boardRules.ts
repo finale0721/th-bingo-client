@@ -2,7 +2,7 @@ import { BoardSpec } from "./board";
 import { SpellStatus } from "@/types";
 
 export function getWinningLines(board: BoardSpec, extraLines: number[][] = []): number[][] {
-  return [...board.winningLines(), ...extraLines];
+  return board.winningLines(extraLines);
 }
 
 export function checkLineComplete(
