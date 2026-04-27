@@ -752,6 +752,51 @@ const selectCooldown = computed(() => {
 const setCdTime = () => {
   gameStore.leftCdTime = -1;
 };
+
+const getStandardSpellStar = (index: number, playerIndex: 0 | 1) => {
+  const boardMarker = gameStore.normalGameData?.get_on_which_board?.[index] || 0;
+  const useSecondBoard = playerIndex === 0 ? boardMarker === 0x2 : boardMarker === 0x20;
+  const spell = useSecondBoard ? gameStore.spells2[index] : gameStore.spells[index];
+  return spell?.star || 0;
+};
+
+const getStandardTieBreakWinner = (
+  status: number[],
+  countA: number,
+  countB: number,
+  levelA: number,
+  levelB: number
+) => {
+  const board = boardSpec.value;
+  if (board.area % 2 !== 0) {
+    return 0;
+  }
+  const halfArea = board.area / 2;
+  if (countA !== halfArea && countB !== halfArea) {
+    return 0;
+  }
+  if (levelA === levelB) {
+    return 0;
+  }
+
+  if (!isDualBoard.value) {
+    const totalLevel = gameStore.spells.slice(0, board.area).reduce((sum, spell) => sum + (spell?.star || 0), 0);
+    if (countA === halfArea && levelA > totalLevel / 2) return -13;
+    if (countB === halfArea && levelB > totalLevel / 2) return 13;
+    return 0;
+  }
+
+  const remainingMaxLevel = status.slice(0, board.area).reduce((sum, cellStatus, index) => {
+    if (cellStatus === 5 || cellStatus === 7) {
+      return sum;
+    }
+    return sum + Math.max(gameStore.spells[index]?.star || 0, gameStore.spells2[index]?.star || 0);
+  }, 0);
+  if (countA === halfArea && levelA > levelB && levelA - levelB > remainingMaxLevel) return -13;
+  if (countB === halfArea && levelB > levelA && levelB - levelA > remainingMaxLevel) return 13;
+  return 0;
+};
+
 const decideStandard = (status) => {
   const board = boardSpec.value;
   const extraLines = gameStore.normalGameData?.extra_lines || [];
@@ -774,6 +819,7 @@ const decideStandard = (status) => {
     if (item === 5) {
       countA++;
       scoreA += 1;
+      levelA += getStandardSpellStar(index, 0);
       for (const li of cellToLines[index]) {
         if (available[li] > 0) available[li] -= 2;
         sumArr[li] -= 1;
@@ -781,6 +827,7 @@ const decideStandard = (status) => {
     } else if (item === 7) {
       countB++;
       scoreB += 1;
+      levelB += getStandardSpellStar(index, 1);
       for (const li of cellToLines[index]) {
         if (available[li] % 2 === 0) available[li] -= 1;
         sumArr[li] += 1;
@@ -817,23 +864,26 @@ const decideStandard = (status) => {
   playerAScore.value = scoreA;
   playerBScore.value = scoreB;
 
-  gameStore.normalGameData?.get_on_which_board.forEach((item: number, index: number) => {
-    const sp = item === 0x2 || item === 0x20 ? gameStore.spells2[index] : gameStore.spells[index];
-    if (status[index] === 5) {
-      levelA += sp.star;
-    } else if (status[index] === 7) {
-      levelB += sp.star;
-    }
-  });
-
   playerALevel.value = levelA;
   playerBLevel.value = levelB;
 
-  if (countA >= Math.floor(board.area / 2) + 1) {
-    winFlag.value = -13;
+  if (winFlag.value === 0) {
+    if (countA > board.area / 2) {
+      winFlag.value = -13;
+    } else if (countB > board.area / 2) {
+      winFlag.value = 13;
+    } else {
+      winFlag.value = getStandardTieBreakWinner(status, countA, countB, levelA, levelB);
+    }
   }
-  if (countB >= Math.floor(board.area / 2) + 1) {
-    winFlag.value = 13;
+
+  if (winFlag.value === 0 && gameStore.leftTime < 0 && countA !== countB) {
+    if (countA > countB) {
+      winFlag.value = -14;
+    } else {
+      winFlag.value = 14;
+    }
+    // if (trainingMode.value) Mit.emit("ai_game_over");
   }
 
   if (soloMode.value && winFlag.value !== 0) {
@@ -858,15 +908,6 @@ const decideStandard = (status) => {
     } else {
       layoutRef.value?.hideAlert();
     }
-  }
-
-  if (gameStore.leftTime < 0 && countA !== countB) {
-    if (countA > countB) {
-      winFlag.value = -14;
-    } else {
-      winFlag.value = 14;
-    }
-    // if (trainingMode.value) Mit.emit("ai_game_over");
   }
 };
 
