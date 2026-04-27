@@ -109,7 +109,7 @@ export const useRoomStore = defineStore("room", () => {
     ai_preference: {},
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
     board_size: 5,
-    extra_line_count: 0,
+    extra_line_count: 2,
   });
 
   //加载本地设置
@@ -119,7 +119,7 @@ export const useRoomStore = defineStore("room", () => {
       roomSettings[i] = savedSettings[i];
     }
     if (roomSettings.board_size === undefined) roomSettings.board_size = 5;
-    if (roomSettings.extra_line_count === undefined) roomSettings.extra_line_count = 0;
+    if (roomSettings.extra_line_count === undefined) roomSettings.extra_line_count = 2;
     if (roomSettings.difficulty === 0) roomSettings.difficulty = 3;
     if (roomSettings.extraLineColor === undefined) roomSettings.extraLineColor = "#fbff00";
     normalizeBoardSizeCaches(savedSettings || {});
@@ -222,7 +222,7 @@ export const useRoomStore = defineStore("room", () => {
     ai_preference: {},
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
     board_size: 5,
-    extra_line_count: 0,
+    extra_line_count: 2,
     hidden_select_threshold_a: 5,
     hidden_select_threshold_b: 5,
   });

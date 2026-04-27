@@ -456,7 +456,7 @@
                           class="input-number"
                           v-model="roomSettings.extra_line_count"
                           :min="0"
-                          :max="3"
+                          :max="4"
                           :step="1"
                           :disabled="inGame"
                           size="small"
