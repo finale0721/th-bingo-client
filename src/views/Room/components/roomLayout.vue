@@ -20,7 +20,7 @@
               v-for="(item, index) in needWinArr"
               :key="index"
             ></div
-            ></template>
+          ></template>
         </div>
       </div>
       <div class="player-B">{{ roomData.names[1] }}</div>
@@ -42,47 +42,55 @@
             >
               <div class="bingo-inner-align">
                 <div class="bingo-items" ref="bingoItemsRef" :style="{ width: boardInnerSize, height: boardInnerSize }">
-                <template v-if="displayedSpells.length > 0">
-                  <div class="spell-card" v-for="(item, index) in displayedSpells" :key="index"
-	                    :style="{ width: spellCardSizePercent, height: spellCardSizePercent }"
-	                  >
-                    <spell-card-cell
-                      :name="item.name"
-                      :desc="item.desc"
-                      :level="isBingoStandard ? item.star : item.star + 100"
-                      :failCountA="dataSource.bpGameData?.spell_failed_count_a[index] || 0"
-                      :failCountB="dataSource.bpGameData?.spell_failed_count_b[index] || 0"
-                      @click="isEditorMode ? emits('editor-cell-click', index) : selectSpellCard(index)"
-                      :selected="selectedSpellIndex === index"
-                      :status="dataSource.spellStatus[index]"
-                      :index="index"
-                    :isPortalA="roomStore.roomConfig.dual_board > 0 && dataSource.normalGameData?.is_portal_a[index] > 0"
-                    :isPortalB="roomStore.roomConfig.dual_board > 0 && dataSource.normalGameData?.is_portal_b[index] > 0"
-                    :isACurrentBoard="gameStore.currentBoard == 0"
-                    :isBCurrentBoard="gameStore.currentBoard == 1"
-                    :spellIndex="index"
-                    ></spell-card-cell>
-                  </div>
-                </template>
-                <!-- SVG overlay for extra lines — drawn above cells so always visible -->
-                <svg
-                  v-if="extraLinesForDisplay.length > 0"
-                  class="extra-lines-overlay"
-                  :viewBox="`0 0 ${boardSize} ${boardSize}`"
-                  preserveAspectRatio="none"
-                >
-                  <polyline
-                    v-for="(line, li) in extraLinesForDisplay"
-                    :key="li"
-                    :points="line.points"
-                    :stroke="line.color"
-                    stroke-width="0.18"
-                    fill="none"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    opacity="0.7"
-                  />
-                </svg>
+                  <template v-if="displayedSpells.length > 0">
+                    <div
+                      class="spell-card"
+                      v-for="(item, index) in displayedSpells"
+                      :key="index"
+                      :style="{ width: spellCardSizePercent, height: spellCardSizePercent }"
+                    >
+                      <spell-card-cell
+                        :name="item.name"
+                        :desc="item.desc"
+                        :level="isBingoStandard ? item.star : item.star + 100"
+                        :failCountA="dataSource.bpGameData?.spell_failed_count_a[index] || 0"
+                        :failCountB="dataSource.bpGameData?.spell_failed_count_b[index] || 0"
+                        @click="isEditorMode ? emits('editor-cell-click', index) : selectSpellCard(index)"
+                        :selected="selectedSpellIndex === index"
+                        :status="dataSource.spellStatus[index]"
+                        :index="index"
+                        :isPortalA="
+                          roomStore.roomConfig.dual_board > 0 && dataSource.normalGameData?.is_portal_a[index] > 0
+                        "
+                        :isPortalB="
+                          roomStore.roomConfig.dual_board > 0 && dataSource.normalGameData?.is_portal_b[index] > 0
+                        "
+                        :isACurrentBoard="gameStore.currentBoard == 0"
+                        :isBCurrentBoard="gameStore.currentBoard == 1"
+                        :spellIndex="index"
+                      ></spell-card-cell>
+                    </div>
+                  </template>
+                  <!-- SVG overlay for extra lines — drawn above cells so always visible -->
+                  <svg
+                    v-if="extraLinesForDisplay.length > 0"
+                    class="extra-lines-overlay"
+                    :viewBox="`0 0 ${boardSize} ${boardSize}`"
+                    preserveAspectRatio="none"
+                  >
+                    <polyline
+                      v-for="(line, li) in extraLinesForDisplay"
+                      :key="li"
+                      :points="line.points"
+                      stroke="#fbff00"
+                      stroke-width="6"
+                      fill="none"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      vector-effect="non-scaling-stroke"
+                      opacity="0.7"
+                    />
+                  </svg>
                 </div>
               </div>
             </right-click-menu>
@@ -120,7 +128,11 @@
       </div>
     </div>
     <div class="audio">
-      <bgm ref="spellCardGrabbedAudioRef" :src="require('@/assets/audio/spell_card_grabbed.mp3')" :muted="sfxMuted"></bgm>
+      <bgm
+        ref="spellCardGrabbedAudioRef"
+        :src="require('@/assets/audio/spell_card_grabbed.mp3')"
+        :muted="sfxMuted"
+      ></bgm>
       <bgm ref="gamePointAudioRef" :src="require('@/assets/audio/game_point.wav')" :muted="sfxMuted"></bgm>
       <bgm ref="lineWarnAudioRef" :src="require('@/assets/audio/se_ufoalert.mp3')" :muted="sfxMuted"></bgm>
       <bgm ref="pauseAudioRef" :src="require('@/assets/audio/se_pause.mp3')" :muted="sfxMuted"></bgm>
@@ -222,8 +234,8 @@ const needWin = computed(() => roomStore.roomConfig.need_win);
 const isBingoStandard = computed(() => roomData.value.type === BingoType.STANDARD);
 
 const boardSize = computed(() => roomStore.roomConfig.board_size || 5);
-const boardInnerSize = computed(() => boardSize.value === 4 ? "80%" : "100%");
-const boardWrapWidth = computed(() => boardSize.value === 6 ? "752px" : "100%");
+const boardInnerSize = computed(() => (boardSize.value === 4 ? "80%" : "100%"));
+const boardWrapWidth = computed(() => (boardSize.value === 6 ? "752px" : "100%"));
 const boardWrapHeight = computed(() => `${Math.max(boardSize.value, 5) * 100}px`);
 const boardOverlayWidth = computed(() => {
   if (boardSize.value === 4) return "calc(80% - 8px)";
@@ -271,18 +283,19 @@ const displayedSpells = computed(() => {
   }
   return source;
 });
-const EXTRA_LINE_COLORS = ["#ff4444", "#44cc44", "#4488ff"];
 const extraLinesForDisplay = computed(() => {
   const lines = gameStore.normalGameData?.extra_lines;
   if (!lines || lines.length === 0) return [];
   const bs = boardSize.value;
-  return lines.map((line: number[], li: number) => {
-    const points = line.map((idx: number) => {
-      const r = Math.floor(idx / bs);
-      const c = idx % bs;
-      return `${c + 0.5},${r + 0.5}`;
-    }).join(" ");
-    return { points, color: EXTRA_LINE_COLORS[li % EXTRA_LINE_COLORS.length] };
+  return lines.map((line: number[]) => {
+    const points = line
+      .map((idx: number) => {
+        const r = Math.floor(idx / bs);
+        const c = idx % bs;
+        return `${c + 0.5},${r + 0.5}`;
+      })
+      .join(" ");
+    return { points };
   });
 });
 const BGMpaused = computed(
@@ -304,7 +317,8 @@ const selectSpellCard = (index: number) => {
     selectedSpellIndex.value = -1;
   } else {
     if (props.multiple) {
-      if (gameStore.spellStatus[index] === 0 || canSelectBlindCard(gameStore.spellStatus[index])) selectedSpellIndex.value = index;
+      if (gameStore.spellStatus[index] === 0 || canSelectBlindCard(gameStore.spellStatus[index]))
+        selectedSpellIndex.value = index;
     } else {
       if (
         gameStore.spellStatus[index] === 0 ||
@@ -318,8 +332,8 @@ const selectSpellCard = (index: number) => {
   }
 };
 
-function canSelectBlindCard (status: number) {
-  return status === 0x1000 || status === 0x1010 || status === 0x1011 || status === 0x1012
+function canSelectBlindCard(status: number) {
+  return status === 0x1000 || status === 0x1010 || status === 0x1011 || status === 0x1012;
 }
 
 const onMenuClick = ({ event, target, item }: any) => {
@@ -327,20 +341,20 @@ const onMenuClick = ({ event, target, item }: any) => {
   if (index === null || isNaN(index)) return;
 
   if (editorStore.isEditorMode) {
-    if (item.value === 'copy') {
+    if (item.value === "copy") {
       editorStore.copySpell(index);
-    } else if (item.value === 'paste') {
+    } else if (item.value === "paste") {
       editorStore.pasteSpell(index);
-    } else if (item.value === 'clear') {
+    } else if (item.value === "clear") {
       editorStore.clearSpell(index);
     }
   } else {
     if (item.isReset != null && item.isReset == false) {
       gameStore.finishSpell(parseInt(index), false, gameStore.spellStatus[index] === 5 ? 0 : 1);
     } else {
-      if(item.value == 0x100){
-        gameStore.refreshSpell(parseInt(index))
-      }else{
+      if (item.value == 0x100) {
+        gameStore.refreshSpell(parseInt(index));
+      } else {
         gameStore.updateSpellStatus(parseInt(index), item.value);
       }
     }
@@ -364,9 +378,12 @@ const hideAlert = () => {
   gameAlertRef.value.hide();
 };
 
-watch(() => editorStore.isEditorMode, (value) => {
-  value ? hideAlert() : showAlert();
-})
+watch(
+  () => editorStore.isEditorMode,
+  (value) => {
+    value ? hideAlert() : showAlert();
+  }
+);
 
 const warnGamePoint = () => {
   lineWarnAudioRef.value?.stop();
@@ -383,22 +400,22 @@ const infoFailCard = () => {
 
 const infoWinGame = () => {
   muteSFXOnGameEnd();
-  winGameAudioRef.value?.play()
-}
+  winGameAudioRef.value?.play();
+};
 
 const infoLoseGame = () => {
   muteSFXOnGameEnd();
-  loseGameAudioRef.value?.play()
-}
+  loseGameAudioRef.value?.play();
+};
 
-const muteSFXOnGameEnd = () =>{
+const muteSFXOnGameEnd = () => {
   captureCardAudioRef.value?.stop();
   captureCardFailureAudioRef.value?.stop();
   lineWarnAudioRef.value?.stop();
   spellCardGrabbedAudioRef.value?.stop();
   startGameAudioRef.value?.stop();
   pauseAudioRef.value?.stop();
-}
+};
 
 watch(
   () => gameStore.spellCardGrabbedFlag,
@@ -410,25 +427,21 @@ watch(
   }
 );
 
-const gameStarted = computed(() => gameStore.gameStatus === GameStatus.STARTED)
-watch(gameStarted,
-  (started) =>{
-    if(started){
-      startGameAudioRef.value?.stop();
-      startGameAudioRef.value?.play();
-    }
+const gameStarted = computed(() => gameStore.gameStatus === GameStatus.STARTED);
+watch(gameStarted, (started) => {
+  if (started) {
+    startGameAudioRef.value?.stop();
+    startGameAudioRef.value?.play();
   }
-)
+});
 
 const gameCountDown = computed(() => gameStore.gameStatus === GameStatus.COUNT_DOWN);
-watch(gameCountDown,
-  (started) =>{
-    if(started){
-      startGameAudioRef.value?.stop();
-      startGameAudioRef.value?.play();
-    }
+watch(gameCountDown, (started) => {
+  if (started) {
+    startGameAudioRef.value?.stop();
+    startGameAudioRef.value?.play();
   }
-)
+});
 
 const gamePaused = computed(() => gameStore.gameStatus === GameStatus.PAUSED);
 watch(gamePaused, (paused) => {
@@ -485,17 +498,16 @@ watch(
 const contextMenuData = computed(() => {
   if (editorStore.isEditorMode) {
     return [
-      { label: '复制', value: 'copy' },
-      { label: '粘贴', value: 'paste' },
-      { label: '清空', value: 'clear' },
+      { label: "复制", value: "copy" },
+      { label: "粘贴", value: "paste" },
+      { label: "清空", value: "clear" },
     ];
   }
   // 返回游戏模式下的菜单
   return props.menu;
 });
 
-defineExpose({ showAlert, hideAlert, warnGamePoint,
-  infoCaptureCard, infoFailCard, infoWinGame, infoLoseGame });
+defineExpose({ showAlert, hideAlert, warnGamePoint, infoCaptureCard, infoFailCard, infoWinGame, infoLoseGame });
 </script>
 
 <style lang="scss" scoped>
