@@ -29,10 +29,6 @@ const difficultyList = [
     value: 5
   },
   {
-    name: "随机",
-    value: 0,
-  },
-  {
     name: "自定义",
     value: 6
   },

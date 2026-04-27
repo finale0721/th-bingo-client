@@ -62,7 +62,7 @@ class Replay {
     games: [], // 含有哪些作品
     ranks: [], // 含有哪些游戏难度，也就是L卡和EX卡
     need_win: 3, // 需要胜利的局数，例如2表示bo3
-    difficulty: 3, // 难度（影响不同星级的卡的分布），1对应E，2对应N，3对应L，其它对应随机
+    difficulty: 3, // 难度（影响不同星级的卡的分布），1对应E，2对应N，3对应L，4对应OD，5对应ODP，6对应自定义
     cd_time: 30, // 选卡cd，收卡后要多少秒才能选下一张卡
     cd_modifier_a: 0, // 左侧选手CD修正值
     cd_modifier_b: 0, // 右侧选手CD修正值
