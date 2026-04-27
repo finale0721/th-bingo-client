@@ -26,6 +26,9 @@ const createBlankSpell = (): Spell => ({
   max_cap_rate: 0,
 });
 
+const VALID_BOARD_SIZES = [4, 5, 6];
+const DEFAULT_CUSTOM_LEVEL_COUNT = [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5];
+
 interface CacheEntry {
   data: Spell[];
   timestamp: number;
@@ -82,6 +85,120 @@ export const useEditorStore = defineStore("editor", () => {
 
   let autoSaveTimer: number | null = null;
   const presetManagerMode = ref<'manage' | 'select'>('manage');
+
+  const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+  const isValidBoardSize = (value: unknown): value is number => {
+    return typeof value === "number" && VALID_BOARD_SIZES.includes(value);
+  };
+
+  const inferBoardSize = (data: Partial<EditorPreset["data"]> | undefined): number => {
+    const explicit = Number(data?.roomConfig?.board_size);
+    if (isValidBoardSize(explicit)) return explicit;
+
+    const candidateLengths = [
+      data?.spells?.length,
+      data?.spellStatus?.length,
+      data?.isPortalA?.length,
+      data?.spells2?.length,
+      data?.isPortalB?.length,
+    ];
+    for (const length of candidateLengths) {
+      if (!length) continue;
+      const size = Math.sqrt(length);
+      if (Number.isInteger(size) && isValidBoardSize(size)) return size;
+    }
+    return 5;
+  };
+
+  const resizeArray = <T>(source: T[] | undefined, size: number, fill: () => T): T[] => {
+    const list = Array.isArray(source) ? source : [];
+    if (list.length > size) return list.slice(0, size);
+    if (list.length < size) return [...list, ...Array.from({ length: size - list.length }, fill)];
+    return [...list];
+  };
+
+  const normalizeSpell = (spell: Partial<Spell> | undefined): Spell => ({
+    ...createBlankSpell(),
+    ...(spell || {}),
+  });
+
+  const defaultCustomCountsForBoard = (boardSize: number): number[] => {
+    if (boardSize === 4) return [1, 4, 8, 2, 1, 1, 0, 3, 1, 1, 4];
+    if (boardSize === 6) return [3, 8, 17, 6, 2, 1, 0, 5, 1, 1, 7];
+    return [...DEFAULT_CUSTOM_LEVEL_COUNT];
+  };
+
+  const normalizeCustomLevelCount = (source: unknown, boardSize: number): number[] => {
+    const area = boardSize * boardSize;
+    const fallback = defaultCustomCountsForBoard(boardSize);
+    const raw = Array.isArray(source) ? source : fallback;
+    const counts = Array.from({ length: 11 }, (_, i) => {
+      const value = Number(raw[i] ?? fallback[i] ?? 0);
+      return Number.isFinite(value) ? Math.trunc(value) : fallback[i] || 0;
+    });
+    for (let i = 0; i < 5; i++) {
+      counts[i] = Math.max(0, Math.min(area, counts[i]));
+    }
+    counts[5] = counts[5] ? 1 : 0;
+    counts[6] = counts[6] ? 1 : 0;
+    counts[7] = Math.max(0, Math.min(boardSize, counts[7]));
+    counts[8] = Math.max(0, Math.min(boardSize, counts[8]));
+    if (counts[5] && counts[7] + counts[8] !== boardSize) {
+      counts[7] = Math.min(boardSize, counts[7]);
+      counts[8] = boardSize - counts[7];
+    }
+    counts[9] = counts[9] ? 1 : 0;
+    counts[10] = Math.max(0, Math.min(area, counts[10]));
+    return counts;
+  };
+
+  const normalizeRoomConfig = (source: Partial<RoomConfig> | undefined, boardSize: number): RoomConfig => {
+    const base = deepClone(roomStore.roomConfig);
+    const merged = {
+      ...base,
+      ...(source || {}),
+    } as RoomConfig;
+    merged.board_size = boardSize;
+    (merged as any).portal_count = Math.max(0, Math.min(boardSize * boardSize, Number(merged.portal_count ?? base.portal_count ?? 0)));
+    (merged as any).extra_line_count = boardSize === 6 ? Math.max(0, Number(merged.extra_line_count ?? 0)) : 0;
+    merged.game_weight = merged.game_weight || {};
+    merged.ai_preference = merged.ai_preference || {};
+    merged.custom_level_count = normalizeCustomLevelCount(merged.custom_level_count, boardSize);
+    return merged;
+  };
+
+  const normalizePresetData = (data: Partial<EditorPreset["data"]> | undefined): EditorPreset["data"] => {
+    const boardSize = inferBoardSize(data);
+    const area = boardSize * boardSize;
+    const roomConfig = normalizeRoomConfig(data?.roomConfig, boardSize);
+    return {
+      spells: resizeArray(data?.spells, area, () => createBlankSpell()).map(normalizeSpell),
+      spells2: resizeArray(data?.spells2, area, () => createBlankSpell()).map(normalizeSpell),
+      spellStatus: resizeArray(data?.spellStatus, area, () => SpellStatus.NONE),
+      roomConfig,
+      initialLeftTime: Number.isFinite(Number(data?.initialLeftTime)) ? Number(data?.initialLeftTime) : roomConfig.game_time * 60,
+      initialCountDown: Number.isFinite(Number(data?.initialCountDown)) ? Number(data?.initialCountDown) : 0,
+      initialCdTimeA: Number.isFinite(Number(data?.initialCdTimeA)) ? Number(data?.initialCdTimeA) : 0,
+      initialCdTimeB: Number.isFinite(Number(data?.initialCdTimeB)) ? Number(data?.initialCdTimeB) : 0,
+      isPortalA: resizeArray(data?.isPortalA, area, () => 0).map((value) => value ? 1 : 0),
+      isPortalB: resizeArray(data?.isPortalB, area, () => 0).map((value) => value ? 1 : 0),
+    };
+  };
+
+  const normalizePreset = (preset: Partial<EditorPreset>): EditorPreset => ({
+    id: Number(preset.id ?? 0),
+    note: String(preset.note ?? "新预设"),
+    timestamp: Number(preset.timestamp ?? Date.now()),
+    data: normalizePresetData(preset.data),
+  });
+
+  const persistPresets = () => {
+    local.set("editor_presets", presets.value.map((preset) => normalizePreset(preset)));
+  };
+
+  presets.value = presets.value.map((preset) => normalizePreset(preset));
+  persistPresets();
 
   const openPresetManager = (mode: 'manage' | 'select' = 'manage') => {
     presetManagerMode.value = mode;
@@ -214,6 +331,7 @@ export const useEditorStore = defineStore("editor", () => {
   };
 
   const shuffleSpells = () => {
+    resizeBoardData();
     const currentBoard = gameStore.currentBoard;
     const targetSpells = currentBoard === 0 ? spells.value : spells2.value;
     const targetPortals = currentBoard === 0 ? normalGameData.is_portal_a : normalGameData.is_portal_b;
@@ -295,6 +413,7 @@ export const useEditorStore = defineStore("editor", () => {
       for (let i = 0; i < area; i++) {
         targetSpells[i] = createBlankSpell();
         targetPortals[i] = 0;
+        spellStatus.value[i] = SpellStatus.NONE;
       }
 
       shuffled.forEach((cell, idx) => {
@@ -319,6 +438,7 @@ export const useEditorStore = defineStore("editor", () => {
     for (let i = 0; i < area; i++) {
       targetSpells[i] = createBlankSpell();
       targetPortals[i] = 0;
+      spellStatus.value[i] = SpellStatus.NONE;
     }
 
     // Place high-rated cells at designated positions
@@ -346,13 +466,13 @@ export const useEditorStore = defineStore("editor", () => {
   // --- 预设管理逻辑 ---
 
   const savePreset = (id: number, note: string) => {
-    const presetData: EditorPreset = {
+    const presetData = normalizePreset({
       id,
       note,
       timestamp: Date.now(),
       data: {
-        spells: JSON.parse(JSON.stringify(spells.value)),
-        spells2: JSON.parse(JSON.stringify(spells2.value)),
+        spells: deepClone(spells.value),
+        spells2: deepClone(spells2.value),
         spellStatus: [...spellStatus.value],
         roomConfig: JSON.parse(JSON.stringify(roomStore.roomConfig)), // 直接保存当前 roomStore 的配置
         initialLeftTime: initialLeftTime.value,
@@ -362,35 +482,7 @@ export const useEditorStore = defineStore("editor", () => {
         isPortalA: [...normalGameData.is_portal_a],
         isPortalB: [...normalGameData.is_portal_b],
       }
-    };
-
-    const savePreset = (id: number, note: string) => {
-      const presetData: EditorPreset = {
-        id,
-        note,
-        timestamp: Date.now(),
-        data: {
-          spells: JSON.parse(JSON.stringify(spells.value)),
-          spells2: JSON.parse(JSON.stringify(spells2.value)),
-          spellStatus: [...spellStatus.value],
-          roomConfig: JSON.parse(JSON.stringify(roomStore.roomConfig)),
-          initialLeftTime: initialLeftTime.value,
-          initialCountDown: initialCountDown.value,
-          initialCdTimeA: initialCdTimeA.value,
-          initialCdTimeB: initialCdTimeB.value,
-          isPortalA: [...normalGameData.is_portal_a],
-          isPortalB: [...normalGameData.is_portal_b],
-        }
-      };
-
-      const index = presets.value.findIndex(p => p.id === id);
-      if (index > -1) {
-        presets.value[index] = presetData;
-      } else {
-        presets.value.push(presetData);
-      }
-      local.set("editor_presets", presets.value);
-    };
+    });
 
     const index = presets.value.findIndex(p => p.id === id);
     if (index > -1) {
@@ -398,7 +490,7 @@ export const useEditorStore = defineStore("editor", () => {
     } else {
       presets.value.push(presetData);
     }
-    local.set("editor_presets", presets.value);
+    persistPresets();
   };
 
   const loadPreset = (id: number) => {
@@ -409,20 +501,21 @@ export const useEditorStore = defineStore("editor", () => {
   };
 
   const loadPresetData = (preset: EditorPreset) => {
-    const d = preset.data;
-    spells.value = d.spells;
-    spells2.value = d.spells2 || [];
-    spellStatus.value = d.spellStatus;
+    const normalized = normalizePreset(preset);
+    const d = normalized.data;
+    spells.value = deepClone(d.spells);
+    spells2.value = deepClone(d.spells2);
+    spellStatus.value = [...d.spellStatus];
 
     // 恢复房间设置
-    Object.assign(roomStore.roomConfig, d.roomConfig);
+    Object.assign(roomStore.roomConfig, deepClone(d.roomConfig));
 
     initialLeftTime.value = d.initialLeftTime;
     initialCountDown.value = d.initialCountDown;
     initialCdTimeA.value = d.initialCdTimeA;
     initialCdTimeB.value = d.initialCdTimeB;
-    normalGameData.is_portal_a = d.isPortalA || Array(boardArea.value).fill(0);
-    normalGameData.is_portal_b = d.isPortalB || Array(boardArea.value).fill(0);
+    normalGameData.is_portal_a = [...d.isPortalA];
+    normalGameData.is_portal_b = [...d.isPortalB];
 
     // 确保数据结构完整
     if (spells2.value.length === 0) {
@@ -437,7 +530,7 @@ export const useEditorStore = defineStore("editor", () => {
     const index = presets.value.findIndex(p => p.id === id);
     if (index > -1) {
       presets.value.splice(index, 1);
-      local.set("editor_presets", presets.value);
+      persistPresets();
     }
   };
 
@@ -448,15 +541,15 @@ export const useEditorStore = defineStore("editor", () => {
     const targetId = lastAutoSaveId;
     
     // 保存预设
-    const presetData: EditorPreset = {
+    const presetData = normalizePreset({
       id: targetId,
       note: `自动存档 #${targetId - AUTO_SAVE_START_ID + 101}`,
       timestamp: Date.now(),
       data: {
-        spells: JSON.parse(JSON.stringify(spells.value)),
-        spells2: JSON.parse(JSON.stringify(spells2.value)),
+        spells: deepClone(spells.value),
+        spells2: deepClone(spells2.value),
         spellStatus: [...spellStatus.value],
-        roomConfig: JSON.parse(JSON.stringify(roomStore.roomConfig)),
+        roomConfig: deepClone(roomStore.roomConfig) as RoomConfig,
         initialLeftTime: initialLeftTime.value,
         initialCountDown: initialCountDown.value,
         initialCdTimeA: initialCdTimeA.value,
@@ -464,7 +557,7 @@ export const useEditorStore = defineStore("editor", () => {
         isPortalA: [...normalGameData.is_portal_a],
         isPortalB: [...normalGameData.is_portal_b],
       }
-    };
+    });
 
     const index = presets.value.findIndex(p => p.id === targetId);
     if (index > -1) {
@@ -472,7 +565,7 @@ export const useEditorStore = defineStore("editor", () => {
     } else {
       presets.value.push(presetData);
     }
-    local.set("editor_presets", presets.value);
+    persistPresets();
 
     // 更新下一个保存位置
     lastAutoSaveId++;
@@ -482,7 +575,7 @@ export const useEditorStore = defineStore("editor", () => {
   };
 
   const exportPresets = (ids: number[]) => {
-    const exportData = presets.value.filter(p => ids.includes(p.id));
+    const exportData = presets.value.filter(p => ids.includes(p.id)).map((preset) => normalizePreset(preset));
     const cleanData = exportData.map(p => {
       const { id, ...rest } = p;
       return rest;
@@ -516,10 +609,10 @@ export const useEditorStore = defineStore("editor", () => {
           return;
         }
 
-        const newPreset: EditorPreset = {
+        const newPreset = normalizePreset({
           ...p,
           id: targetId
-        };
+        });
 
         const existingIdx = presets.value.findIndex(existing => existing.id === targetId);
         if (existingIdx > -1) {
@@ -529,7 +622,7 @@ export const useEditorStore = defineStore("editor", () => {
         }
       });
 
-      local.set("editor_presets", presets.value);
+      persistPresets();
       return true;
     } catch (e) {
       console.error("Import failed", e);
@@ -572,16 +665,16 @@ export const useEditorStore = defineStore("editor", () => {
       importedData.forEach((p, index) => {
         if (index < emptySlots.length) {
           const targetId = emptySlots[index];
-          const newPreset: EditorPreset = {
+          const newPreset = normalizePreset({
             ...p,
             id: targetId
-          };
+          });
           presets.value.push(newPreset);
           importedCount++;
         }
       });
 
-      local.set("editor_presets", presets.value);
+      persistPresets();
 
       result.importedCount = importedCount;
       result.skippedCount = importedData.length - importedCount;
@@ -638,10 +731,10 @@ export const useEditorStore = defineStore("editor", () => {
         result.warning = true;
       }
 
-      const newPreset: EditorPreset = {
+      const newPreset = normalizePreset({
         ...selectedPreset,
         id: targetId
-      };
+      });
 
       const existingIdx = presets.value.findIndex(existing => existing.id === targetId);
       if (existingIdx > -1) {
@@ -650,7 +743,7 @@ export const useEditorStore = defineStore("editor", () => {
         presets.value.push(newPreset);
       }
 
-      local.set("editor_presets", presets.value);
+      persistPresets();
 
       result.success = true;
       if (result.warning) {
@@ -681,38 +774,32 @@ export const useEditorStore = defineStore("editor", () => {
       const jsonString = pako.inflate(bytes, { to: "string" });
       const payload = JSON.parse(jsonString);
       const data = payload.data || payload;
-      const inferredSize = [4, 5, 6].includes(data.roomConfig?.board_size)
-        ? data.roomConfig.board_size
-        : [4, 5, 6].find((size) => size * size === (data.spells?.length || data.initStatus?.length)) || 5;
-      data.roomConfig = {
-        ...(data.roomConfig || {}),
-        board_size: inferredSize,
-        extra_line_count: data.roomConfig?.extra_line_count ?? data.normalData?.extra_lines?.length ?? 0,
-      };
+      const normalized = normalizePresetData({
+        spells: data.spells,
+        spells2: data.spells2,
+        spellStatus: data.initStatus || data.spellStatus,
+        roomConfig: {
+          ...(data.roomConfig || {}),
+          extra_line_count: data.roomConfig?.extra_line_count ?? data.normalData?.extra_lines?.length ?? 0,
+        },
+        initialLeftTime: data.roomConfig?.game_time ? data.roomConfig.game_time * 60 : undefined,
+        initialCountDown: data.roomConfig?.countdown ?? 0,
+        initialCdTimeA: 0,
+        initialCdTimeB: 0,
+        isPortalA: data.normalData?.is_portal_a,
+        isPortalB: data.normalData?.is_portal_b,
+      });
 
-      spells.value = data.spells;
-      spells2.value = data.spells2 || [];
-      const area = inferredSize * inferredSize;
-      spellStatus.value = (data.initStatus || Array(area).fill(0)).slice(0, area);
-      while (spellStatus.value.length < area) {
-        spellStatus.value.push(0);
-      }
-
-      Object.assign(roomStore.roomConfig, data.roomConfig);
-
-      if (data.normalData) {
-        normalGameData.is_portal_a = (data.normalData.is_portal_a || Array(area).fill(0)).slice(0, area);
-        normalGameData.is_portal_b = (data.normalData.is_portal_b || Array(area).fill(0)).slice(0, area);
-      } else {
-        normalGameData.is_portal_a = Array(area).fill(0);
-        normalGameData.is_portal_b = Array(area).fill(0);
-      }
-
-      initialLeftTime.value = data.roomConfig.game_time * 60;
-
-      if (spells2.value.length === 0) {
-        spells2.value = Array.from({ length: area }, () => createBlankSpell());
-      }
+      spells.value = deepClone(normalized.spells);
+      spells2.value = deepClone(normalized.spells2);
+      spellStatus.value = [...normalized.spellStatus];
+      Object.assign(roomStore.roomConfig, deepClone(normalized.roomConfig));
+      initialLeftTime.value = normalized.initialLeftTime;
+      initialCountDown.value = normalized.initialCountDown;
+      initialCdTimeA.value = normalized.initialCdTimeA;
+      initialCdTimeB.value = normalized.initialCdTimeB;
+      normalGameData.is_portal_a = [...normalized.isPortalA];
+      normalGameData.is_portal_b = [...normalized.isPortalB];
 
       return true;
     } catch (e) {
@@ -835,6 +922,8 @@ export const useEditorStore = defineStore("editor", () => {
     }
   };
 
+  const getNormalizedPreset = (preset: EditorPreset) => normalizePreset(preset);
+
   watch(() => isEditorMode.value, (value) => {
     presetManagerMode.value = value ? 'manage' : 'select'
   });
@@ -894,6 +983,7 @@ export const useEditorStore = defineStore("editor", () => {
     importPresetsToEmptySlots,
     importSinglePreset,
     importReplay,
+    getNormalizedPreset,
     presetManagerMode,
     openPresetManager,
   };

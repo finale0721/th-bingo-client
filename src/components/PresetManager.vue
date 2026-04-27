@@ -549,16 +549,17 @@ const formatTime = (timestamp: number) => {
 };
 
 const getCardCountInfo = (preset: EditorPreset) => {
-  const countA = preset.data.spells.filter(s => s.name && s.name.trim() !== '').length;
-  if (preset.data.roomConfig.dual_board > 0) {
-    const countB = preset.data.spells2.filter(s => s.name && s.name.trim() !== '').length;
+  const normalized = editorStore.getNormalizedPreset(preset);
+  const countA = normalized.data.spells.filter(s => s.name && s.name.trim() !== '').length;
+  if (normalized.data.roomConfig.dual_board > 0) {
+    const countB = normalized.data.spells2.filter(s => s.name && s.name.trim() !== '').length;
     return `${countA} / ${countB}`;
   }
   return `${countA}`;
 };
 
 const handleStartGame = (id: number) => {
-  const preset = getPreset(id);
+  const preset = editorStore.getNormalizedPreset(getPreset(id));
   const area = (preset.data.roomConfig.board_size || 5) ** 2;
 
   const validateBoard = (spells: Spell[]) => {
