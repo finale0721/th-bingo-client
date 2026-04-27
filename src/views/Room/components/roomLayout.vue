@@ -285,7 +285,7 @@ const displayedSpells = computed(() => {
   return source;
 });
 const extraLinesForDisplay = computed(() => {
-  const lines = gameStore.normalGameData?.extra_lines;
+  const lines = dataSource.value.normalGameData?.extra_lines;
   if (!lines || lines.length === 0) return [];
   const bs = boardSize.value;
   return lines.map((line: number[]) => {

@@ -55,6 +55,7 @@ export const useEditorStore = defineStore("editor", () => {
   const normalGameData = reactive({
     is_portal_a: [] as number[],
     is_portal_b: [] as number[],
+    extra_lines: [] as number[][],
   });
 
   // --- 初始状态设定 ---
@@ -153,6 +154,24 @@ export const useEditorStore = defineStore("editor", () => {
     return counts;
   };
 
+  const normalizeExtraLines = (source: unknown, boardSize: number): number[][] => {
+    const area = boardSize * boardSize;
+    if (!Array.isArray(source)) return [];
+    return source
+      .filter((line): line is unknown[] => Array.isArray(line))
+      .map((line) => {
+        const unique: number[] = [];
+        line.forEach((cell) => {
+          const index = Number(cell);
+          if (Number.isInteger(index) && index >= 0 && index < area && !unique.includes(index)) {
+            unique.push(index);
+          }
+        });
+        return unique;
+      })
+      .filter((line) => line.length >= 4);
+  };
+
   const normalizeRoomConfig = (source: Partial<RoomConfig> | undefined, boardSize: number): RoomConfig => {
     const base = deepClone(roomStore.roomConfig);
     const merged = {
@@ -172,9 +191,13 @@ export const useEditorStore = defineStore("editor", () => {
     const boardSize = inferBoardSize(data);
     const area = boardSize * boardSize;
     const roomConfig = normalizeRoomConfig(data?.roomConfig, boardSize);
+    const normalizedSpells2 = resizeArray(data?.spells2, area, () => createBlankSpell()).map(normalizeSpell);
+    if (normalizedSpells2.some((spell) => spell.name || spell.game || spell.rank)) {
+      roomConfig.dual_board = Math.max(1, roomConfig.dual_board || 0) as any;
+    }
     return {
       spells: resizeArray(data?.spells, area, () => createBlankSpell()).map(normalizeSpell),
-      spells2: resizeArray(data?.spells2, area, () => createBlankSpell()).map(normalizeSpell),
+      spells2: normalizedSpells2,
       spellStatus: resizeArray(data?.spellStatus, area, () => SpellStatus.NONE),
       roomConfig,
       initialLeftTime: Number.isFinite(Number(data?.initialLeftTime)) ? Number(data?.initialLeftTime) : roomConfig.game_time * 60,
@@ -301,6 +324,7 @@ export const useEditorStore = defineStore("editor", () => {
 
     spells2.value = Array.from({ length: area }, () => createBlankSpell());
     normalGameData.is_portal_b = Array(area).fill(0);
+    normalGameData.extra_lines = [];
   };
 
   const resizeList = <T>(list: T[], size: number, fill: () => T) => {
@@ -315,6 +339,7 @@ export const useEditorStore = defineStore("editor", () => {
     spellStatus.value = resizeList(spellStatus.value, area, () => SpellStatus.NONE);
     normalGameData.is_portal_a = resizeList(normalGameData.is_portal_a, area, () => 0);
     normalGameData.is_portal_b = resizeList(normalGameData.is_portal_b, area, () => 0);
+    normalGameData.extra_lines = normalizeExtraLines(normalGameData.extra_lines, boardSpec.value.size);
     if (selectedSpellIndex.value >= area) {
       selectedSpellIndex.value = -1;
       isEditorModalVisible.value = false;
@@ -323,11 +348,21 @@ export const useEditorStore = defineStore("editor", () => {
 
   const clearAllSpells = () => {
     const area = boardArea.value;
-    spells.value = Array.from({ length: area }, () => createBlankSpell());
-    spells2.value = Array.from({ length: area }, () => createBlankSpell());
-    spellStatus.value = Array.from({ length: area }, () => SpellStatus.NONE);
-    normalGameData.is_portal_a = Array(area).fill(0);
-    normalGameData.is_portal_b = Array(area).fill(0);
+    if (roomStore.roomConfig.dual_board > 0) {
+      if (gameStore.currentBoard === 0) {
+        spells.value = Array.from({ length: area }, () => createBlankSpell());
+        normalGameData.is_portal_a = Array(area).fill(0);
+      } else {
+        spells2.value = Array.from({ length: area }, () => createBlankSpell());
+        normalGameData.is_portal_b = Array(area).fill(0);
+      }
+    } else {
+      spells.value = Array.from({ length: area }, () => createBlankSpell());
+      spells2.value = Array.from({ length: area }, () => createBlankSpell());
+      spellStatus.value = Array.from({ length: area }, () => SpellStatus.NONE);
+      normalGameData.is_portal_a = Array(area).fill(0);
+      normalGameData.is_portal_b = Array(area).fill(0);
+    }
   };
 
   const shuffleSpells = () => {
@@ -516,6 +551,7 @@ export const useEditorStore = defineStore("editor", () => {
     initialCdTimeB.value = d.initialCdTimeB;
     normalGameData.is_portal_a = [...d.isPortalA];
     normalGameData.is_portal_b = [...d.isPortalB];
+    normalGameData.extra_lines = [];
 
     // 确保数据结构完整
     if (spells2.value.length === 0) {
@@ -800,6 +836,7 @@ export const useEditorStore = defineStore("editor", () => {
       initialCdTimeB.value = normalized.initialCdTimeB;
       normalGameData.is_portal_a = [...normalized.isPortalA];
       normalGameData.is_portal_b = [...normalized.isPortalB];
+      normalGameData.extra_lines = [];
 
       return true;
     } catch (e) {

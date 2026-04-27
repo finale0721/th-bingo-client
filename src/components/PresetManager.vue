@@ -551,15 +551,20 @@ const formatTime = (timestamp: number) => {
 const getCardCountInfo = (preset: EditorPreset) => {
   const normalized = editorStore.getNormalizedPreset(preset);
   const countA = normalized.data.spells.filter(s => s.name && s.name.trim() !== '').length;
+  const flags: string[] = [];
   if (normalized.data.roomConfig.dual_board > 0) {
     const countB = normalized.data.spells2.filter(s => s.name && s.name.trim() !== '').length;
-    return `${countA} / ${countB}`;
+    flags.push("双盘");
+    return `${countA} / ${countB}${flags.length ? ` (${flags.join(" / ")})` : ""}`;
   }
-  return `${countA}`;
+  return `${countA}${flags.length ? ` (${flags.join(" / ")})` : ""}`;
 };
 
 const handleStartGame = (id: number) => {
   const preset = editorStore.getNormalizedPreset(getPreset(id));
+  if (preset.data.spells2.some((spell) => spell.name || spell.game || spell.rank)) {
+    preset.data.roomConfig.dual_board = Math.max(1, preset.data.roomConfig.dual_board || 0) as any;
+  }
   const area = (preset.data.roomConfig.board_size || 5) ** 2;
 
   const validateBoard = (spells: Spell[]) => {

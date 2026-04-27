@@ -82,8 +82,8 @@ export interface GameData {
     is_portal_b: number[];
     get_on_which_board: number[];
     extra_lines: number[][];
-  }
-  spells2: Spell[] | [];
+  } | null
+  spells2: Spell[] | null;
 }
 
 export interface OneSpell{

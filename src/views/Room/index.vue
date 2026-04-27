@@ -1547,6 +1547,7 @@ const handleShuffleSpells = () => {
     })
     .catch(() => {});
 };
+
 </script>
 
 <style lang="scss" scoped>

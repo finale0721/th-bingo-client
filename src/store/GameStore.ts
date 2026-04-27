@@ -64,7 +64,7 @@ export const useGameStore = defineStore("game", () => {
       .send(WebSocketActionType.GET_ALL_SPELLS)
       .then((data: GameData) => {
         spells.value = data.spells;
-        spells2.value = data.spells2;
+        spells2.value = data.spells2 || [];
         spellStatus.value = data.spell_status;
         leftTime.value = data.left_time;
         gameStatus.value = data.status;
@@ -73,8 +73,10 @@ export const useGameStore = defineStore("game", () => {
         for (const i in data.bp_data) {
           bpGameData[i] = data.bp_data[i];
         }
-        for (const i in data.normal_data) {
-          normalGameData[i] = data.normal_data[i];
+        if (data.normal_data) {
+          for (const i in data.normal_data) {
+            normalGameData[i] = data.normal_data[i];
+          }
         }
       })
       .catch(() => {});
