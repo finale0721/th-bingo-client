@@ -49,7 +49,7 @@ export interface ReadableLogBuildResult {
   fileName: string;
 }
 
-const REPLAY_DATA_VERSION = "1.0";
+const REPLAY_DATA_VERSION = "1.1";
 
 class Replay {
   private gameStore = useGameStore();
@@ -82,6 +82,8 @@ class Replay {
     game_weight: {},
     ai_preference: {},
     custom_level_count: [],
+    board_size: 5,
+    extra_line_count: 0,
   };
   private originalPlayerNames: string[] = Array(2).fill("");
 
@@ -105,6 +107,7 @@ class Replay {
     if (!this.gameLogData) return;
 
     this.cleanupPreviousReplay();
+    this.gameLogData = this.normalizeGameLog(this.gameLogData);
     this.gameStore.setReplayMode(true);
 
     //  备份当前房间配置和玩家名称
@@ -207,6 +210,8 @@ class Replay {
     this.gameStore.spells = [...this.gameLogData.spells];
     if (this.gameLogData.spells2) {
       this.gameStore.spells2 = [...this.gameLogData.spells2];
+    } else {
+      this.gameStore.spells2 = [];
     }
 
     // 设置normalData
@@ -214,6 +219,11 @@ class Replay {
       for (const i in this.gameLogData.normalData) {
         this.gameStore.normalGameData[i] = this.gameLogData.normalData[i];
       }
+    } else {
+      this.gameStore.normalGameData.is_portal_a = [];
+      this.gameStore.normalGameData.is_portal_b = [];
+      this.gameStore.normalGameData.get_on_which_board = [];
+      this.gameStore.normalGameData.extra_lines = [];
     }
 
     // 设置初始spellStatus
@@ -403,6 +413,61 @@ class Replay {
     return lines ? lines.join("\n") : "";
   };
 
+  private inferBoardSize = (roomConfig: Partial<RoomConfig> | undefined, logObject: Partial<GameLogData>): number => {
+    const explicit = Number(roomConfig?.board_size);
+    if ([4, 5, 6].includes(explicit)) return explicit;
+
+    const candidates = [logObject.spells?.length, logObject.initStatus?.length, logObject.spells2?.length].filter(
+      (value): value is number => typeof value === "number" && value > 0
+    );
+    for (const length of candidates) {
+      const size = Math.sqrt(length);
+      if (Number.isInteger(size) && [4, 5, 6].includes(size)) return size;
+    }
+    return 5;
+  };
+
+  private fitArray = <T>(source: T[] | undefined, length: number, fillValue: T): T[] => {
+    const result = Array.isArray(source) ? source.slice(0, length) : [];
+    while (result.length < length) {
+      result.push(fillValue);
+    }
+    return result;
+  };
+
+  private normalizeRoomConfig = (roomConfig: Partial<RoomConfig> | undefined, logObject: Partial<GameLogData>): RoomConfig => {
+    const boardSize = this.inferBoardSize(roomConfig, logObject);
+    const normalData = logObject.normalData as GameLogData["normalData"] | undefined;
+    return {
+      ...this.originalRoomConfig,
+      ...(roomConfig || {}),
+      board_size: boardSize,
+      extra_line_count: roomConfig?.extra_line_count ?? normalData?.extra_lines?.length ?? 0,
+      games: Array.isArray(roomConfig?.games) ? roomConfig!.games : [],
+      ranks: Array.isArray(roomConfig?.ranks) ? roomConfig!.ranks : [],
+      game_weight: roomConfig?.game_weight || {},
+      ai_preference: roomConfig?.ai_preference || {},
+      custom_level_count: Array.isArray(roomConfig?.custom_level_count) ? roomConfig!.custom_level_count : [],
+    } as RoomConfig;
+  };
+
+  private normalizeNormalData = (
+    normalData: GameLogData["normalData"] | undefined | null,
+    roomConfig: RoomConfig,
+    area: number
+  ): GameLogData["normalData"] => {
+    if (!normalData && roomConfig.type !== BingoType.STANDARD) return null;
+
+    return {
+      which_board_a: normalData?.which_board_a ?? 0,
+      which_board_b: normalData?.which_board_b ?? 0,
+      is_portal_a: this.fitArray(normalData?.is_portal_a, area, 0),
+      is_portal_b: this.fitArray(normalData?.is_portal_b, area, 0),
+      get_on_which_board: this.fitArray(normalData?.get_on_which_board, area, 0),
+      extra_lines: Array.isArray(normalData?.extra_lines) ? normalData!.extra_lines.map((line) => [...line]) : [],
+    };
+  };
+
   public parseReplayData = (replayCodeBlock: string, loadData: boolean=true): ReplayPayload | null => {
     try {
       // 1. 匹配并提取所有Base64有效字符，自动忽略换行、空格等无效字符
@@ -427,20 +492,24 @@ class Replay {
       const jsonString = pako.inflate(bytes, { to: "string" });
 
       // 5. 解析JSON字符串为对象
-      const parsedPayload: ReplayPayload = JSON.parse(jsonString);
+      const parsedPayload: ReplayPayload | GameLogData = JSON.parse(jsonString);
 
-      // 6. 验证结构并恢复版本号和原始数据
-      if (typeof parsedPayload.version !== "string" || typeof parsedPayload.data !== "object") {
-        throw new Error("解析出的数据格式不正确");
+      const version =
+        typeof (parsedPayload as ReplayPayload).version === "string" ? (parsedPayload as ReplayPayload).version : "1.0";
+      const rawData =
+        typeof (parsedPayload as ReplayPayload).data === "object" ? (parsedPayload as ReplayPayload).data : parsedPayload;
+      if (typeof rawData !== "object" || rawData === null) {
+        throw new Error("Invalid replay data");
       }
+      const normalizedData = this.normalizeGameLog(rawData as GameLogData);
 
-      console.log(`成功解析回放数据，版本号: ${parsedPayload.version}`);
+      console.log(`成功解析回放数据，版本号: ${version}`);
 
-      if(loadData) this.gameLogData = parsedPayload.data;
+      if(loadData) this.gameLogData = normalizedData;
 
       return {
-        version: parsedPayload.version,
-        data: parsedPayload.data,
+        version,
+        data: normalizedData,
       };
     } catch (error) {
       throw new Error("回放数据解析错误");
@@ -453,9 +522,19 @@ class Replay {
       throw new Error("收到的日志格式不正确，期望是一个对象");
     }
 
+    const roomConfig = this.normalizeRoomConfig(logObject.roomConfig, logObject);
+    const area = roomConfig.board_size * roomConfig.board_size;
     const normalizedLog: GameLogData = {
       ...logObject,
-      actions: logObject.actions.map((action) => ({ ...action })),
+      roomConfig,
+      players: Array.isArray(logObject.players) ? [...logObject.players] : [],
+      spells: Array.isArray(logObject.spells) ? [...logObject.spells] : [],
+      spells2: Array.isArray(logObject.spells2) ? [...logObject.spells2] : null,
+      normalData: this.normalizeNormalData(logObject.normalData, roomConfig, area),
+      actions: Array.isArray(logObject.actions) ? logObject.actions.map((action) => ({ ...action })) : [],
+      score: this.fitArray(logObject.score, 2, 0),
+      initStatus: this.fitArray(logObject.initStatus, area, SpellStatus.NONE),
+      isCustomGame: logObject.isCustomGame ?? false,
     };
 
     normalizedLog.actions.forEach((action) => {
@@ -586,6 +665,7 @@ class Replay {
   };
 
   public formatLogForDownload = (logData: GameLogData, replayDataB64: string): string => {
+    logData = this.normalizeGameLog(logData);
     const { roomConfig, players, score, spells, spells2, actions, gameStartTimestamp, normalData } = logData;
     const output: string[] = [];
     // 辅助函数
@@ -636,6 +716,11 @@ class Replay {
     // 2. 游戏设置
     output.push("【游戏设置】");
     output.push(`模式: ${Config.gameTypeList.find((g) => g.type === roomConfig.type)?.name || "未知"}`);
+    output.push(`盘面尺寸: ${roomConfig.board_size}x${roomConfig.board_size}`);
+    if ((roomConfig.extra_line_count || 0) > 0 || (normalData?.extra_lines?.length || 0) > 0) {
+      const extraLineCount = normalData?.extra_lines?.length || roomConfig.extra_line_count || 0;
+      output.push(`额外连线: ${extraLineCount}条`);
+    }
 
     // 显示CD信息，如果有修正值则显示实际CD
     let cdInfo = `时长: ${roomConfig.game_time}分钟, 倒计时: ${roomConfig.countdown}秒, cd： ${roomConfig.cd_time}秒`;
@@ -759,6 +844,17 @@ class Replay {
     if (roomConfig.dual_board > 0 && spells2) {
       output.push("");
       formatBoard(spells2, normalData?.is_portal_b, "【盘面B】");
+    }
+    if (normalData?.extra_lines?.length) {
+      const bs = roomConfig.board_size || 5;
+      output.push("");
+      output.push("【额外连线】");
+      normalData.extra_lines.forEach((line, index) => {
+        const cells = line
+          .map((cell) => `(${Math.floor(cell / bs) + 1}, ${(cell % bs) + 1})`)
+          .join(" -> ");
+        output.push(`${index + 1}. ${cells}`);
+      });
     }
     output.push("---");
 

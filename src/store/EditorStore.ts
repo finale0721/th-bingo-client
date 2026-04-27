@@ -680,18 +680,32 @@ export const useEditorStore = defineStore("editor", () => {
       }
       const jsonString = pako.inflate(bytes, { to: "string" });
       const payload = JSON.parse(jsonString);
-      const data = payload.data;
+      const data = payload.data || payload;
+      const inferredSize = [4, 5, 6].includes(data.roomConfig?.board_size)
+        ? data.roomConfig.board_size
+        : [4, 5, 6].find((size) => size * size === (data.spells?.length || data.initStatus?.length)) || 5;
+      data.roomConfig = {
+        ...(data.roomConfig || {}),
+        board_size: inferredSize,
+        extra_line_count: data.roomConfig?.extra_line_count ?? data.normalData?.extra_lines?.length ?? 0,
+      };
 
       spells.value = data.spells;
       spells2.value = data.spells2 || [];
-      const area = data.spells.length || boardArea.value;
-      spellStatus.value = data.initStatus || Array(area).fill(0);
+      const area = inferredSize * inferredSize;
+      spellStatus.value = (data.initStatus || Array(area).fill(0)).slice(0, area);
+      while (spellStatus.value.length < area) {
+        spellStatus.value.push(0);
+      }
 
       Object.assign(roomStore.roomConfig, data.roomConfig);
 
       if (data.normalData) {
-        normalGameData.is_portal_a = data.normalData.is_portal_a || Array(area).fill(0);
-        normalGameData.is_portal_b = data.normalData.is_portal_b || Array(area).fill(0);
+        normalGameData.is_portal_a = (data.normalData.is_portal_a || Array(area).fill(0)).slice(0, area);
+        normalGameData.is_portal_b = (data.normalData.is_portal_b || Array(area).fill(0)).slice(0, area);
+      } else {
+        normalGameData.is_portal_a = Array(area).fill(0);
+        normalGameData.is_portal_b = Array(area).fill(0);
       }
 
       initialLeftTime.value = data.roomConfig.game_time * 60;
