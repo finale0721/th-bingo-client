@@ -52,6 +52,14 @@ export const useRoomStore = defineStore("room", () => {
     countdown: { 4: 60, 5: 90, 6: 120 },
     portalCount: { 4: 3, 5: 5, 6: 6 },
     hiddenThreshold: { 4: 3, 5: 5, 6: 7 },
+    customLevelCount: {
+      4: [1, 3, 8, 3, 1, 1, 0, 3, 1, 1, 4],
+      5: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
+      6: [4, 9, 16, 6, 1, 1, 0, 5, 1, 1, 6],
+    },
+  };
+  const defaultCustomCountsForBoard = (boardSize: number): number[] => {
+    return [...(boardSizeDefaults.customLevelCount[boardSize as keyof typeof boardSizeDefaults.customLevelCount] || boardSizeDefaults.customLevelCount[5])];
   };
   const boardSizeKeys = [4, 5, 6];
 
@@ -65,6 +73,11 @@ export const useRoomStore = defineStore("room", () => {
     portalCountByBoardSize: { ...boardSizeDefaults.portalCount },
     hiddenThresholdAByBoardSize: { ...boardSizeDefaults.hiddenThreshold },
     hiddenThresholdBByBoardSize: { ...boardSizeDefaults.hiddenThreshold },
+    customLevelCountByBoardSize: {
+      4: [...boardSizeDefaults.customLevelCount[4]],
+      5: [...boardSizeDefaults.customLevelCount[5]],
+      6: [...boardSizeDefaults.customLevelCount[6]],
+    },
     cdTime: 30,
     cdModifierA: 0, // 左侧选手CD修正值
     cdModifierB: 0, // 右侧选手CD修正值
@@ -159,6 +172,12 @@ export const useRoomStore = defineStore("room", () => {
       boardSize,
       savedSettings.hidden_select_threshold_b
     );
+    roomSettings.customLevelCountByBoardSize = normalizeCustomLevelCountCache(
+      roomSettings.customLevelCountByBoardSize,
+      boardSizeDefaults.customLevelCount,
+      boardSize,
+      savedSettings.custom_level_count
+    ) as typeof roomSettings.customLevelCountByBoardSize;
   }
 
   function normalizeBoardSizeCache(cache: any, defaults: Record<number, number>, currentBoardSize: number, legacyValue?: number) {
@@ -168,6 +187,28 @@ export const useRoomStore = defineStore("room", () => {
     }
     return result;
   }
+
+  function normalizeCustomLevelCountCache(
+    cache: any,
+    defaults: Record<number, number[]>,
+    currentBoardSize: number,
+    legacyValue?: number[]
+  ): Record<number, number[]> {
+    const result: Record<number, number[]> = {};
+    for (const key of boardSizeKeys) {
+      if (cache && cache[key] && Array.isArray(cache[key]) && cache[key].length === 11) {
+        result[key] = [...cache[key]];
+      } else {
+        result[key] = [...defaults[key]];
+      }
+    }
+    if (Array.isArray(legacyValue) && legacyValue.length === 11 && (!cache || !cache[currentBoardSize])) {
+      result[currentBoardSize] = [...legacyValue];
+    }
+    return result;
+  }
+
+  const activeCustomLevelCount = () => roomSettings.customLevelCountByBoardSize[roomSettings.board_size] || defaultCustomCountsForBoard(roomSettings.board_size);
 
   const activeGameTime = () => roomSettings.type === BingoType.STANDARD
     ? roomSettings.gameTimeByBoardSize[roomSettings.board_size]
@@ -282,7 +323,7 @@ export const useRoomStore = defineStore("room", () => {
       ai_temperature: roomSettings.ai_temperature,
       game_weight: roomSettings.game_weight,
       ai_preference: roomSettings.ai_preference,
-      custom_level_count: roomSettings.custom_level_count,
+      custom_level_count: activeCustomLevelCount(),
       board_size: roomSettings.board_size,
       extra_line_count: roomSettings.extra_line_count,
       hidden_select_threshold_a: activeHiddenThresholdA(),
@@ -368,7 +409,7 @@ export const useRoomStore = defineStore("room", () => {
           ai_temperature: roomSettings.ai_temperature,
           game_weight: roomSettings.game_weight,
           ai_preference: roomSettings.ai_preference,
-          custom_level_count: roomSettings.custom_level_count,
+          custom_level_count: activeCustomLevelCount(),
           board_size: roomSettings.board_size,
           extra_line_count: roomSettings.extra_line_count,
           hidden_select_threshold_a: activeHiddenThresholdA(),
@@ -616,5 +657,7 @@ export const useRoomStore = defineStore("room", () => {
     getRoomList,
     actualCdTimeA,
     actualCdTimeB,
+    defaultCustomCountsForBoard,
+    activeCustomLevelCount,
   };
 });

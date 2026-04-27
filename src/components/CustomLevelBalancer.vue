@@ -58,11 +58,12 @@ const props = defineProps<{
   visible: boolean;
   currentCounts: number[];
   boardArea?: number;
+  defaultCounts?: number[];
 }>();
 
 const emit = defineEmits(['update:visible', 'confirm']);
 
-const defaultValues = [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5];
+const effectiveDefaults = computed(() => props.defaultCounts || [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5]);
 
 const localCounts = ref<number[]>([...props.currentCounts.slice(0, 5)]);
 const guaranteeEnabled = ref(props.currentCounts[5] === 1);
@@ -70,7 +71,7 @@ const downgradeEnabled = ref(props.currentCounts[6] === 1);
 const guaranteed4Star = ref(props.currentCounts[7]);
 const guaranteed5Star = ref(props.currentCounts[8]);
 const exGuaranteed = ref(props.currentCounts[9] === 1);
-const exCount = ref(props.currentCounts[10]);
+const exCount = ref(props.currentCounts[10] ?? effectiveDefaults.value[10]);
 
 const maxArea = computed(() => props.boardArea || 25);
 const boardSize = computed(() => Math.round(Math.sqrt(maxArea.value)));
@@ -96,13 +97,14 @@ const adjustGuaranteed = (changed: 4 | 5) => {
 };
 
 const resetToDefault = () => {
-  localCounts.value = defaultValues.slice(0, 5);
-  guaranteeEnabled.value = defaultValues[5] === 1;
-  downgradeEnabled.value = defaultValues[6] === 1;
-  guaranteed4Star.value = defaultValues[7];
-  guaranteed5Star.value = defaultValues[8];
-  exGuaranteed.value = defaultValues[9] === 1;
-  exCount.value = defaultValues[10];
+  const defaults = effectiveDefaults.value;
+  localCounts.value = defaults.slice(0, 5);
+  guaranteeEnabled.value = defaults[5] === 1;
+  downgradeEnabled.value = defaults[6] === 1;
+  guaranteed4Star.value = defaults[7];
+  guaranteed5Star.value = defaults[8];
+  exGuaranteed.value = defaults[9] === 1;
+  exCount.value = defaults[10];
 };
 
 const handleConfirm = () => {
@@ -131,14 +133,14 @@ const handleCancel = () => {
 };
 
 watch(() => props.currentCounts, (newVal) => {
-  if (newVal && newVal.length === defaultValues.length) {
+  if (newVal && newVal.length === effectiveDefaults.value.length) {
     localCounts.value = [...newVal.slice(0, 5)];
     guaranteeEnabled.value = newVal[5] === 1;
     downgradeEnabled.value = newVal[6] === 1;
     guaranteed4Star.value = newVal[7];
     guaranteed5Star.value = newVal[8];
     exGuaranteed.value = newVal[9] === 1;
-    exCount.value = newVal[10];
+    exCount.value = newVal[10] ?? effectiveDefaults.value[10];
   } else {
     resetToDefault();
   }

@@ -739,8 +739,9 @@
 
     <CustomLevelBalancer
       v-model:visible="customLevelBalancerVisible"
-      :current-counts="roomSettings.custom_level_count"
+      :current-counts="currentCustomLevelCount"
       :board-area="roomSettings.board_size * roomSettings.board_size"
+      :default-counts="roomStore.defaultCustomCountsForBoard(currentBoardSize)"
       @confirm="handleCustomLevelConfirm"
     />
 
@@ -856,6 +857,12 @@ const currentHiddenThresholdB = computed({
   get: () => roomSettings.value.hiddenThresholdBByBoardSize[currentBoardSize.value],
   set: (value) => {
     roomSettings.value.hiddenThresholdBByBoardSize[currentBoardSize.value] = value;
+  },
+});
+const currentCustomLevelCount = computed({
+  get: () => roomSettings.value.customLevelCountByBoardSize[currentBoardSize.value] || roomStore.defaultCustomCountsForBoard(currentBoardSize.value),
+  set: (value: number[]) => {
+    roomSettings.value.customLevelCountByBoardSize[currentBoardSize.value] = value;
   },
 });
 const gameLogs = computed(() => gameStore.gameLogs);
@@ -999,6 +1006,7 @@ const onBoardSizeChange = async (value) => {
     roomSettings.value.extra_line_count = 0;
     roomStore.updateRoomConfig("extra_line_count");
   }
+  roomSettings.value.custom_level_count = roomSettings.value.customLevelCountByBoardSize[value] || roomStore.defaultCustomCountsForBoard(value);
   await roomStore.updateRoomConfig();
 };
 const standUp = () => {
@@ -1114,16 +1122,18 @@ const showCustomLevelBalancer = () => {
 };
 
 const handleCustomLevelConfirm = (counts: number[]) => {
+  currentCustomLevelCount.value = counts;
   roomSettings.value.custom_level_count = counts;
   roomStore.updateRoomConfig('custom_level_count');
 };
 
 const customDifficultyButtonType = computed(() => {
-  if (!roomSettings.value.custom_level_count || roomSettings.value.custom_level_count.length < 5) {
+  const counts = currentCustomLevelCount.value;
+  if (!counts || counts.length < 5) {
     return 'danger';
   }
   const boardArea = roomSettings.value.board_size * roomSettings.value.board_size;
-  const sum = roomSettings.value.custom_level_count.slice(0, 5).reduce((a, b) => a + b, 0);
+  const sum = counts.slice(0, 5).reduce((a, b) => a + b, 0);
   return sum === boardArea ? 'success' : 'danger';
 });
 
