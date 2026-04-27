@@ -82,7 +82,7 @@
                       v-for="(line, li) in extraLinesForDisplay"
                       :key="li"
                       :points="line.points"
-                      stroke="#fbff00"
+                      :stroke="extraLineColor"
                       stroke-width="6"
                       fill="none"
                       stroke-linecap="round"
@@ -225,6 +225,7 @@ const loseGameAudioRef = ref<InstanceType<typeof bgm>>();
 
 const muted = computed(() => roomStore.roomSettings.bgmMuted);
 const sfxMuted = computed(() => roomStore.roomSettings.sfxMuted);
+const extraLineColor = computed(() => roomStore.roomSettings.extraLineColor || "#fbff00");
 const roomData = computed(() => roomStore.roomData);
 const isWatcher = computed(() => roomStore.isWatcher);
 const isPlayerA = computed(() => roomStore.isPlayerA);

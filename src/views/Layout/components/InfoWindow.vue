@@ -618,6 +618,15 @@
                 />
                 <span class="input-number-text">秒</span>
               </el-form-item>
+              <el-form-item label="额外连线：">
+                <el-color-picker
+                  v-model="roomSettings.extraLineColor"
+                  size="small"
+                  color-format="hex"
+                  :predefine="predefineExtraLineColors"
+                  @change="saveRoomSettings"
+                />
+              </el-form-item>
               <el-form-item label="盘面背景：" v-if="roomStore.roomConfig.dual_board > 0">
                 <el-color-picker
                   v-model="roomSettings.backgroundColor"
@@ -768,6 +777,7 @@ const gameList = computed( () => Config.gameOptionList(roomStore.roomConfig.spel
 const rankList = Config.rankList;
 const difficultyList = Config.difficultyList;
 const predefineColors = Config.predefineColors;
+const predefineExtraLineColors = ["#fbff00", "#2f80ff", "#ff4444", "#44cc44", "#ffffff", "#000000"];
 const gameTypeList = computed(() => {
   if (soloMode.value) {
     return [...Config.gameTypeList]

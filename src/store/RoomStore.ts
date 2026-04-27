@@ -101,6 +101,7 @@ export const useRoomStore = defineStore("room", () => {
     noWinningDeclaration: false,
     autoSwitchInDualMode: false,
     autoSwitchInterval: 20,
+    extraLineColor: "#fbff00",
     game_weight: {},
     ai_preference: {},
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
@@ -117,6 +118,7 @@ export const useRoomStore = defineStore("room", () => {
     if (roomSettings.board_size === undefined) roomSettings.board_size = 5;
     if (roomSettings.extra_line_count === undefined) roomSettings.extra_line_count = 0;
     if (roomSettings.difficulty === 0) roomSettings.difficulty = 3;
+    if (roomSettings.extraLineColor === undefined) roomSettings.extraLineColor = "#fbff00";
     normalizeBoardSizeCaches(savedSettings || {});
     //checkAIPracticeEnabled();
   };
