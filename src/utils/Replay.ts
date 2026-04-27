@@ -1265,7 +1265,8 @@ class Replay {
         // 该选手比分
         const playerScore = score[playerIndex] || 0;
         // 可行动时间 = 基础可用时间 - 全局总暂停时间 - 选手CD * min(24, 选手比分 - 1)
-        const cdPenalty = playerCdMs * Math.min(24, Math.max(0, playerScore - 1));
+        const boardArea = (roomConfig.board_size || 5) * (roomConfig.board_size || 5);
+        const cdPenalty = playerCdMs * Math.min(boardArea - 1, Math.max(0, playerScore - 1));
         const totalAvailableTime = Math.max(0, availableTimeBase - totalPauseTime - cdPenalty);
 
         const eff_weighted =

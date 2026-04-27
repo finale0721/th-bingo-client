@@ -226,6 +226,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="game_type_name" label="模式" min-width="110" />
+        <el-table-column label="盘面" min-width="80">
+          <template #default="{ row }">{{ (row.board_size || 5) + '×' + (row.board_size || 5) }}</template>
+        </el-table-column>
         <el-table-column label="局内比分" min-width="100">
           <template #default="{ row }">{{ formatScore(row.score) }}</template>
         </el-table-column>

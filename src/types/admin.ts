@@ -23,6 +23,7 @@ export interface AdminGameRecordSummary {
   started_at: number | null;
   is_custom_game: boolean;
   has_game_log: boolean;
+  board_size?: number;
 }
 
 export interface AdminGameRecord extends AdminGameRecordSummary {
