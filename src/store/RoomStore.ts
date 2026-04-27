@@ -47,12 +47,21 @@ export const useRoomStore = defineStore("room", () => {
     gameTimeLimit[item.type] = item.timeLimit;
     countdownTime[item.type] = item.countdown;
   }
+  const boardSizeDefaults = {
+    gameTime: { 4: 20, 5: 30, 6: 42 },
+    countdown: { 4: 60, 5: 90, 6: 120 },
+    portalCount: { 4: 3, 5: 5, 6: 6 },
+  };
+  const boardSizeKeys = [4, 5, 6];
 
   //本地房间设置
   const roomSettings = reactive({
     type: BingoType.STANDARD,
     gameTimeLimit,
     countdownTime,
+    gameTimeByBoardSize: { ...boardSizeDefaults.gameTime },
+    countdownByBoardSize: { ...boardSizeDefaults.countdown },
+    portalCountByBoardSize: { ...boardSizeDefaults.portalCount },
     cdTime: 30,
     cdModifierA: 0, // 左侧选手CD修正值
     cdModifierB: 0, // 右侧选手CD修正值
@@ -101,16 +110,57 @@ export const useRoomStore = defineStore("room", () => {
 
   //加载本地设置
   const loadRoomSettings = () => {
-    const savedSettings = local.get("roomSettings");
+    const savedSettings = local.get("roomSettings") || {};
     for (const i in savedSettings) {
       roomSettings[i] = savedSettings[i];
     }
     if (roomSettings.board_size === undefined) roomSettings.board_size = 5;
     if (roomSettings.extra_line_count === undefined) roomSettings.extra_line_count = 0;
     if (roomSettings.difficulty === 0) roomSettings.difficulty = 3;
+    normalizeBoardSizeCaches(savedSettings || {});
     //checkAIPracticeEnabled();
   };
   loadRoomSettings();
+
+  function normalizeBoardSizeCaches(savedSettings: any) {
+    const boardSize = boardSizeKeys.includes(roomSettings.board_size) ? roomSettings.board_size : 5;
+    roomSettings.gameTimeByBoardSize = normalizeBoardSizeCache(
+      roomSettings.gameTimeByBoardSize,
+      boardSizeDefaults.gameTime,
+      boardSize,
+      savedSettings.gameTimeLimit?.[BingoType.STANDARD]
+    );
+    roomSettings.countdownByBoardSize = normalizeBoardSizeCache(
+      roomSettings.countdownByBoardSize,
+      boardSizeDefaults.countdown,
+      boardSize,
+      savedSettings.countdownTime?.[BingoType.STANDARD]
+    );
+    roomSettings.portalCountByBoardSize = normalizeBoardSizeCache(
+      roomSettings.portalCountByBoardSize,
+      boardSizeDefaults.portalCount,
+      boardSize,
+      savedSettings.portal_count
+    );
+  }
+
+  function normalizeBoardSizeCache(cache: any, defaults: Record<number, number>, currentBoardSize: number, legacyValue?: number) {
+    const result = { ...defaults, ...(cache || {}) };
+    if (typeof legacyValue === "number" && (!cache || cache[currentBoardSize] === undefined)) {
+      result[currentBoardSize] = legacyValue;
+    }
+    return result;
+  }
+
+  const activeGameTime = () => roomSettings.type === BingoType.STANDARD
+    ? roomSettings.gameTimeByBoardSize[roomSettings.board_size]
+    : roomSettings.gameTimeLimit?.[roomSettings.type];
+
+  const activeCountdown = () => roomSettings.type === BingoType.STANDARD
+    ? roomSettings.countdownByBoardSize[roomSettings.board_size]
+    : roomSettings.countdownTime?.[roomSettings.type];
+
+  const activePortalCount = () => roomSettings.portalCountByBoardSize[roomSettings.board_size];
 
   const saveRoomSettings = () => {
     checkAIPracticeEnabled();
@@ -188,8 +238,8 @@ export const useRoomStore = defineStore("room", () => {
     const allParams = {
       rid: roomId.value,
       type: roomSettings.type,
-      game_time: roomSettings.gameTimeLimit && roomSettings.gameTimeLimit[roomSettings.type],
-      countdown: roomSettings.countdownTime && roomSettings.countdownTime[roomSettings.type],
+      game_time: activeGameTime(),
+      countdown: activeCountdown(),
       games: roomSettings.checkList,
       ranks: roomSettings.rankList,
       need_win: (roomSettings.format + 1) / 2,
@@ -200,7 +250,7 @@ export const useRoomStore = defineStore("room", () => {
       blind_setting : roomSettings.blind_setting,
       spell_version : roomSettings.spell_version,
       dual_board: roomSettings.dual_board,
-      portal_count: roomSettings.portal_count,
+      portal_count: activePortalCount(),
       blind_reveal_level: roomSettings.blind_reveal_level,
       diff_level: roomSettings.diff_level,
       use_ai: roomSettings.use_ai,
@@ -272,8 +322,8 @@ export const useRoomStore = defineStore("room", () => {
         room_config: {
           rid,
           type: BingoType.STANDARD,
-          game_time: roomSettings.gameTimeLimit && roomSettings.gameTimeLimit[roomSettings.type],
-          countdown: roomSettings.countdownTime && roomSettings.countdownTime[roomSettings.type],
+          game_time: activeGameTime(),
+          countdown: activeCountdown(),
           games: roomSettings.checkList,
           ranks: roomSettings.rankList,
           need_win: (roomSettings.format + 1) / 2,
@@ -284,7 +334,7 @@ export const useRoomStore = defineStore("room", () => {
           blind_setting: roomSettings.blind_setting,
           spell_version: roomSettings.spell_version,
           dual_board: roomSettings.dual_board,
-          portal_count: roomSettings.portal_count,
+          portal_count: activePortalCount(),
           blind_reveal_level: roomSettings.blind_reveal_level,
           diff_level: roomSettings.diff_level,
           use_ai: roomSettings.use_ai,
