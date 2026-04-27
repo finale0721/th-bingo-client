@@ -172,6 +172,12 @@ export const useEditorStore = defineStore("editor", () => {
       .filter((line) => line.length >= 4);
   };
 
+  const defaultHiddenThreshold = (boardSize: number): number => {
+    if (boardSize === 4) return 3;
+    if (boardSize === 6) return 7;
+    return 5;
+  };
+
   const normalizeRoomConfig = (source: Partial<RoomConfig> | undefined, boardSize: number): RoomConfig => {
     const base = deepClone(roomStore.roomConfig);
     const merged = {
@@ -181,6 +187,8 @@ export const useEditorStore = defineStore("editor", () => {
     merged.board_size = boardSize;
     (merged as any).portal_count = Math.max(0, Math.min(boardSize * boardSize, Number(merged.portal_count ?? base.portal_count ?? 0)));
     (merged as any).extra_line_count = boardSize === 6 ? Math.max(0, Number(merged.extra_line_count ?? 0)) : 0;
+    merged.hidden_select_threshold_a = Number(merged.hidden_select_threshold_a || defaultHiddenThreshold(boardSize));
+    merged.hidden_select_threshold_b = Number(merged.hidden_select_threshold_b || defaultHiddenThreshold(boardSize));
     merged.game_weight = merged.game_weight || {};
     merged.ai_preference = merged.ai_preference || {};
     merged.custom_level_count = normalizeCustomLevelCount(merged.custom_level_count, boardSize);

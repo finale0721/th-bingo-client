@@ -51,6 +51,7 @@ export const useRoomStore = defineStore("room", () => {
     gameTime: { 4: 20, 5: 30, 6: 42 },
     countdown: { 4: 60, 5: 90, 6: 120 },
     portalCount: { 4: 3, 5: 5, 6: 6 },
+    hiddenThreshold: { 4: 3, 5: 5, 6: 7 },
   };
   const boardSizeKeys = [4, 5, 6];
 
@@ -62,6 +63,8 @@ export const useRoomStore = defineStore("room", () => {
     gameTimeByBoardSize: { ...boardSizeDefaults.gameTime },
     countdownByBoardSize: { ...boardSizeDefaults.countdown },
     portalCountByBoardSize: { ...boardSizeDefaults.portalCount },
+    hiddenThresholdAByBoardSize: { ...boardSizeDefaults.hiddenThreshold },
+    hiddenThresholdBByBoardSize: { ...boardSizeDefaults.hiddenThreshold },
     cdTime: 30,
     cdModifierA: 0, // 左侧选手CD修正值
     cdModifierB: 0, // 右侧选手CD修正值
@@ -144,6 +147,18 @@ export const useRoomStore = defineStore("room", () => {
       boardSize,
       savedSettings.portal_count
     );
+    roomSettings.hiddenThresholdAByBoardSize = normalizeBoardSizeCache(
+      roomSettings.hiddenThresholdAByBoardSize,
+      boardSizeDefaults.hiddenThreshold,
+      boardSize,
+      savedSettings.hidden_select_threshold_a
+    );
+    roomSettings.hiddenThresholdBByBoardSize = normalizeBoardSizeCache(
+      roomSettings.hiddenThresholdBByBoardSize,
+      boardSizeDefaults.hiddenThreshold,
+      boardSize,
+      savedSettings.hidden_select_threshold_b
+    );
   }
 
   function normalizeBoardSizeCache(cache: any, defaults: Record<number, number>, currentBoardSize: number, legacyValue?: number) {
@@ -163,6 +178,8 @@ export const useRoomStore = defineStore("room", () => {
     : roomSettings.countdownTime?.[roomSettings.type];
 
   const activePortalCount = () => roomSettings.portalCountByBoardSize[roomSettings.board_size];
+  const activeHiddenThresholdA = () => roomSettings.hiddenThresholdAByBoardSize[roomSettings.board_size];
+  const activeHiddenThresholdB = () => roomSettings.hiddenThresholdBByBoardSize[roomSettings.board_size];
 
   const saveRoomSettings = () => {
     checkAIPracticeEnabled();
@@ -206,6 +223,8 @@ export const useRoomStore = defineStore("room", () => {
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
     board_size: 5,
     extra_line_count: 0,
+    hidden_select_threshold_a: 5,
+    hidden_select_threshold_b: 5,
   });
 
   const getRoomConfig = () => {
@@ -234,7 +253,7 @@ export const useRoomStore = defineStore("room", () => {
       | "blind_setting" | "spell_version" | "dual_board" | "portal_count" | "blind_reveal_level" | "diff_level"
       | "use_ai" | "ai_strategy_level" | "ai_style" | "ai_base_power" | "ai_experience" | "ai_temperature"
       | "game_weight" | "ai_preference" | "custom_level_count"
-      | "board_size" | "extra_line_count",
+      | "board_size" | "extra_line_count" | "hidden_select_threshold_a" | "hidden_select_threshold_b",
   ) => {
     saveRoomSettings();
     const allParams = {
@@ -266,6 +285,8 @@ export const useRoomStore = defineStore("room", () => {
       custom_level_count: roomSettings.custom_level_count,
       board_size: roomSettings.board_size,
       extra_line_count: roomSettings.extra_line_count,
+      hidden_select_threshold_a: activeHiddenThresholdA(),
+      hidden_select_threshold_b: activeHiddenThresholdB(),
     };
     const params: any = {};
     if (key) {
@@ -350,6 +371,8 @@ export const useRoomStore = defineStore("room", () => {
           custom_level_count: roomSettings.custom_level_count,
           board_size: roomSettings.board_size,
           extra_line_count: roomSettings.extra_line_count,
+          hidden_select_threshold_a: activeHiddenThresholdA(),
+          hidden_select_threshold_b: activeHiddenThresholdB(),
         },
         solo: soloMode,
         add_robot: addRobot,

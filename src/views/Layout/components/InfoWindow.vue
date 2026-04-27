@@ -166,6 +166,48 @@
                       />
                       <span class="input-number-text">秒</span>
                     </el-form-item>
+                    <el-form-item label="赛制：">
+                      <span style="margin-right: 5px">BO</span>
+                      <el-input-number
+                        class="input-number"
+                        v-model="roomSettings.format"
+                        :min="1"
+                        :max="9"
+                        :step="2"
+                        :disabled="inMatch"
+                        size="small"
+                        controls-position="right"
+                        @change="onFormatChange"
+                      />
+                    </el-form-item>
+                    <el-form-item label="隐藏阈值：" v-if="roomSettings.type === BingoType.STANDARD">
+                      <span style="margin-right: 5px">左侧</span>
+                      <el-input-number
+                        class="input-number"
+                        v-model="currentHiddenThresholdA"
+                        :min="1"
+                        :max="roomSettings.board_size * roomSettings.board_size"
+                        :disabled="inGame"
+                        size="small"
+                        controls-position="right"
+                        @change="roomStore.updateRoomConfig('hidden_select_threshold_a')"
+                      />
+                      <span class="input-number-text">张</span>
+                    </el-form-item>
+                    <el-form-item label="隐藏阈值：" v-if="roomSettings.type === BingoType.STANDARD">
+                      <span style="margin-right: 5px">右侧</span>
+                      <el-input-number
+                        class="input-number"
+                        v-model="currentHiddenThresholdB"
+                        :min="1"
+                        :max="roomSettings.board_size * roomSettings.board_size"
+                        :disabled="inGame"
+                        size="small"
+                        controls-position="right"
+                        @change="roomStore.updateRoomConfig('hidden_select_threshold_b')"
+                      />
+                      <span class="input-number-text">张</span>
+                    </el-form-item>
                     <el-form-item label="CD修正：">
                       <span style="margin-right: 5px">左侧</span>
                       <el-input-number
@@ -193,20 +235,6 @@
                         @change="roomStore.updateRoomConfig('cd_modifier_b')"
                       />
                       <span class="input-number-text">秒</span>
-                    </el-form-item>
-                    <el-form-item label="赛制：">
-                      <span style="margin-right: 5px">BO</span>
-                      <el-input-number
-                        class="input-number"
-                        v-model="roomSettings.format"
-                        :min="1"
-                        :max="9"
-                        :step="2"
-                        :disabled="inMatch"
-                        size="small"
-                        controls-position="right"
-                        @change="onFormatChange"
-                      />
                     </el-form-item>
                   </el-form>
                 </el-collapse-item>
@@ -816,6 +844,18 @@ const currentPortalCount = computed({
   get: () => roomSettings.value.portalCountByBoardSize[currentBoardSize.value],
   set: (value) => {
     roomSettings.value.portalCountByBoardSize[currentBoardSize.value] = value;
+  },
+});
+const currentHiddenThresholdA = computed({
+  get: () => roomSettings.value.hiddenThresholdAByBoardSize[currentBoardSize.value],
+  set: (value) => {
+    roomSettings.value.hiddenThresholdAByBoardSize[currentBoardSize.value] = value;
+  },
+});
+const currentHiddenThresholdB = computed({
+  get: () => roomSettings.value.hiddenThresholdBByBoardSize[currentBoardSize.value],
+  set: (value) => {
+    roomSettings.value.hiddenThresholdBByBoardSize[currentBoardSize.value] = value;
   },
 });
 const gameLogs = computed(() => gameStore.gameLogs);

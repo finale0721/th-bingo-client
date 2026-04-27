@@ -123,6 +123,8 @@ export interface RoomConfig {
   custom_level_count: number[];
   board_size: number;
   extra_line_count: number;
+  hidden_select_threshold_a?: number;
+  hidden_select_threshold_b?: number;
 }
 
 export interface EditorPreset {
