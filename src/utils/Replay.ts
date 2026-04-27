@@ -458,13 +458,21 @@ class Replay {
   ): GameLogData["normalData"] => {
     if (!normalData && roomConfig.type !== BingoType.STANDARD) return null;
 
+    const boardSize = roomConfig.board_size || 5;
+    const extraLines = Array.isArray(normalData?.extra_lines)
+      ? normalData!.extra_lines
+          .filter((line): line is number[] => Array.isArray(line))
+          .map((line) => Array.from(new Set(line.filter((cell) => Number.isInteger(cell) && cell >= 0 && cell < area))))
+          .filter((line) => line.length >= 4)
+      : [];
+
     return {
       which_board_a: normalData?.which_board_a ?? 0,
       which_board_b: normalData?.which_board_b ?? 0,
       is_portal_a: this.fitArray(normalData?.is_portal_a, area, 0),
       is_portal_b: this.fitArray(normalData?.is_portal_b, area, 0),
       get_on_which_board: this.fitArray(normalData?.get_on_which_board, area, 0),
-      extra_lines: Array.isArray(normalData?.extra_lines) ? normalData!.extra_lines.map((line) => [...line]) : [],
+      extra_lines: extraLines.map((line) => line.slice(0, Math.max(boardSize, 4))),
     };
   };
 

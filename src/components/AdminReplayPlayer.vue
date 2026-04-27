@@ -95,6 +95,25 @@
               </div>
             </div>
             <div v-if="isDualBoard" :class="viewBoard === 0 ? 'page' : 'page-reverse'"></div>
+            <svg
+              v-if="extraLinesForDisplay.length > 0"
+              class="extra-lines-overlay"
+              :viewBox="`0 0 ${replayBoardSize} ${replayBoardSize}`"
+              preserveAspectRatio="none"
+            >
+              <polyline
+                v-for="(line, index) in extraLinesForDisplay"
+                :key="index"
+                :points="line.points"
+                :stroke="extraLineColor"
+                stroke-width="6"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+                opacity="0.7"
+              />
+            </svg>
           </div>
         </div>
 
@@ -188,6 +207,7 @@ const totalTime = computed(() => {
 const actionCount = computed(() => logData.value?.actions.length || 0);
 const isDualBoard = computed(() => (logData.value?.roomConfig.dual_board || 0) > 0 && !!logData.value?.spells2?.length);
 const replayBoardSize = computed(() => logData.value?.roomConfig.board_size || 5);
+const extraLineColor = computed(() => palette.value.extraLineColor || "#fbff00");
 const spellCardSizePercent = computed(() => {
   const s = replayBoardSize.value;
   return `calc(100% / ${s} - 4px)`;
@@ -205,6 +225,21 @@ const displayedSpells = computed(() => {
     return logData.value.spells;
   }
   return logData.value.spells2 || logData.value.spells;
+});
+
+const extraLinesForDisplay = computed(() => {
+  const lines = logData.value?.normalData?.extra_lines || [];
+  const bs = replayBoardSize.value;
+  return lines.map((line) => {
+    const points = line
+      .map((idx) => {
+        const row = Math.floor(idx / bs);
+        const col = idx % bs;
+        return `${col + 0.5},${row + 0.5}`;
+      })
+      .join(" ");
+    return { points };
+  });
 });
 
 const playbackStateLabel = computed(() => {
@@ -242,6 +277,7 @@ function readPaletteSettings() {
     bColor: settings.playerB?.color || "hsl(210, 100%, 56%)",
     backgroundColor: settings.backgroundColor || "hsl(58, 63%, 79%)",
     backgroundColorReverse: settings.backgroundColorReverse || "hsl(258, 100%, 77%)",
+    extraLineColor: settings.extraLineColor || "#fbff00",
   };
 }
 
@@ -784,6 +820,16 @@ defineExpose({
     linear-gradient(180deg, transparent 95%, var(--bg-color-reverse)),
     linear-gradient(270deg, transparent 95%, var(--bg-color-reverse)),
     linear-gradient(360deg, transparent 95%, var(--bg-color-reverse));
+}
+
+.extra-lines-overlay {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  pointer-events: none;
+  z-index: 6;
 }
 
 .timeline-wrap {
