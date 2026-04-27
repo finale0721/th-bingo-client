@@ -225,7 +225,7 @@ const loseGameAudioRef = ref<InstanceType<typeof bgm>>();
 
 const muted = computed(() => roomStore.roomSettings.bgmMuted);
 const sfxMuted = computed(() => roomStore.roomSettings.sfxMuted);
-const extraLineColor = computed(() => roomStore.roomSettings.extraLineColor || "#fbff00");
+const extraLineColor = computed(() => roomStore.roomSettings.extraLineColor || "#0ce739");
 const roomData = computed(() => roomStore.roomData);
 const isWatcher = computed(() => roomStore.isWatcher);
 const isPlayerA = computed(() => roomStore.isPlayerA);
