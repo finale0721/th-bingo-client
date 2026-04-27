@@ -461,7 +461,7 @@
                           :disabled="inGame"
                           size="small"
                           controls-position="right"
-                          @change="roomStore.updateRoomConfig('extra_line_count')"
+                          @change="onExtraLineCountChange"
                       />
                       <span class="input-number-text">条</span>
                     </el-form-item>
@@ -993,6 +993,10 @@ const onFormatChange = (value) => {
   }
   roomStore.updateRoomConfig("need_win");
 };
+const onExtraLineCountChange = (value) => {
+  roomStore.updateExtraLineCountCache(value);
+  roomStore.updateRoomConfig("extra_line_count");
+};
 const onBoardSizeChange = async (value) => {
   if (value !== 5) {
     if (roomSettings.value.type !== BingoType.STANDARD) {
@@ -1002,10 +1006,7 @@ const onBoardSizeChange = async (value) => {
       roomSettings.value.use_ai = false;
     }
   }
-  if (value !== 6 && roomSettings.value.extra_line_count !== 0) {
-    roomSettings.value.extra_line_count = 0;
-    roomStore.updateRoomConfig("extra_line_count");
-  }
+  roomSettings.value.extra_line_count = roomSettings.value.extraLineCountByBoardSize[value] ?? 0;
   roomSettings.value.custom_level_count = roomSettings.value.customLevelCountByBoardSize[value] || roomStore.defaultCustomCountsForBoard(value);
   await roomStore.updateRoomConfig();
 };

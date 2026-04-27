@@ -52,6 +52,7 @@ export const useRoomStore = defineStore("room", () => {
     countdown: { 4: 60, 5: 90, 6: 120 },
     portalCount: { 4: 3, 5: 5, 6: 6 },
     hiddenThreshold: { 4: 3, 5: 5, 6: 7 },
+    extraLineCount: { 4: 0, 5: 0, 6: 2 },
     customLevelCount: {
       4: [1, 3, 8, 3, 1, 1, 0, 3, 1, 1, 4],
       5: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
@@ -73,6 +74,7 @@ export const useRoomStore = defineStore("room", () => {
     portalCountByBoardSize: { ...boardSizeDefaults.portalCount },
     hiddenThresholdAByBoardSize: { ...boardSizeDefaults.hiddenThreshold },
     hiddenThresholdBByBoardSize: { ...boardSizeDefaults.hiddenThreshold },
+    extraLineCountByBoardSize: { ...boardSizeDefaults.extraLineCount },
     customLevelCountByBoardSize: {
       4: [...boardSizeDefaults.customLevelCount[4]],
       5: [...boardSizeDefaults.customLevelCount[5]],
@@ -178,6 +180,13 @@ export const useRoomStore = defineStore("room", () => {
       boardSize,
       savedSettings.custom_level_count
     ) as typeof roomSettings.customLevelCountByBoardSize;
+    roomSettings.extraLineCountByBoardSize = normalizeBoardSizeCache(
+      roomSettings.extraLineCountByBoardSize,
+      boardSizeDefaults.extraLineCount,
+      boardSize,
+      savedSettings.extra_line_count
+    );
+    roomSettings.extra_line_count = roomSettings.extraLineCountByBoardSize[boardSize] ?? 0;
   }
 
   function normalizeBoardSizeCache(cache: any, defaults: Record<number, number>, currentBoardSize: number, legacyValue?: number) {
@@ -221,8 +230,17 @@ export const useRoomStore = defineStore("room", () => {
   const activePortalCount = () => roomSettings.portalCountByBoardSize[roomSettings.board_size];
   const activeHiddenThresholdA = () => roomSettings.hiddenThresholdAByBoardSize[roomSettings.board_size];
   const activeHiddenThresholdB = () => roomSettings.hiddenThresholdBByBoardSize[roomSettings.board_size];
+  const activeExtraLineCount = () => roomSettings.board_size === 6 && roomSettings.type === BingoType.STANDARD
+    ? roomSettings.extraLineCountByBoardSize[roomSettings.board_size] ?? 0
+    : 0;
+  const updateExtraLineCountCache = (value = roomSettings.extra_line_count) => {
+    const count = Math.min(4, Math.max(0, Number(value) || 0));
+    roomSettings.extra_line_count = count;
+    roomSettings.extraLineCountByBoardSize[roomSettings.board_size] = count;
+  };
 
   const saveRoomSettings = () => {
+    updateExtraLineCountCache();
     checkAIPracticeEnabled();
     local.set("roomSettings", roomSettings);
   };
@@ -325,7 +343,7 @@ export const useRoomStore = defineStore("room", () => {
       ai_preference: roomSettings.ai_preference,
       custom_level_count: activeCustomLevelCount(),
       board_size: roomSettings.board_size,
-      extra_line_count: roomSettings.extra_line_count,
+      extra_line_count: activeExtraLineCount(),
       hidden_select_threshold_a: activeHiddenThresholdA(),
       hidden_select_threshold_b: activeHiddenThresholdB(),
     };
@@ -411,7 +429,7 @@ export const useRoomStore = defineStore("room", () => {
           ai_preference: roomSettings.ai_preference,
           custom_level_count: activeCustomLevelCount(),
           board_size: roomSettings.board_size,
-          extra_line_count: roomSettings.extra_line_count,
+          extra_line_count: activeExtraLineCount(),
           hidden_select_threshold_a: activeHiddenThresholdA(),
           hidden_select_threshold_b: activeHiddenThresholdB(),
         },
@@ -659,5 +677,7 @@ export const useRoomStore = defineStore("room", () => {
     actualCdTimeB,
     defaultCustomCountsForBoard,
     activeCustomLevelCount,
+    activeExtraLineCount,
+    updateExtraLineCountCache,
   };
 });
