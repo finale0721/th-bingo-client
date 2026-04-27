@@ -14,7 +14,7 @@ export interface PlayerAction {
   spellName: string;
   timestamp: number;
   spell?: Spell; // 附加一个spell对象，方便处理
-  scoreNow: number[];
+  scoreNow?: number[];
 }
 
 export interface GameLogData {
@@ -84,6 +84,8 @@ class Replay {
     custom_level_count: [],
     board_size: 5,
     extra_line_count: 0,
+    hidden_select_threshold_a: 5,
+    hidden_select_threshold_b: 5,
   };
   private originalPlayerNames: string[] = Array(2).fill("");
 
@@ -443,12 +445,76 @@ class Replay {
       ...(roomConfig || {}),
       board_size: boardSize,
       extra_line_count: roomConfig?.extra_line_count ?? normalData?.extra_lines?.length ?? 0,
+      hidden_select_threshold_a: roomConfig?.hidden_select_threshold_a ?? this.defaultHiddenThreshold(boardSize),
+      hidden_select_threshold_b: roomConfig?.hidden_select_threshold_b ?? this.defaultHiddenThreshold(boardSize),
       games: Array.isArray(roomConfig?.games) ? roomConfig!.games : [],
       ranks: Array.isArray(roomConfig?.ranks) ? roomConfig!.ranks : [],
       game_weight: roomConfig?.game_weight || {},
       ai_preference: roomConfig?.ai_preference || {},
       custom_level_count: Array.isArray(roomConfig?.custom_level_count) ? roomConfig!.custom_level_count : [],
     } as RoomConfig;
+  };
+
+  private defaultHiddenThreshold = (boardSize: number): number => {
+    if (boardSize === 4) return 3;
+    if (boardSize === 6) return 7;
+    return 5;
+  };
+
+  private normalizePlayers = (players: string[] | undefined): string[] => {
+    const normalized = this.fitArray(players, 2, "");
+    normalized[0] = normalized[0] || "PlayerA";
+    normalized[1] = normalized[1] || "PlayerB";
+    return normalized;
+  };
+
+  private scoreFromStatus = (statuses: number[]): number[] => {
+    return statuses.reduce(
+      (score, status) => {
+        if (status === SpellStatus.A_ATTAINED) score[0]++;
+        else if (status === SpellStatus.B_ATTAINED) score[1]++;
+        else if (status === SpellStatus.BOTH_ATTAINED) {
+          score[0]++;
+          score[1]++;
+        }
+        return score;
+      },
+      [0, 0]
+    );
+  };
+
+  private normalizeActions = (
+    actions: PlayerAction[] | undefined,
+    players: string[],
+    initStatus: number[]
+  ): PlayerAction[] => {
+    const statuses = [...initStatus];
+    let runningScore = this.scoreFromStatus(statuses);
+
+    return (Array.isArray(actions) ? actions : []).map((rawAction) => {
+      const action = { ...rawAction };
+      const spellIndex = Number.isInteger(action.spellIndex) ? action.spellIndex : -1;
+      const playerIndex = players.indexOf(action.playerName);
+
+      if (!Array.isArray(action.scoreNow) || action.scoreNow.length < 2) {
+        if (spellIndex >= 0 && spellIndex < statuses.length) {
+          if (action.actionType === "finish" || action.actionType === "contest_win") {
+            if (playerIndex === 0) statuses[spellIndex] = SpellStatus.A_ATTAINED;
+            else if (playerIndex === 1) statuses[spellIndex] = SpellStatus.B_ATTAINED;
+          } else if (action.actionType?.startsWith("set-")) {
+            const status = Number.parseInt(action.actionType.split("-")[1], 10);
+            if (Number.isInteger(status)) statuses[spellIndex] = status;
+          }
+          runningScore = this.scoreFromStatus(statuses);
+        }
+        action.scoreNow = [...runningScore];
+      } else {
+        action.scoreNow = this.fitArray(action.scoreNow, 2, 0);
+        runningScore = [...action.scoreNow];
+      }
+
+      return action;
+    });
   };
 
   private normalizeNormalData = (
@@ -532,16 +598,18 @@ class Replay {
 
     const roomConfig = this.normalizeRoomConfig(logObject.roomConfig, logObject);
     const area = roomConfig.board_size * roomConfig.board_size;
+    const players = this.normalizePlayers(logObject.players);
+    const initStatus = this.fitArray(logObject.initStatus, area, SpellStatus.NONE);
     const normalizedLog: GameLogData = {
       ...logObject,
       roomConfig,
-      players: Array.isArray(logObject.players) ? [...logObject.players] : [],
+      players,
       spells: Array.isArray(logObject.spells) ? [...logObject.spells] : [],
       spells2: Array.isArray(logObject.spells2) ? [...logObject.spells2] : null,
       normalData: this.normalizeNormalData(logObject.normalData, roomConfig, area),
-      actions: Array.isArray(logObject.actions) ? logObject.actions.map((action) => ({ ...action })) : [],
+      actions: this.normalizeActions(logObject.actions, players, initStatus),
       score: this.fitArray(logObject.score, 2, 0),
-      initStatus: this.fitArray(logObject.initStatus, area, SpellStatus.NONE),
+      initStatus,
       isCustomGame: logObject.isCustomGame ?? false,
     };
 
@@ -713,6 +781,10 @@ class Replay {
     };
 
     const isCustomGame = logData.isCustomGame || false;
+    const formatScoreNow = (action: PlayerAction): string => {
+      const scoreNow = this.fitArray(action.scoreNow, 2, 0);
+      return `${scoreNow[0]}-${scoreNow[1]}`;
+    };
 
     // 1. 基础信息
     output.push(`东方Bingo对战日志`);
@@ -871,6 +943,12 @@ class Replay {
     const playerBoards: { [key: string]: number } = { [players[0]]: 0, [players[1]]: 0 };
     // 预处理，为每个玩家的 select 动作找到对应的 finish
     const playerSelectHistory: { [key: string]: PlayerAction[] } = { [players[0]]: [], [players[1]]: [] };
+    const getSelectHistory = (playerName: string): PlayerAction[] => {
+      if (!playerSelectHistory[playerName]) {
+        playerSelectHistory[playerName] = [];
+      }
+      return playerSelectHistory[playerName];
+    };
 
     actions.forEach((action) => {
       // 4. 时间格式化 & 添加行列信息
@@ -906,13 +984,13 @@ class Replay {
         } else {
           status_name = "未知";
         }
-        logLine += `${action.playerName} 将 "${action.spellName}" 设置为 ${status_name} 状态。当前比分：${action.scoreNow[0]}-${action.scoreNow[1]}。`;
+        logLine += `${action.playerName} 将 "${action.spellName}" 设置为 ${status_name} 状态。当前比分：${formatScoreNow(action)}。`;
       } else {
         logLine += `玩家 ${action.playerName} ${boardInfo}`;
         switch (action.actionType) {
           case "select":
             logLine += `选择了符卡 ${spellLocation}"${action.spellName}"。`;
-            playerSelectHistory[action.playerName].push(action);
+            getSelectHistory(action.playerName).push(action);
             break;
           case "finish":
           case "contest_win":
@@ -920,7 +998,7 @@ class Replay {
             logLine += `${verb}符卡 ${spellLocation}"${action.spellName}"。`;
 
             // 4. 计算并显示用时
-            const lastSelect = playerSelectHistory[action.playerName].pop();
+            const lastSelect = getSelectHistory(action.playerName).pop();
             if (lastSelect) {
               const startTime = Math.max(lastSelect.timestamp, roomConfig.countdown * 1000);
               const endTime = action.timestamp;
@@ -939,7 +1017,7 @@ class Replay {
               if (duration > 0) {
                 logLine += ` (用时: ${(duration / 1000).toFixed(2)}s)`;
               }
-              logLine += `(比分：${action.scoreNow[0]}-${action.scoreNow[1]})`;
+              logLine += `(比分：${formatScoreNow(action)})`;
             }
             break;
         }
@@ -1013,9 +1091,9 @@ class Replay {
       const opponent = players.find((p) => p !== player)!;
       const stats = playerStats[player];
       const opponentStats = playerStats[opponent];
+      // if (!stats || !opponentStats) continue;
 
       const playerIndex = players.indexOf(player);
-      const isHost = playerIndex === -1;
 
       if (action.actionType === "select") {
         stats.selectStack.push(action);
