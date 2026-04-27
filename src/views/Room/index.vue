@@ -90,6 +90,10 @@
         <!-- <div class="bingo-effect" v-if="isBingoLink">
           <bingo-link-effect :route-a="routeA" :route-b="routeB" />
         </div> -->
+        <div v-if="isBingoStandard && currentBoardLevelTotal > 0" class="board-level-summary">
+          <span>总等级 {{ currentBoardLevelTotal }}</span>
+          <span>剩余 {{ currentBoardRemainingLevel }}</span>
+        </div>
         <game-bp v-if="isBpPhase" v-model="bpCode"></game-bp>
         <div
           :class="{ page: gameStore.currentBoard === 0, 'page-reverse': gameStore.currentBoard === 1 }"
@@ -324,7 +328,7 @@
 
 <script lang="ts" setup>
 import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { BingoType, BpStatus, GameStatus } from "@/types";
+import { BingoType, BpStatus, GameStatus, SpellStatus } from "@/types";
 import RoomLayout from "./components/roomLayout.vue";
 import ScoreBoard from "@/components/score-board.vue";
 import CountDown from "@/components/count-down.vue";
@@ -393,6 +397,27 @@ const isBingoLink = computed(() => roomStore.roomData.type === BingoType.LINK);
 const isDualBoard = computed(() => roomStore.roomConfig.dual_board > 0);
 const playerASide = computed(() => (isDualBoard.value ? gameStore.normalGameData.which_board_a : 0));
 const playerBSide = computed(() => (isDualBoard.value ? gameStore.normalGameData.which_board_b : 0));
+const currentBoardSpells = computed(() => {
+  const source = isDualBoard.value && gameStore.currentBoard === 1 ? gameStore.spells2 : gameStore.spells;
+  return (source || []).slice(0, boardArea.value);
+});
+const currentBoardLevelTotal = computed(() =>
+  currentBoardSpells.value.reduce((sum, spell) => sum + (spell?.star || 0), 0)
+);
+const isCurrentBoardCellCaptured = (index: number) => {
+  const status = gameStore.spellStatus[index];
+  return (
+    status === SpellStatus.A_ATTAINED ||
+    status === SpellStatus.B_ATTAINED ||
+    status === SpellStatus.BOTH_ATTAINED
+  );
+};
+const currentBoardRemainingLevel = computed(() =>
+  currentBoardSpells.value.reduce((sum, spell, index) => {
+    if (!spell || isCurrentBoardCellCaptured(index)) return sum;
+    return sum + (spell.star || 0);
+  }, 0)
+);
 
 const playerACanBP = computed(
   () =>
@@ -1612,6 +1637,25 @@ const handleShuffleSpells = () => {
   border: 1px solid #000;
   background-color: var(--bg-color-reverse);
   cursor: pointer;
+}
+.board-level-summary {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  z-index: 120;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #303133;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
 }
 .page {
   position: absolute;
