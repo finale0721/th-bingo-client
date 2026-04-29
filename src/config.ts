@@ -239,7 +239,7 @@ const spellVersionList = [
     type: 2
   },
   {
-    name: "S7-就这个快",
+    name: "S8-preview",
     type: 3
   },
   {
@@ -255,6 +255,10 @@ const spellVersionList = [
     type: 5
   },
   {
+    name: "S7-就这个快",
+    type: 9
+  },
+  {
     name: "小数点",
     type: 6
   },
@@ -268,7 +272,7 @@ const spellVersionList = [
   }
 ];
 
-const spellListWithTimer = [1, 2]
+const spellListWithTimer = [1, 2, 3]
 
 const realSpellList = (version: number) => {
   if(version === 6) return gameOptionListPoint1
