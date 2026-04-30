@@ -288,18 +288,18 @@ export const useRoomStore = defineStore("room", () => {
 
   const getRoomConfig = () => {
     return ws.send(WebSocketActionType.GET_ROOM_CONFIG, { rid: roomId.value }).then((data) => {
-      for (const i in data) {
-        roomConfig[i] = data[i];
-      }
+      applyRoomConfig(data, true);
     });
   };
   watch(roomId, (id) => {
     if (id) getRoomConfig();
   });
 
-  const applyRoomConfig = (data: any) => {
+  const applyRoomConfig = (data: any, full = false) => {
+    if (full && data.board_size === undefined) data.board_size = 5;
     for (const i in data) {
       roomConfig[i] = data[i];
+      if (i === "board_size") roomSettings.board_size = data[i];
       if (roomData.hasOwnProperty(i)) {
         roomData[i] = data[i];
       }
@@ -371,7 +371,7 @@ export const useRoomStore = defineStore("room", () => {
       });
   };
   ws.on<{ name: string; position: number }>(WebSocketPushActionType.PUSH_UPDATE_ROOM_CONFIG, (data) => {
-    applyRoomConfig(data);
+    applyRoomConfig(data, true);
   });
 
   //房间数据
@@ -657,6 +657,7 @@ export const useRoomStore = defineStore("room", () => {
     isWatcher,
     isHost,
     createRoom,
+    applyRoomConfig,
     updateRoomConfig,
     loadRoomSettings,
     saveRoomSettings,

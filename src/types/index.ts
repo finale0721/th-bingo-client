@@ -84,6 +84,7 @@ export interface GameData {
     extra_lines: number[][];
   } | null
   spells2: Spell[] | null;
+  room_config?: RoomConfig;
 }
 
 export interface OneSpell{

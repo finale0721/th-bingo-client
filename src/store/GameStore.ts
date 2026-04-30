@@ -63,6 +63,7 @@ export const useGameStore = defineStore("game", () => {
     return ws
       .send(WebSocketActionType.GET_ALL_SPELLS)
       .then((data: GameData) => {
+        if (data.room_config) roomStore.applyRoomConfig(data.room_config, true);
         spells.value = data.spells;
         spells2.value = data.spells2 || [];
         spellStatus.value = data.spell_status;
@@ -115,9 +116,7 @@ export const useGameStore = defineStore("game", () => {
     return ws.send(WebSocketActionType.START_GAME);
   };
   ws.on<RoomConfig>(WebSocketPushActionType.PUSH_START_GAME, (data) => {
-    for (const i in data) {
-      roomStore.roomConfig[i] = data[i];
-    }
+    roomStore.applyRoomConfig(data, true);
     roomStore.roomData.started = true;
     roomStore.resetBanPick();
   });

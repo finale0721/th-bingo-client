@@ -234,7 +234,12 @@ const inGame = computed(() => roomStore.inGame);
 const needWin = computed(() => roomStore.roomConfig.need_win);
 const isBingoStandard = computed(() => roomData.value.type === BingoType.STANDARD);
 
-const boardSize = computed(() => roomStore.roomConfig.board_size || 5);
+const boardSizeFromSpells = computed(() => {
+  const length = dataSource.value.spells?.length || 0;
+  const size = Math.sqrt(length);
+  return size === 4 || size === 5 || size === 6 ? size : 0;
+});
+const boardSize = computed(() => (inGame.value ? boardSizeFromSpells.value : 0) || roomStore.roomConfig.board_size || 5);
 const boardInnerSize = computed(() => (boardSize.value === 4 ? "80%" : "100%"));
 const boardWrapWidth = computed(() => (boardSize.value === 6 ? "752px" : "100%"));
 const boardWrapHeight = computed(() => `${Math.max(boardSize.value, 5) * 100}px`);
