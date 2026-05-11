@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { reactive, ref, watch, computed } from "vue";
 import { useRoomStore } from "./RoomStore";
 import { useGameStore } from "./GameStore";
-import { Spell, SpellStatus, RoomConfig, EditorPreset } from "@/types";
+import { BingoType, Spell, SpellStatus, RoomConfig, EditorPreset } from "@/types";
 import { local } from "@/utils/Storage";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType } from "@/utils/webSocket/types";
@@ -184,6 +184,7 @@ export const useEditorStore = defineStore("editor", () => {
       ...base,
       ...(source || {}),
     } as RoomConfig;
+    merged.type = BingoType.STANDARD;
     merged.board_size = boardSize;
     (merged as any).portal_count = Math.max(0, Math.min(boardSize * boardSize, Number(merged.portal_count ?? base.portal_count ?? 0)));
     (merged as any).extra_line_count = boardSize === 6 ? Math.max(0, Number(merged.extra_line_count ?? 0)) : 0;
@@ -265,6 +266,10 @@ export const useEditorStore = defineStore("editor", () => {
   const AUTO_SAVE_INTERVAL = 180000; // 180秒
 
   const enterEditorMode = () => {
+    if (roomStore.roomData.type !== BingoType.STANDARD || roomStore.roomConfig.type !== BingoType.STANDARD) {
+      return;
+    }
+
     originalRoomConfigBackup.value = JSON.parse(JSON.stringify(roomStore.roomConfig));
 
     // 加载最新的自动存档（从101-110中找最新的）
@@ -818,6 +823,10 @@ export const useEditorStore = defineStore("editor", () => {
       const jsonString = pako.inflate(bytes, { to: "string" });
       const payload = JSON.parse(jsonString);
       const data = payload.data || payload;
+      const replayType = Number(data.roomConfig?.type ?? BingoType.STANDARD);
+      if (replayType !== BingoType.STANDARD) {
+        throw new Error("Only standard replay data can be imported into editor");
+      }
       const normalized = normalizePresetData({
         spells: data.spells,
         spells2: data.spells2,
@@ -978,6 +987,15 @@ export const useEditorStore = defineStore("editor", () => {
       resizeBoardData(area);
     }
   });
+
+  watch(
+    () => roomStore.roomData.type,
+    (type) => {
+      if (isEditorMode.value && type !== BingoType.STANDARD) {
+        exitEditorMode();
+      }
+    }
+  );
 
   return {
     isEditorMode,
