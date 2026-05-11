@@ -429,20 +429,7 @@ export const useRoomStore = defineStore("room", () => {
     if (id) getRoomConfig();
   });
 
-  const applyRoomConfig = (data: any, full = false) => {
-    if (full && data.board_size === undefined) data.board_size = 5;
-    for (const i in data) {
-      roomConfig[i] = data[i];
-      if (i === "board_size") roomSettings.board_size = data[i];
-      if (i === "type") roomSettings.type = data[i];
-      if (i === "blind_setting") roomSettings.blind_setting = data[i];
-      if (i === "dual_board") roomSettings.dual_board = data[i];
-      if (i === "spell_version") roomSettings.spell_version = data[i];
-      if (i === "use_ai") roomSettings.use_ai = data[i];
-      if (roomData.hasOwnProperty(i)) {
-        roomData[i] = data[i];
-      }
-    }
+  const normalizeRoomSettingsForGameType = () => {
     if (roomSettings.type === BingoType.LINK) {
       roomSettings.dual_board = 0;
       roomSettings.blind_setting = 1;
@@ -451,6 +438,25 @@ export const useRoomStore = defineStore("room", () => {
       roomSettings.board_size = 5;
     }
     checkAIPracticeEnabled();
+  };
+
+  const applyRoomConfig = (data: any, full = false, syncLocalSettings = false) => {
+    if (full && data.board_size === undefined) data.board_size = 5;
+    for (const i in data) {
+      roomConfig[i] = data[i];
+      if (syncLocalSettings) {
+        if (i === "board_size") roomSettings.board_size = data[i];
+        if (i === "type") roomSettings.type = data[i];
+        if (i === "blind_setting") roomSettings.blind_setting = data[i];
+        if (i === "dual_board") roomSettings.dual_board = data[i];
+        if (i === "spell_version") roomSettings.spell_version = data[i];
+        if (i === "use_ai") roomSettings.use_ai = data[i];
+      }
+      if (roomData.hasOwnProperty(i)) {
+        roomData[i] = data[i];
+      }
+    }
+    if (syncLocalSettings) normalizeRoomSettingsForGameType();
   };
 
   const updateRoomConfig = (
@@ -463,13 +469,7 @@ export const useRoomStore = defineStore("room", () => {
       | "link_level_coefficient" | "link_fastest_coefficient" | "link_connectivity"
       | "link_disabled_idx" | "link_start_a" | "link_end_a" | "link_start_b" | "link_end_b",
   ) => {
-    if (roomSettings.type === BingoType.LINK) {
-      roomSettings.dual_board = 0;
-      roomSettings.blind_setting = 1;
-    }
-    if (roomSettings.type === BingoType.BP && roomSettings.board_size !== 5) {
-      roomSettings.board_size = 5;
-    }
+    normalizeRoomSettingsForGameType();
     normalizeLinkSettings();
     saveRoomSettings();
     const allParams = {
@@ -536,7 +536,7 @@ export const useRoomStore = defineStore("room", () => {
     const payload = key ? params : allParams;
     return ws.send(WebSocketActionType.UPDATE_ROOM_CONFIG, payload)
       .then((data) => {
-        applyRoomConfig(payload);
+        applyRoomConfig(payload, false, true);
         return data;
       })
       .catch((e) => {
@@ -545,7 +545,7 @@ export const useRoomStore = defineStore("room", () => {
       });
   };
   ws.on<{ name: string; position: number }>(WebSocketPushActionType.PUSH_UPDATE_ROOM_CONFIG, (data) => {
-    applyRoomConfig(data, true);
+    applyRoomConfig(data, true, roomData.host === localStore.username || (!roomData.host && roomData.names[0] === localStore.username));
   });
 
   //房间数据
@@ -575,16 +575,12 @@ export const useRoomStore = defineStore("room", () => {
         roomData[i] = data[i];
       }
     }
+    if (data.room_config && (roomData.host === localStore.username || (!roomData.host && roomData.names[0] === localStore.username))) {
+      applyRoomConfig(data.room_config, true, true);
+    }
   };
   const createRoom = (rid: string, soloMode: boolean, addRobot: boolean) => {
-    if (roomSettings.type === BingoType.LINK) {
-      roomSettings.dual_board = 0;
-      roomSettings.blind_setting = 1;
-    }
-    if (roomSettings.type === BingoType.BP && roomSettings.board_size !== 5) {
-      roomSettings.board_size = 5;
-    }
-    checkAIPracticeEnabled();
+    normalizeRoomSettingsForGameType();
     return ws
       .send(WebSocketActionType.CREATE_ROOM, {
         room_config: {
@@ -632,6 +628,9 @@ export const useRoomStore = defineStore("room", () => {
       })
       .then((data) => {
         roomId.value = rid;
+        if (data.room_config) {
+          applyRoomConfig(data.room_config, true, true);
+        }
         setRoomData(data);
       })
       .catch(() => {});
