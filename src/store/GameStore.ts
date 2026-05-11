@@ -511,6 +511,7 @@ export const useGameStore = defineStore("game", () => {
   const linkUndo = () => ws.send(WebSocketActionType.LINK_UNDO);
   const linkConfirmRoute = (confirmed: boolean) => ws.send(WebSocketActionType.LINK_CONFIRM_ROUTE, { confirmed });
   const linkNextCard = () => ws.send(WebSocketActionType.LINK_NEXT_CARD);
+  const linkFinishCard = () => ws.send(WebSocketActionType.LINK_FINISH_CARD);
   const linkSkipCard = () => ws.send(WebSocketActionType.LINK_SKIP_CARD);
   const linkSetPhase = (phase: number) => ws.send(WebSocketActionType.LINK_SET_PHASE, { phase });
 
@@ -601,6 +602,7 @@ export const useGameStore = defineStore("game", () => {
     linkUndo,
     linkConfirmRoute,
     linkNextCard,
+    linkFinishCard,
     linkSkipCard,
     linkSetPhase,
     refreshSpell,

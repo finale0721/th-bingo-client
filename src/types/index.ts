@@ -150,6 +150,9 @@ export interface RoomConfig {
   extra_line_count: number;
   hidden_select_threshold_a?: number;
   hidden_select_threshold_b?: number;
+  link_level_coefficient?: number;
+  link_fastest_coefficient?: number;
+  link_connectivity?: number;
 }
 
 export interface EditorPreset {

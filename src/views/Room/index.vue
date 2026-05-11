@@ -87,8 +87,9 @@
       </template>
 
       <template #extra>
-        <div class="bingo-effect" v-if="isBingoLink">
-          <bingo-link-effect :route-a="routeA" :route-b="routeB" :board-size="boardSpec.size" />
+        <div v-if="isBingoLink && inGame" class="link-board-summary">
+          <span>A 路线 {{ routeA.length }} / 等级 {{ linkRouteLevelA }}</span>
+          <span>B 路线 {{ routeB.length }} / 等级 {{ linkRouteLevelB }}</span>
         </div>
         <div v-if="isBingoStandard && currentBoardLevelTotal > 0" class="board-level-summary">
           <span>总等级 {{ currentBoardLevelTotal }}</span>
@@ -106,7 +107,11 @@
           ref="countdownRef"
           :size="30"
           @complete="onCountDownComplete"
-          v-show="(isBingoStandard && inGame) || (isBingoBp && gameStore.gameStatus === GameStatus.COUNT_DOWN)"
+          v-show="
+            (isBingoStandard && inGame) ||
+            (isBingoBp && gameStore.gameStatus === GameStatus.COUNT_DOWN) ||
+            (isBingoLink && inGame && linkPhase === 1)
+          "
         ></count-down>
       </template>
 
@@ -169,7 +174,7 @@
             <el-button type="primary" v-if="isBpPhase" @click="drawSpellCard" :disabled="banPick.phase < 99">
               抽取符卡
             </el-button>
-            <el-button type="primary" v-if="inGame && winFlag === 0" @click="stopGame">结束比赛</el-button>
+            <el-button type="primary" v-if="inGame && winFlag === 0 && !isBingoLink" @click="stopGame">结束比赛</el-button>
             <el-button type="primary" v-if="winFlag !== 0" @click="confirmWinner">
               确认：{{ winFlag < 0 ? roomData.names[0] : roomData.names[1] }}获胜
             </el-button>
@@ -178,7 +183,6 @@
           <template v-if="soloMode && isPlayerA">
             <el-button type="primary" v-if="!inGame && !isBpPhase" @click="startGame">开始比赛</el-button>
             <el-button type="primary" v-if="banPick.phase === 9999" @click="drawSpellCard">抽取符卡</el-button>
-            <el-button type="primary" v-if="inGame && isBingoLink && winFlag === 0" @click="stopGame">结束比赛</el-button>
             <el-button type="primary" v-if="isBingoLink && winFlag !== 0" @click="confirmWinner">
               确认：{{ winFlag < 0 ? roomData.names[0] : roomData.names[1] }}获胜
             </el-button>
@@ -231,11 +235,18 @@
                   >{{ myLinkRouteConfirmed ? "取消确认" : "确认路线" }}</el-button
                 >
                 <confirm-select-button
-                  v-if="linkPhase === 2 && !myLinkFinished"
+                  v-if="linkPhase === 2 && !myLinkFinished && !myLinkCurrentSelected"
                   @click="linkNextCard"
                   :cooldown="linkCooldown"
                   :immediate="true"
-                  text="收取下一张"
+                  text="选择下一张"
+                ></confirm-select-button>
+                <confirm-select-button
+                  v-if="linkPhase === 2 && !myLinkFinished && myLinkCurrentSelected"
+                  @click="linkFinishCard"
+                  :cooldown="roomSettings.confirmDelay * 1000"
+                  :immediate="true"
+                  text="确认收取"
                 ></confirm-select-button>
                 <el-button
                   v-if="linkPhase === 2 && !myLinkFinished"
@@ -375,7 +386,6 @@ import SpellEditorModal from "@/components/SpellEditorModal.vue";
 import SpellDatabasePanel from "@/components/SpellDatabasePanel.vue";
 import PresetManager from "@/components/PresetManager.vue";
 import { BoardSpec } from "@/utils/board";
-import BingoLinkEffect from "@/components/bingo-effect/link.vue";
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
@@ -1080,6 +1090,7 @@ const linkData = computed(() => gameStore.linkGameData);
 const linkPhase = computed(() => {
   if (!inGame.value) return 0;
   if (linkData.value.event_a === 1 || linkData.value.event_b === 1) return 2;
+  if (linkData.value.event_a === 3 && linkData.value.event_b === 3) return 3;
   if (linkData.value.route_confirmed_a || linkData.value.route_confirmed_b || routeA.value.length > 1 || routeB.value.length > 1) {
     return 1;
   }
@@ -1089,6 +1100,8 @@ const routeA = computed(() => linkData.value.link_idx_a?.length ? linkData.value
 const routeB = computed(() =>
   linkData.value.link_idx_b?.length ? linkData.value.link_idx_b : [boardSpec.value.size - 1]
 );
+const linkRouteLevelA = computed(() => routeA.value.reduce((sum, idx) => sum + (gameStore.spells[idx]?.star || 0), 0));
+const linkRouteLevelB = computed(() => routeB.value.reduce((sum, idx) => sum + (gameStore.spells[idx]?.star || 0), 0));
 const linkEndA = computed(() => boardSpec.value.area - 1);
 const linkEndB = computed(() => boardSpec.value.index(boardSpec.value.size - 1, 0));
 const myLinkRoute = computed(() => (isPlayerA.value ? routeA.value : routeB.value));
@@ -1105,6 +1118,13 @@ const myLinkFinished = computed(() => (isPlayerA.value ? linkData.value.event_a 
 const myLinkCurrentStep = computed(() => (isPlayerA.value ? linkData.value.current_step_a : linkData.value.current_step_b));
 const myLinkLastGetTime = computed(() => (isPlayerA.value ? linkData.value.last_get_time_a : linkData.value.last_get_time_b));
 const myLinkSkipUsed = computed(() => (isPlayerA.value ? linkData.value.skip_used_a : linkData.value.skip_used_b));
+const myLinkCurrentIndex = computed(() => myLinkRoute.value[myLinkCurrentStep.value] ?? -1);
+const myLinkCurrentSelected = computed(() => {
+  const idx = myLinkCurrentIndex.value;
+  if (idx < 0) return false;
+  const status = isPlayerA.value ? linkData.value.status_a?.[idx] : linkData.value.status_b?.[idx];
+  return status === (isPlayerA.value ? 1 : 3);
+});
 const linkCooldown = computed(() => {
   if (linkPhase.value !== 2) return -1;
   const cd = isPlayerA.value ? roomStore.actualCdTimeA : roomStore.actualCdTimeB;
@@ -1122,8 +1142,26 @@ const canLinkSkip = computed(() => {
 });
 
 const decideLink = () => {
-  playerAScore.value = Math.round((linkData.value.score_a || 0) * 10) / 10;
-  playerBScore.value = Math.round((linkData.value.score_b || 0) * 10) / 10;
+  const now = Date.now();
+  const liveScore = (playerIndex: 0 | 1) => {
+    const route = playerIndex === 0 ? routeA.value : routeB.value;
+    const step = playerIndex === 0 ? linkData.value.current_step_a || 0 : linkData.value.current_step_b || 0;
+    const start = playerIndex === 0 ? linkData.value.start_ms_a : linkData.value.start_ms_b;
+    const end = playerIndex === 0 ? linkData.value.end_ms_a : linkData.value.end_ms_b;
+    const event = playerIndex === 0 ? linkData.value.event_a : linkData.value.event_b;
+    const taken = route.slice(0, step);
+    const level = taken.reduce((sum, idx) => sum + (gameStore.spells[idx]?.star || 0), 0);
+    const fastest = taken.reduce((sum, idx) => sum + (gameStore.spells[idx]?.fastest || 0), 0);
+    const usedMs = start > 0 ? (event === 3 && end > 0 ? end : now) - start : 0;
+    return (
+      boardSpec.value.size * 200 +
+      level * (roomStore.roomConfig.link_level_coefficient ?? 2) +
+      fastest * (roomStore.roomConfig.link_fastest_coefficient ?? 1) -
+      usedMs / 1000
+    );
+  };
+  playerAScore.value = Math.round(liveScore(0) * 10) / 10;
+  playerBScore.value = Math.round(liveScore(1) * 10) / 10;
   playerALevel.value = routeA.value.slice(0, linkData.value.current_step_a || 0).reduce((sum, idx) => {
     return sum + (gameStore.spells[idx]?.star || 0);
   }, 0);
@@ -1145,10 +1183,15 @@ const linkUndo = () => {
   gameStore.linkUndo();
 };
 const startLinkRun = () => {
+  countdownRef.value?.stop();
+  gameStore.gameStatus = GameStatus.STARTED;
   gameStore.linkSetPhase(2);
 };
 const linkNextCard = () => {
   gameStore.linkNextCard();
+};
+const linkFinishCard = () => {
+  gameStore.linkFinishCard();
 };
 const linkSkipCard = () => {
   gameStore.linkSkipCard();
@@ -1160,6 +1203,21 @@ watch(
     if (isBingoLink.value) decideLink();
   },
   { deep: true, immediate: true }
+);
+
+const linkLiveTimer = ref<number | null>(null);
+watch(
+  () => [isBingoLink.value, linkPhase.value],
+  ([isLink, phase]) => {
+    if (linkLiveTimer.value) {
+      clearInterval(linkLiveTimer.value);
+      linkLiveTimer.value = null;
+    }
+    if (isLink && phase === 2) {
+      linkLiveTimer.value = window.setInterval(decideLink, 1000);
+    }
+  },
+  { immediate: true }
 );
 
 watch(
@@ -1233,6 +1291,11 @@ const startGame = () => {
       roomStore.updateChangeCardCount(roomData.value.names[0], roomSettings.value.playerA.changeCardCount);
       roomStore.updateChangeCardCount(roomData.value.names[1], roomSettings.value.playerB.changeCardCount);
       if (isBingoLink.value) gameStore.linkSetPhase(1);
+      if (isBingoLink.value) {
+        gameStore.gameStatus = GameStatus.COUNT_DOWN;
+        gameStore.leftTime = roomConfig.value.countdown * 1000;
+        nextTick(() => countdownRef.value?.start());
+      }
       layoutRef.value?.hideAlert();
     });
   }
@@ -1352,6 +1415,13 @@ const warnPlayer = (name) => {
   return ws.send(WebSocketActionType.GM_WARN_PLAYER, { name });
 };
 const onCountDownComplete = () => {
+  if (isBingoLink.value && linkPhase.value === 1) {
+    gameStore.gameStatus = GameStatus.STARTED;
+    if (isOwner.value) {
+      gameStore.linkSetPhase(2);
+    }
+    return;
+  }
   if (gameStore.gameStatus === GameStatus.COUNT_DOWN) {
     gameStore.gameStatus = GameStatus.STARTED;
     gameStore.leftTime = roomConfig.value.game_time * 1000 * 60;
@@ -1556,6 +1626,10 @@ onMounted(() => {
 // Clean up timer on component unmount
 onUnmounted(() => {
   stopAutoSwitchTimer();
+  if (linkLiveTimer.value) {
+    clearInterval(linkLiveTimer.value);
+    linkLiveTimer.value = null;
+  }
 });
 
 const replayInstance = Replay;
@@ -1731,12 +1805,21 @@ const handleShuffleSpells = () => {
 </script>
 
 <style lang="scss" scoped>
-.bingo-effect {
+.link-board-summary {
   position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  z-index: 99;
+  top: -30px;
+  left: 50%;
+  z-index: 120;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.88);
+  font-size: 13px;
+  white-space: nowrap;
 }
 .page-icon {
   width: 20px;

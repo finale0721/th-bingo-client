@@ -73,7 +73,7 @@
                   </template>
                   <!-- SVG overlay for extra lines — drawn above cells so always visible -->
                   <svg
-                    v-if="extraLinesForDisplay.length > 0"
+                    v-if="extraLinesForDisplay.length > 0 || linkLinesForDisplay.length > 0"
                     class="extra-lines-overlay"
                     :viewBox="`0 0 ${boardSize} ${boardSize}`"
                     preserveAspectRatio="none"
@@ -89,6 +89,18 @@
                       stroke-linejoin="round"
                       vector-effect="non-scaling-stroke"
                       opacity="0.7"
+                    />
+                    <polyline
+                      v-for="line in linkLinesForDisplay"
+                      :key="line.key"
+                      :points="line.points"
+                      :stroke="line.color"
+                      stroke-width="8"
+                      fill="none"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      vector-effect="non-scaling-stroke"
+                      opacity="0.72"
                     />
                   </svg>
                 </div>
@@ -304,6 +316,29 @@ const extraLinesForDisplay = computed(() => {
       .join(" ");
     return { points };
   });
+});
+const routeToPolyline = (route: number[]) => {
+  const bs = boardSize.value;
+  return (route || [])
+    .map((idx: number) => {
+      const r = Math.floor(idx / bs);
+      const c = idx % bs;
+      return `${c + 0.5},${r + 0.5}`;
+    })
+    .join(" ");
+};
+const linkLinesForDisplay = computed(() => {
+  if (roomData.value.type !== BingoType.LINK) return [];
+  const lines: { key: string; points: string; color: string }[] = [];
+  const a = gameStore.linkGameData.link_idx_a || [];
+  const b = gameStore.linkGameData.link_idx_b || [];
+  if (a.length > 0) {
+    lines.push({ key: "link-a", points: routeToPolyline(a), color: roomStore.roomSettings.playerA.color });
+  }
+  if (b.length > 0) {
+    lines.push({ key: "link-b", points: routeToPolyline(b), color: roomStore.roomSettings.playerB.color });
+  }
+  return lines;
 });
 const BGMpaused = computed(
   () =>

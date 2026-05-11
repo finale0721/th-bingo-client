@@ -74,6 +74,7 @@ export enum WebSocketActionType {
   LINK_UNDO = "link_undo",
   LINK_CONFIRM_ROUTE = "link_confirm_route",
   LINK_NEXT_CARD = "link_next_card",
+  LINK_FINISH_CARD = "link_finish_card",
   LINK_SKIP_CARD = "link_skip_card",
   LINK_SET_PHASE = "link_set_phase",
   LINK_SET_DISABLED = "link_set_disabled",

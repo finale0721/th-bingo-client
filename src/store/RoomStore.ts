@@ -125,6 +125,9 @@ export const useRoomStore = defineStore("room", () => {
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
     board_size: 5,
     extra_line_count: 2,
+    link_level_coefficient: 2,
+    link_fastest_coefficient: 1,
+    link_connectivity: 8,
   });
 
   //加载本地设置
@@ -137,6 +140,9 @@ export const useRoomStore = defineStore("room", () => {
     if (roomSettings.extra_line_count === undefined) roomSettings.extra_line_count = 2;
     if (roomSettings.difficulty === 0) roomSettings.difficulty = 3;
     if (roomSettings.extraLineColor === undefined) roomSettings.extraLineColor = "#0ce739";
+    if (roomSettings.link_level_coefficient === undefined) roomSettings.link_level_coefficient = 2;
+    if (roomSettings.link_fastest_coefficient === undefined) roomSettings.link_fastest_coefficient = 1;
+    if (roomSettings.link_connectivity === undefined) roomSettings.link_connectivity = 8;
     normalizeBoardSizeCaches(savedSettings || {});
     //checkAIPracticeEnabled();
   };
@@ -284,6 +290,9 @@ export const useRoomStore = defineStore("room", () => {
     extra_line_count: 2,
     hidden_select_threshold_a: 5,
     hidden_select_threshold_b: 5,
+    link_level_coefficient: 2,
+    link_fastest_coefficient: 1,
+    link_connectivity: 8,
   });
 
   const getRoomConfig = () => {
@@ -312,7 +321,8 @@ export const useRoomStore = defineStore("room", () => {
       | "blind_setting" | "spell_version" | "dual_board" | "portal_count" | "blind_reveal_level" | "diff_level"
       | "use_ai" | "ai_strategy_level" | "ai_style" | "ai_base_power" | "ai_experience" | "ai_temperature"
       | "game_weight" | "ai_preference" | "custom_level_count"
-      | "board_size" | "extra_line_count" | "hidden_select_threshold_a" | "hidden_select_threshold_b",
+      | "board_size" | "extra_line_count" | "hidden_select_threshold_a" | "hidden_select_threshold_b"
+      | "link_level_coefficient" | "link_fastest_coefficient" | "link_connectivity",
   ) => {
     saveRoomSettings();
     const allParams = {
@@ -346,6 +356,9 @@ export const useRoomStore = defineStore("room", () => {
       extra_line_count: activeExtraLineCount(),
       hidden_select_threshold_a: activeHiddenThresholdA(),
       hidden_select_threshold_b: activeHiddenThresholdB(),
+      link_level_coefficient: roomSettings.link_level_coefficient,
+      link_fastest_coefficient: roomSettings.link_fastest_coefficient,
+      link_connectivity: roomSettings.link_connectivity,
     };
     const params: any = {};
     if (key) {
@@ -432,6 +445,9 @@ export const useRoomStore = defineStore("room", () => {
           extra_line_count: activeExtraLineCount(),
           hidden_select_threshold_a: activeHiddenThresholdA(),
           hidden_select_threshold_b: activeHiddenThresholdB(),
+          link_level_coefficient: roomSettings.link_level_coefficient,
+          link_fastest_coefficient: roomSettings.link_fastest_coefficient,
+          link_connectivity: roomSettings.link_connectivity,
         },
         solo: soloMode,
         add_robot: addRobot,

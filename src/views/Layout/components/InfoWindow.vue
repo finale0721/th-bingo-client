@@ -465,6 +465,46 @@
                       />
                       <span class="input-number-text">条</span>
                     </el-form-item>
+                    <template v-if="roomSettings.type == BingoType.LINK">
+                      <el-form-item label="连接规则：">
+                        <el-radio-group
+                          v-model="roomSettings.link_connectivity"
+                          :disabled="inGame"
+                          @change="roomStore.updateRoomConfig('link_connectivity')"
+                        >
+                          <el-radio :value="4">四向</el-radio>
+                          <el-radio :value="8">八向</el-radio>
+                        </el-radio-group>
+                      </el-form-item>
+                      <el-form-item label="等级系数：">
+                        <el-input-number
+                          class="input-number"
+                          v-model="roomSettings.link_level_coefficient"
+                          :min="0"
+                          :max="100"
+                          :step="0.5"
+                          :disabled="inGame"
+                          size="small"
+                          controls-position="right"
+                          @change="roomStore.updateRoomConfig('link_level_coefficient')"
+                        />
+                        <span class="input-number-text">X</span>
+                      </el-form-item>
+                      <el-form-item label="补偿系数：">
+                        <el-input-number
+                          class="input-number"
+                          v-model="roomSettings.link_fastest_coefficient"
+                          :min="0"
+                          :max="100"
+                          :step="0.5"
+                          :disabled="inGame"
+                          size="small"
+                          controls-position="right"
+                          @change="roomStore.updateRoomConfig('link_fastest_coefficient')"
+                        />
+                        <span class="input-number-text">Y</span>
+                      </el-form-item>
+                    </template>
                   </el-form>
                 </el-collapse-item>
             
