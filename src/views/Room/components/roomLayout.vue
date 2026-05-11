@@ -448,8 +448,8 @@ const onMenuClick = ({ event, target, item }: any) => {
 };
 const stopBGM = () => {
   turn1CountdownAudioRef.value?.stop();
-  turn1CountdownAudioRef.value?.stop();
-  turn1CountdownAudioRef.value?.stop();
+  turn2CountdownAudioRef.value?.stop();
+  turn3CountdownAudioRef.value?.stop();
 };
 watch(
   () => roomStore.roomData.started,

@@ -135,8 +135,8 @@ export const useRoomStore = defineStore("room", () => {
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
     board_size: 5,
     extra_line_count: 2,
-    link_level_coefficient: 2,
-    link_fastest_coefficient: 1,
+    link_level_coefficient: 15,
+    link_fastest_coefficient: 0,
     link_connectivity: 8,
     link_disabled_idx: [] as number[],
     link_start_a: 0,
@@ -162,8 +162,8 @@ export const useRoomStore = defineStore("room", () => {
     if (roomSettings.extraLineColor === undefined) roomSettings.extraLineColor = "#0ce739";
     if (roomSettings.linkPathColorA === undefined) roomSettings.linkPathColorA = roomSettings.playerA.color;
     if (roomSettings.linkPathColorB === undefined) roomSettings.linkPathColorB = roomSettings.playerB.color;
-    if (roomSettings.link_level_coefficient === undefined) roomSettings.link_level_coefficient = 2;
-    if (roomSettings.link_fastest_coefficient === undefined) roomSettings.link_fastest_coefficient = 1;
+    if (roomSettings.link_level_coefficient === undefined) roomSettings.link_level_coefficient = 15;
+    if (roomSettings.link_fastest_coefficient === undefined) roomSettings.link_fastest_coefficient = 0;
     if (roomSettings.link_connectivity === undefined) roomSettings.link_connectivity = 8;
     normalizeBoardSizeCaches(savedSettings || {});
     normalizeLinkBoardSettingsCache(savedSettings || {});
@@ -346,6 +346,10 @@ export const useRoomStore = defineStore("room", () => {
   const saveRoomSettings = () => {
     if (roomSettings.type === BingoType.LINK) {
       roomSettings.dual_board = 0;
+      roomSettings.blind_setting = 1;
+    }
+    if (roomSettings.type === BingoType.BP && roomSettings.board_size !== 5) {
+      roomSettings.board_size = 5;
     }
     if (roomSettings.type === BingoType.STANDARD && roomSettings.board_size === 6) {
       updateExtraLineCountCache();
@@ -356,8 +360,19 @@ export const useRoomStore = defineStore("room", () => {
     local.set("roomSettings", roomSettings);
   };
 
+  const aiPracticeAvailableForSettings = () => {
+    if (!practiceMode.value) return false;
+    if (!Config.spellListWithTimer.includes(roomSettings.spell_version)) return false;
+    if (roomSettings.type === BingoType.BP) return false;
+    if (roomSettings.dual_board > 0) return false;
+    if (roomSettings.type === BingoType.STANDARD) {
+      return roomSettings.board_size === 5 && roomSettings.blind_setting <= 1;
+    }
+    return roomSettings.type === BingoType.LINK;
+  };
+
   const checkAIPracticeEnabled = () => {
-    if(!(practiceMode.value) || !Config.spellListWithTimer.includes(roomSettings.spell_version) || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0 || (roomSettings.board_size !== 5 && roomData.type === BingoType.STANDARD)){
+    if(!aiPracticeAvailableForSettings()){
       roomSettings.use_ai = false;
     }
   }
@@ -395,8 +410,8 @@ export const useRoomStore = defineStore("room", () => {
     extra_line_count: 2,
     hidden_select_threshold_a: 5,
     hidden_select_threshold_b: 5,
-    link_level_coefficient: 2,
-    link_fastest_coefficient: 1,
+    link_level_coefficient: 15,
+    link_fastest_coefficient: 0,
     link_connectivity: 8,
     link_disabled_idx: [] as number[],
     link_start_a: 0,
@@ -419,10 +434,23 @@ export const useRoomStore = defineStore("room", () => {
     for (const i in data) {
       roomConfig[i] = data[i];
       if (i === "board_size") roomSettings.board_size = data[i];
+      if (i === "type") roomSettings.type = data[i];
+      if (i === "blind_setting") roomSettings.blind_setting = data[i];
+      if (i === "dual_board") roomSettings.dual_board = data[i];
+      if (i === "spell_version") roomSettings.spell_version = data[i];
+      if (i === "use_ai") roomSettings.use_ai = data[i];
       if (roomData.hasOwnProperty(i)) {
         roomData[i] = data[i];
       }
     }
+    if (roomSettings.type === BingoType.LINK) {
+      roomSettings.dual_board = 0;
+      roomSettings.blind_setting = 1;
+    }
+    if (roomSettings.type === BingoType.BP && roomSettings.board_size !== 5) {
+      roomSettings.board_size = 5;
+    }
+    checkAIPracticeEnabled();
   };
 
   const updateRoomConfig = (
@@ -437,6 +465,10 @@ export const useRoomStore = defineStore("room", () => {
   ) => {
     if (roomSettings.type === BingoType.LINK) {
       roomSettings.dual_board = 0;
+      roomSettings.blind_setting = 1;
+    }
+    if (roomSettings.type === BingoType.BP && roomSettings.board_size !== 5) {
+      roomSettings.board_size = 5;
     }
     normalizeLinkSettings();
     saveRoomSettings();
@@ -490,6 +522,13 @@ export const useRoomStore = defineStore("room", () => {
         params.countdown = allParams.countdown
         params.extra_line_count = allParams.extra_line_count
         params.dual_board = allParams.dual_board
+        params.blind_setting = allParams.blind_setting
+        params.board_size = allParams.board_size
+        params.use_ai = allParams.use_ai
+      }else if(key === "board_size"){
+        params.board_size = allParams.board_size
+        params.extra_line_count = allParams.extra_line_count
+        params.use_ai = allParams.use_ai
       }else{
         params[key] = allParams[key];
       }
@@ -538,12 +577,19 @@ export const useRoomStore = defineStore("room", () => {
     }
   };
   const createRoom = (rid: string, soloMode: boolean, addRobot: boolean) => {
-    roomSettings.type = BingoType.STANDARD;
+    if (roomSettings.type === BingoType.LINK) {
+      roomSettings.dual_board = 0;
+      roomSettings.blind_setting = 1;
+    }
+    if (roomSettings.type === BingoType.BP && roomSettings.board_size !== 5) {
+      roomSettings.board_size = 5;
+    }
+    checkAIPracticeEnabled();
     return ws
       .send(WebSocketActionType.CREATE_ROOM, {
         room_config: {
           rid,
-          type: BingoType.STANDARD,
+          type: roomSettings.type,
           game_time: activeGameTime(),
           countdown: activeCountdown(),
           games: roomSettings.checkList,

@@ -257,10 +257,10 @@
                         ></el-option>
                       </el-select>
                     </el-form-item>
-                    <el-form-item label="AI练习：" v-if="roomStore.practiceMode && Config.spellListWithTimer.includes(roomSettings.spell_version) ">
+                    <el-form-item label="AI练习：" v-if="aiPracticeVisible">
                       <el-checkbox
                           v-model="roomSettings.use_ai"
-                          :disabled="inGame || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0 || (roomSettings.board_size !== 5 && isBingoStandard)"
+                          :disabled="aiPracticeDisabled"
                           @change="roomStore.updateRoomConfig()"
                           style="margin-right: 0"
                       ></el-checkbox>
@@ -378,7 +378,7 @@
                         设置相性
                       </el-button>
                     </el-form-item>
-                    <el-form-item label="盲盒设定：">
+                    <el-form-item label="盲盒设定：" v-if="roomSettings.type !== BingoType.LINK">
                       <el-select
                           v-model="roomSettings.blind_setting"
                           style="width: 120px"
@@ -393,7 +393,7 @@
                         ></el-option>
                       </el-select>
                     </el-form-item>
-                    <el-form-item label="揭示等级" v-if="roomSettings.blind_setting > 1 &&
+                    <el-form-item label="揭示等级" v-if="roomSettings.type !== BingoType.LINK && roomSettings.blind_setting > 1 &&
                       !(roomSettings.type == BingoType.BP && roomSettings.blind_setting == 3)">
                       <el-input-number
                           class="input-number"
@@ -481,28 +481,26 @@
                           class="input-number"
                           v-model="roomSettings.link_level_coefficient"
                           :min="0"
-                          :max="100"
+                          :max="30"
                           :step="0.5"
                           :disabled="inGame"
                           size="small"
                           controls-position="right"
                           @change="roomStore.updateRoomConfig('link_level_coefficient')"
                         />
-                        <span class="input-number-text">X</span>
                       </el-form-item>
                       <el-form-item label="补偿系数：">
                         <el-input-number
                           class="input-number"
                           v-model="roomSettings.link_fastest_coefficient"
                           :min="0"
-                          :max="100"
-                          :step="0.5"
+                          :max="1"
+                          :step="0.05"
                           :disabled="inGame"
                           size="small"
                           controls-position="right"
                           @change="roomStore.updateRoomConfig('link_fastest_coefficient')"
                         />
-                        <span class="input-number-text">Y</span>
                       </el-form-item>
                       <el-form-item label="特殊格：">
                         <el-button size="small" :disabled="inGame" @click="openLinkBoardSettings">设置起终点/禁用格</el-button>
@@ -952,6 +950,17 @@ const currentGameTime = computed({
 const isBingoStandard = computed(() => roomStore.roomData.type === BingoType.STANDARD);
 const isBingoBp = computed(() => roomStore.roomData.type === BingoType.BP);
 const isBingoLink = computed(() => roomStore.roomData.type === BingoType.LINK);
+const aiPracticeVisible = computed(() =>
+  roomStore.practiceMode
+  && Config.spellListWithTimer.includes(roomSettings.value.spell_version)
+  && roomSettings.value.type !== BingoType.BP,
+);
+const aiPracticeDisabled = computed(() =>
+  inGame.value
+  || roomSettings.value.dual_board > 0
+  || (roomSettings.value.type === BingoType.STANDARD
+    && (roomSettings.value.board_size !== 5 || roomSettings.value.blind_setting > 1)),
+);
 
 const currentCountdown = computed({
   get: () => roomSettings.value.type === BingoType.STANDARD
@@ -1140,6 +1149,21 @@ const editType = () => {
   if (showTypeInput.value === false) {
     showTypeInput.value = true;
   } else {
+    if (roomSettings.value.type === BingoType.LINK) {
+      roomSettings.value.dual_board = 0;
+      roomSettings.value.blind_setting = 1;
+    }
+    if (roomSettings.value.type === BingoType.BP) {
+      roomSettings.value.board_size = 5;
+      roomSettings.value.use_ai = false;
+    }
+    if (
+      roomSettings.value.type === BingoType.STANDARD
+      && roomSettings.value.board_size !== 5
+      && roomSettings.value.use_ai
+    ) {
+      roomSettings.value.use_ai = false;
+    }
     if (roomStore.roomConfig.type !== roomSettings.value.type) {
       roomStore.updateRoomConfig("type").then(() => {
         showTypeInput.value = false;
@@ -1169,7 +1193,7 @@ const onBoardSizeChange = async (value) => {
     if (roomSettings.value.type === BingoType.BP) {
       roomSettings.value.type = BingoType.STANDARD;
     }
-    if (roomSettings.value.use_ai) {
+    if (roomSettings.value.type === BingoType.STANDARD && roomSettings.value.use_ai) {
       roomSettings.value.use_ai = false;
     }
   }

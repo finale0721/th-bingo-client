@@ -40,8 +40,14 @@
           @minus="setLinkSkipRemain(0, linkSkipRemainA - 1)"
           :disabled="!inGame"
         ></score-board>
+        <div v-if="isBingoLink && inGame" class="link-board-summary link-board-summary-a">
+          <span>路线 {{ routeA.length }} / 等级分 {{ linkRouteScoreA }}</span>
+          <span v-if="linkRouteFastestA > 0">理论 {{ linkRouteFastestA }}s</span>
+          <span>用时 {{ formatLinkDuration(linkEffectiveUsedMsA) }}</span>
+          <span v-if="linkCdLeftA > 0">CD {{ Math.ceil(linkCdLeftA / 1000) }}s</span>
+        </div>
         <div v-if="isBingoLink && canManageLinkA && linkPhase === 2" class="link-manage-buttons">
-          <el-button size="small" @click="forceLinkSkip(0)" :disabled="linkPlayerFinished(0)">强制跳过</el-button>
+          <el-button size="small" @click="forceLinkSkip(0)" :disabled="linkPlayerFinished(0) || linkCdLeftA > 0">强制跳过</el-button>
           <el-button size="small" @click="undoLinkFinish(0)" :disabled="linkData.current_step_a <= 0">撤销收取</el-button>
         </div>
         <el-button
@@ -96,8 +102,14 @@
           @minus="setLinkSkipRemain(1, linkSkipRemainB - 1)"
           :disabled="!inGame"
         ></score-board>
+        <div v-if="isBingoLink && inGame" class="link-board-summary link-board-summary-b">
+          <span>路线 {{ routeB.length }} / 等级分 {{ linkRouteScoreB }}</span>
+          <span v-if="linkRouteFastestB > 0">理论 {{ linkRouteFastestB }}s</span>
+          <span>用时 {{ formatLinkDuration(linkEffectiveUsedMsB) }}</span>
+          <span v-if="linkCdLeftB > 0">CD {{ Math.ceil(linkCdLeftB / 1000) }}s</span>
+        </div>
         <div v-if="isBingoLink && canManageLinkB && linkPhase === 2" class="link-manage-buttons">
-          <el-button size="small" @click="forceLinkSkip(1)" :disabled="linkPlayerFinished(1)">强制跳过</el-button>
+          <el-button size="small" @click="forceLinkSkip(1)" :disabled="linkPlayerFinished(1) || linkCdLeftB > 0">强制跳过</el-button>
           <el-button size="small" @click="undoLinkFinish(1)" :disabled="linkData.current_step_b <= 0">撤销收取</el-button>
         </div>
         <div v-if="showLinkAiSpeedrun" class="link-manage-buttons">
@@ -124,20 +136,6 @@
       </template>
 
       <template #extra>
-        <div v-if="isBingoLink && inGame" class="link-board-summary">
-          <span>
-            A 路线 {{ routeA.length }} / 等级分 {{ linkRouteScoreA }}
-            <template v-if="linkRouteFastestA > 0"> / 理论 {{ linkRouteFastestA }}s</template>
-            / 用时 {{ formatLinkDuration(linkEffectiveUsedMsA) }}
-            <template v-if="linkCdLeftA > 0"> / CD {{ Math.ceil(linkCdLeftA / 1000) }}s</template>
-          </span>
-          <span>
-            B 路线 {{ routeB.length }} / 等级分 {{ linkRouteScoreB }}
-            <template v-if="linkRouteFastestB > 0"> / 理论 {{ linkRouteFastestB }}s</template>
-            / 用时 {{ formatLinkDuration(linkEffectiveUsedMsB) }}
-            <template v-if="linkCdLeftB > 0"> / CD {{ Math.ceil(linkCdLeftB / 1000) }}s</template>
-          </span>
-        </div>
         <div v-if="isBingoStandard && currentBoardLevelTotal > 0" class="board-level-summary">
           <span>总等级{{ currentBoardLevelTotal }}</span>
           <span>剩余 {{ currentBoardRemainingLevel }}</span>
@@ -300,7 +298,7 @@
                   size="small"
                   @click="linkSkipCard"
                   :disabled="!canLinkSkip"
-                  >跳过</el-button
+                  >{{ linkSkipButtonText }}</el-button
                 >
               </template>
             </template>
@@ -1221,16 +1219,35 @@ const canLinkSkip = computed(() => {
   if (controlledLinkPlayer.value == null) return false;
   return canLinkSkipForPlayer(controlledLinkPlayer.value);
 });
+const linkSkipUsedForPlayer = (playerIndex: 0 | 1) =>
+  playerIndex === 0 ? linkData.value.skip_used_a || 0 : linkData.value.skip_used_b || 0;
+const linkSkipWaitLeftForPlayer = (playerIndex: 0 | 1) => {
+  const route = linkRouteForPlayer(playerIndex);
+  const step = linkCurrentStepForPlayer(playerIndex);
+  if (step >= route.length) return 0;
+  const spell = gameStore.spells[route[step]];
+  if (!spell) return 0;
+  const lastGet = playerIndex === 0 ? linkData.value.last_get_time_a : linkData.value.last_get_time_b;
+  return Math.max(0, lastGet + (spell.star + 1) * 60_000 - linkNow.value);
+};
+const linkSkipButtonText = computed(() => {
+  if (controlledLinkPlayer.value == null) return "跳过";
+  const playerIndex = controlledLinkPlayer.value;
+  const route = linkRouteForPlayer(playerIndex);
+  if (linkSkipUsedForPlayer(playerIndex) >= linkSkipLimit(route)) return "无跳过次数";
+  const cdLeft = linkCdLeftForPlayer(playerIndex);
+  if (cdLeft > 0) return `CD ${Math.ceil(cdLeft / 1000)}秒`;
+  const waitLeft = linkSkipWaitLeftForPlayer(playerIndex);
+  if (waitLeft > 0) return `${Math.ceil(waitLeft / 1000)}秒后可跳过`;
+  return "跳过";
+});
 const canLinkSkipForPlayer = (playerIndex: 0 | 1) => {
   const route = linkRouteForPlayer(playerIndex);
   const step = linkCurrentStepForPlayer(playerIndex);
   if (step >= route.length) return false;
-  const skipUsed = playerIndex === 0 ? linkData.value.skip_used_a || 0 : linkData.value.skip_used_b || 0;
-  if (skipUsed >= linkSkipLimit(route)) return false;
-  const spell = gameStore.spells[route[step]];
-  if (!spell) return false;
-  const lastGet = playerIndex === 0 ? linkData.value.last_get_time_a : linkData.value.last_get_time_b;
-  return linkNow.value - lastGet >= (spell.star + 1) * 60000;
+  if (linkCdLeftForPlayer(playerIndex) > 0) return false;
+  if (linkSkipUsedForPlayer(playerIndex) >= linkSkipLimit(route)) return false;
+  return linkSkipWaitLeftForPlayer(playerIndex) <= 0;
 };
 
 const linkCdForPlayer = (playerIndex: 0 | 1) => playerIndex === 0 ? roomStore.actualCdTimeA : roomStore.actualCdTimeB;
@@ -1341,9 +1358,11 @@ const linkFinishCard = () => {
   gameStore.linkFinishCard();
 };
 const linkSkipCard = () => {
+  if (!canLinkSkip.value) return;
   gameStore.linkSkipCard();
 };
 const forceLinkSkip = (playerIndex: 0 | 1) => {
+  if (linkCdLeftForPlayer(playerIndex) > 0 || linkPlayerFinished(playerIndex)) return;
   gameStore.linkForceSkip(playerIndex);
 };
 const undoLinkFinish = (playerIndex: 0 | 1) => {
@@ -1397,12 +1416,6 @@ watch(
   },
   { immediate: true }
 );
-
-watch(canLinkSkip, (canSkip, wasCanSkip) => {
-  if (canSkip && !wasCanSkip && isBingoLink.value && linkPhase.value === 2 && isPlayer.value) {
-    layoutRef.value?.infoSkipAvailable();
-  }
-});
 
 watch(
   () => gameStore.gameStatus,
@@ -1990,20 +2003,23 @@ const handleShuffleSpells = () => {
 
 <style lang="scss" scoped>
 .link-board-summary {
-  position: absolute;
-  top: -30px;
-  left: 50%;
-  z-index: 120;
   display: flex;
-  gap: 14px;
+  flex-direction: column;
+  gap: 2px;
   align-items: center;
-  transform: translateX(-50%);
-  padding: 4px 12px;
+  width: 126px;
+  box-sizing: border-box;
+  margin-top: 4px;
+  padding: 5px 6px;
   border: 1px solid rgba(0, 0, 0, 0.18);
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.88);
-  font-size: 13px;
-  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+}
+.link-board-summary span {
+  white-space: normal;
 }
 .page-icon {
   width: 20px;
