@@ -58,6 +58,10 @@
                         @click="isEditorMode ? emits('editor-cell-click', index) : selectSpellCard(index)"
                         :selected="selectedSpellIndex === index"
                         :status="displayStatus(index)"
+                        :link-status-a="linkStatusA(index)"
+                        :link-status-b="linkStatusB(index)"
+                        :link-skipped-a="linkSkippedA(index)"
+                        :link-skipped-b="linkSkippedB(index)"
                         :index="index"
                         :link-marker="linkMarker(index)"
                         :isPortalA="
@@ -395,6 +399,10 @@ const displayStatus = (index: number) => {
   if (a === 1 && b === 3) return 2;
   return a || b || 0;
 };
+const linkStatusA = (index: number) => (isBingoLink.value ? gameStore.linkGameData.status_a?.[index] || 0 : 0);
+const linkStatusB = (index: number) => (isBingoLink.value ? gameStore.linkGameData.status_b?.[index] || 0 : 0);
+const linkSkippedA = (index: number) => isBingoLink.value && (gameStore.linkGameData.skipped_idx_a || []).includes(index);
+const linkSkippedB = (index: number) => isBingoLink.value && (gameStore.linkGameData.skipped_idx_b || []).includes(index);
 const linkMarker = (index: number) => {
   if (!isBingoLink.value) return "";
   const markers: string[] = [];

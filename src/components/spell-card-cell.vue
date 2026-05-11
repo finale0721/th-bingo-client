@@ -1,6 +1,8 @@
 <template>
   <div :class="cellClass" @click="onClick">
     <div class="spell-card-info">
+      <!-- <div class="link-skip-marker link-skip-marker-a" v-if="linkSkippedA">A跳</div> -->
+      <!-- <div class="link-skip-marker link-skip-marker-b" v-if="linkSkippedB">B跳</div> -->
       <div class="level" v-if="level && level > 100">
         <div class="level-icons" :class="levelClass">
           <el-icon v-for="(item, index) in new Array(level - 100)" :key="index"><StarFilled /></el-icon>
@@ -55,6 +57,10 @@ const props = withDefaults(
     previewViewerIsPlayerA?: boolean | null;
     previewViewerIsPlayerB?: boolean | null;
     linkMarker?: string;
+    linkStatusA?: number;
+    linkStatusB?: number;
+    linkSkippedA?: boolean;
+    linkSkippedB?: boolean;
   }>(),
   {
     level: 0,
@@ -78,6 +84,10 @@ const props = withDefaults(
     previewViewerIsPlayerA: null,
     previewViewerIsPlayerB: null,
     linkMarker: "",
+    linkStatusA: 0,
+    linkStatusB: 0,
+    linkSkippedA: false,
+    linkSkippedB: false,
   }
 );
 
@@ -87,7 +97,9 @@ const resolvedDualBoard = computed(() => props.previewDualBoard ?? roomStore.roo
 const resolvedCurrentBoard = computed(() => props.previewCurrentBoard ?? gameStore.currentBoard);
 const resolvedPlayerABoard = computed(() => props.previewPlayerABoard ?? gameStore.normalGameData.which_board_a);
 const resolvedPlayerBBoard = computed(() => props.previewPlayerBBoard ?? gameStore.normalGameData.which_board_b);
-const resolvedGetOnWhichBoard = computed(() => props.previewGetOnWhichBoard ?? gameStore.normalGameData.get_on_which_board);
+const resolvedGetOnWhichBoard = computed(
+  () => props.previewGetOnWhichBoard ?? gameStore.normalGameData.get_on_which_board
+);
 const isPlayerA = computed(() => props.previewViewerIsPlayerA ?? roomStore.isPlayerA);
 const isPlayerB = computed(() => props.previewViewerIsPlayerB ?? roomStore.isPlayerB);
 
@@ -99,28 +111,27 @@ const playerBOnCurBoard = computed(
 );
 const playerAAttainOnCurBoard = computed(
   () =>
-    resolvedDualBoard.value == 0 ||
-    resolvedGetOnWhichBoard.value?.[props.spellIndex] == 1 << resolvedCurrentBoard.value
+    resolvedDualBoard.value == 0 || resolvedGetOnWhichBoard.value?.[props.spellIndex] == 1 << resolvedCurrentBoard.value
 );
 const playerBAttainOnCurBoard = computed(
   () =>
     resolvedDualBoard.value == 0 ||
     resolvedGetOnWhichBoard.value?.[props.spellIndex] == 0x10 << resolvedCurrentBoard.value
 );
+const leftSelected = computed(() => props.linkStatusA === 1 || props.status === SpellStatus.A_SELECTED);
+const rightSelected = computed(() => props.linkStatusB === 3 || props.status === SpellStatus.B_SELECTED);
+const leftAttained = computed(() => props.linkStatusA === 5 || props.status === SpellStatus.A_ATTAINED);
+const rightAttained = computed(() => props.linkStatusB === 7 || props.status === SpellStatus.B_ATTAINED);
 
 const cellClass = computed(() => ({
   "spell-card-cell": true,
   banned: props.status === SpellStatus.BANNED,
-  "A-selected":
-    props.status === SpellStatus.A_SELECTED || (props.status === SpellStatus.BOTH_SELECTED && playerAOnCurBoard.value),
-  "A-attained":
-    props.status === SpellStatus.A_ATTAINED ||
-    (props.status === SpellStatus.BOTH_ATTAINED && playerAAttainOnCurBoard.value),
-  "B-selected":
-    props.status === SpellStatus.B_SELECTED || (props.status === SpellStatus.BOTH_SELECTED && playerBOnCurBoard.value),
-  "B-attained":
-    props.status === SpellStatus.B_ATTAINED ||
-    (props.status === SpellStatus.BOTH_ATTAINED && playerBAttainOnCurBoard.value),
+  "A-selected": leftSelected.value || (props.status === SpellStatus.BOTH_SELECTED && playerAOnCurBoard.value),
+  "A-attained": leftAttained.value || (props.status === SpellStatus.BOTH_ATTAINED && playerAAttainOnCurBoard.value),
+  "B-selected": rightSelected.value || (props.status === SpellStatus.BOTH_SELECTED && playerBOnCurBoard.value),
+  "B-attained": rightAttained.value || (props.status === SpellStatus.BOTH_ATTAINED && playerBAttainOnCurBoard.value),
+  "A-skipped": props.linkSkippedA,
+  "B-skipped": props.linkSkippedB,
   "A-local-selected": props.selected && isPlayerA.value,
   "B-local-selected": props.selected && isPlayerB.value,
   //see-only为非选手的视觉效果
@@ -268,6 +279,28 @@ const onClick = () => {
       pointer-events: none;
       white-space: nowrap;
     }
+
+    .link-skip-marker {
+      position: absolute;
+      top: 2px;
+      z-index: 4;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: rgba(0, 0, 0, 0.68);
+      color: #fff;
+      font-size: 11px;
+      line-height: 14px;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .link-skip-marker-a {
+      left: 2px;
+    }
+
+    .link-skip-marker-b {
+      right: 2px;
+    }
   }
 
   &::before {
@@ -352,6 +385,24 @@ const onClick = () => {
       transform: skew(-0.89rad) translateX(0%);
       left: 50%;
     }
+  }
+
+  &.A-selected.B-attained,
+  &.A-attained.B-selected {
+    &::before {
+      transform: skew(-0.89rad) translateX(0%);
+      left: -50%;
+    }
+    &::after {
+      transform: skew(-0.89rad) translateX(0%);
+      left: 50%;
+    }
+  }
+
+  &.A-skipped::before,
+  &.B-skipped::after {
+    filter: saturate(0.45);
+    opacity: 0.58;
   }
 
   &.banned {

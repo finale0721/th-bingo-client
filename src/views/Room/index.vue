@@ -34,8 +34,10 @@
           label="剩余跳过"
           :manual="canManageLinkA"
           :model-value="linkSkipRemainA"
-          @add="setLinkSkipUsed(0, linkData.skip_used_a - 1)"
-          @minus="setLinkSkipUsed(0, linkData.skip_used_a + 1)"
+          :min="0"
+          :max="linkSkipLimit(routeA)"
+          @add="setLinkSkipRemain(0, linkSkipRemainA + 1)"
+          @minus="setLinkSkipRemain(0, linkSkipRemainA - 1)"
           :disabled="!inGame"
         ></score-board>
         <div v-if="isBingoLink && canManageLinkA && linkPhase === 2" class="link-manage-buttons">
@@ -88,8 +90,10 @@
           label="剩余跳过"
           :manual="canManageLinkB"
           :model-value="linkSkipRemainB"
-          @add="setLinkSkipUsed(1, linkData.skip_used_b - 1)"
-          @minus="setLinkSkipUsed(1, linkData.skip_used_b + 1)"
+          :min="0"
+          :max="linkSkipLimit(routeB)"
+          @add="setLinkSkipRemain(1, linkSkipRemainB + 1)"
+          @minus="setLinkSkipRemain(1, linkSkipRemainB - 1)"
           :disabled="!inGame"
         ></score-board>
         <div v-if="isBingoLink && canManageLinkB && linkPhase === 2" class="link-manage-buttons">
@@ -1161,6 +1165,20 @@ const myLinkRoute = computed(() => (isPlayerA.value ? routeA.value : routeB.valu
 const myLinkRouteConfirmed = computed(() =>
   isPlayerA.value ? linkData.value.route_confirmed_a : linkData.value.route_confirmed_b
 );
+const controlledLinkPlayer = computed<0 | 1 | null>(() => {
+  if (isHost.value) return null;
+  if (isPlayerA.value) return 0;
+  if (isPlayerB.value) return 1;
+  return null;
+});
+const linkRouteForPlayer = (playerIndex: 0 | 1) => (playerIndex === 0 ? routeA.value : routeB.value);
+const linkConfirmedForPlayer = (playerIndex: 0 | 1) =>
+  playerIndex === 0 ? linkData.value.route_confirmed_a : linkData.value.route_confirmed_b;
+const linkEndForPlayer = (playerIndex: 0 | 1) => (playerIndex === 0 ? linkEndA.value : linkEndB.value);
+const linkRouteCompleteForPlayer = (playerIndex: 0 | 1) => {
+  const route = linkRouteForPlayer(playerIndex);
+  return route.length > 0 && route[route.length - 1] === linkEndForPlayer(playerIndex);
+};
 const linkRouteComplete = computed(() => {
   const route = myLinkRoute.value;
   const end = isPlayerA.value ? linkEndA.value : linkEndB.value;
@@ -1174,16 +1192,19 @@ const myLinkSkipUsed = computed(() => (isPlayerA.value ? linkData.value.skip_use
 const linkSkipLimit = (route: number[]) => route.length > 10 ? 2 : 1;
 const linkSkipRemainA = computed(() => Math.max(0, linkSkipLimit(routeA.value) - (linkData.value.skip_used_a || 0)));
 const linkSkipRemainB = computed(() => Math.max(0, linkSkipLimit(routeB.value) - (linkData.value.skip_used_b || 0)));
-const canManageLinkA = computed(() => isBingoLink.value && (roomData.value.host ? isHost.value : isPlayerA.value));
-const canManageLinkB = computed(() => isBingoLink.value && (roomData.value.host ? isHost.value : isPlayerB.value));
+const canManageLinkA = computed(() => isBingoLink.value && (isHost.value || (!roomData.value.host && isPlayerA.value)));
+const canManageLinkB = computed(() => isBingoLink.value && (isHost.value || (!roomData.value.host && isPlayerB.value)));
 const linkPlayerFinished = (playerIndex: 0 | 1) => playerIndex === 0 ? linkData.value.event_a === 3 : linkData.value.event_b === 3;
-const myLinkCurrentIndex = computed(() => myLinkRoute.value[myLinkCurrentStep.value] ?? -1);
-const myLinkCurrentSelected = computed(() => {
-  const idx = myLinkCurrentIndex.value;
+const linkCurrentStepForPlayer = (playerIndex: 0 | 1) => playerIndex === 0 ? linkData.value.current_step_a || 0 : linkData.value.current_step_b || 0;
+const linkCurrentIndexForPlayer = (playerIndex: 0 | 1) => linkRouteForPlayer(playerIndex)[linkCurrentStepForPlayer(playerIndex)] ?? -1;
+const linkCurrentSelectedForPlayer = (playerIndex: 0 | 1) => {
+  const idx = linkCurrentIndexForPlayer(playerIndex);
   if (idx < 0) return false;
-  const status = isPlayerA.value ? linkData.value.status_a?.[idx] : linkData.value.status_b?.[idx];
-  return status === (isPlayerA.value ? 1 : 3);
-});
+  const status = playerIndex === 0 ? linkData.value.status_a?.[idx] : linkData.value.status_b?.[idx];
+  return status === (playerIndex === 0 ? 1 : 3);
+};
+const myLinkCurrentIndex = computed(() => controlledLinkPlayer.value == null ? -1 : linkCurrentIndexForPlayer(controlledLinkPlayer.value));
+const myLinkCurrentSelected = computed(() => controlledLinkPlayer.value != null && linkCurrentSelectedForPlayer(controlledLinkPlayer.value));
 const linkNow = ref(Date.now());
 const linkCooldown = computed(() => {
   if (linkPhase.value !== 2) return -1;
@@ -1191,14 +1212,20 @@ const linkCooldown = computed(() => {
   return Math.max(0, myLinkLastGetTime.value + cd - linkNow.value);
 });
 const canLinkSkip = computed(() => {
-  const route = myLinkRoute.value;
-  const step = myLinkCurrentStep.value;
+  if (controlledLinkPlayer.value == null) return false;
+  return canLinkSkipForPlayer(controlledLinkPlayer.value);
+});
+const canLinkSkipForPlayer = (playerIndex: 0 | 1) => {
+  const route = linkRouteForPlayer(playerIndex);
+  const step = linkCurrentStepForPlayer(playerIndex);
   if (step >= route.length) return false;
-  if (myLinkSkipUsed.value >= linkSkipLimit(route)) return false;
+  const skipUsed = playerIndex === 0 ? linkData.value.skip_used_a || 0 : linkData.value.skip_used_b || 0;
+  if (skipUsed >= linkSkipLimit(route)) return false;
   const spell = gameStore.spells[route[step]];
   if (!spell) return false;
-  return linkNow.value - myLinkLastGetTime.value >= (spell.star + 1) * 60000;
-});
+  const lastGet = playerIndex === 0 ? linkData.value.last_get_time_a : linkData.value.last_get_time_b;
+  return linkNow.value - lastGet >= (spell.star + 1) * 60000;
+};
 
 const linkCdForPlayer = (playerIndex: 0 | 1) => playerIndex === 0 ? roomStore.actualCdTimeA : roomStore.actualCdTimeB;
 const linkActiveUsedMs = (playerIndex: 0 | 1, step: number, event: number, start: number, end: number, now: number) => {
@@ -1318,6 +1345,11 @@ const undoLinkFinish = (playerIndex: 0 | 1) => {
 };
 const setLinkSkipUsed = (playerIndex: 0 | 1, value: number) => {
   gameStore.linkSetSkipUsed(playerIndex, value);
+};
+const setLinkSkipRemain = (playerIndex: 0 | 1, remain: number) => {
+  const route = playerIndex === 0 ? routeA.value : routeB.value;
+  const limit = linkSkipLimit(route);
+  gameStore.linkSetSkipUsed(playerIndex, Math.max(0, Math.min(limit, limit - remain)));
 };
 
 const lastLinkStepA = ref(0);

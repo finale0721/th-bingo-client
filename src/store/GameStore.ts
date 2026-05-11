@@ -522,12 +522,13 @@ export const useGameStore = defineStore("game", () => {
     bpGameData.ban_pick = data!.ban_pick;
   });
 
-  const linkRoute = (index: number) => ws.send(WebSocketActionType.LINK_ROUTE, { index });
-  const linkUndo = () => ws.send(WebSocketActionType.LINK_UNDO);
-  const linkConfirmRoute = (confirmed: boolean) => ws.send(WebSocketActionType.LINK_CONFIRM_ROUTE, { confirmed });
-  const linkNextCard = () => ws.send(WebSocketActionType.LINK_NEXT_CARD);
-  const linkFinishCard = () => ws.send(WebSocketActionType.LINK_FINISH_CARD);
-  const linkSkipCard = () => ws.send(WebSocketActionType.LINK_SKIP_CARD);
+  const linkPayload = (playerIndex?: number) => playerIndex == null ? {} : { player_index: playerIndex };
+  const linkRoute = (index: number, playerIndex?: number) => ws.send(WebSocketActionType.LINK_ROUTE, { index, ...linkPayload(playerIndex) });
+  const linkUndo = (playerIndex?: number) => ws.send(WebSocketActionType.LINK_UNDO, linkPayload(playerIndex));
+  const linkConfirmRoute = (confirmed: boolean, playerIndex?: number) => ws.send(WebSocketActionType.LINK_CONFIRM_ROUTE, { confirmed, ...linkPayload(playerIndex) });
+  const linkNextCard = (playerIndex?: number) => ws.send(WebSocketActionType.LINK_NEXT_CARD, linkPayload(playerIndex));
+  const linkFinishCard = (playerIndex?: number) => ws.send(WebSocketActionType.LINK_FINISH_CARD, linkPayload(playerIndex));
+  const linkSkipCard = (playerIndex?: number) => ws.send(WebSocketActionType.LINK_SKIP_CARD, linkPayload(playerIndex));
   const linkForceSkip = (playerIndex: number) => ws.send(WebSocketActionType.LINK_FORCE_SKIP, { player_index: playerIndex });
   const linkUndoFinish = (playerIndex: number) => ws.send(WebSocketActionType.LINK_UNDO_FINISH, { player_index: playerIndex });
   const linkSetSkipUsed = (playerIndex: number, value: number) => ws.send(WebSocketActionType.LINK_SET_SKIP_USED, { player_index: playerIndex, value });
