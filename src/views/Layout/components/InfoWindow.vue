@@ -208,7 +208,7 @@
                       />
                       <span class="input-number-text">张</span>
                     </el-form-item>
-                    <el-form-item label="CD修正：">
+                    <el-form-item label="CD修正：" v-if="roomSettings.type !== BingoType.LINK">
                       <span style="margin-right: 5px">左侧</span>
                       <el-input-number
                         class="input-number"
@@ -222,7 +222,7 @@
                       />
                       <span class="input-number-text">秒</span>
                     </el-form-item>
-                    <el-form-item label="CD修正：">
+                    <el-form-item label="CD修正：" v-if="roomSettings.type !== BingoType.LINK">
                       <span style="margin-right: 5px">右侧</span>
                       <el-input-number
                         class="input-number"
@@ -1067,7 +1067,10 @@ const onBoardSizeChange = async (value) => {
       roomSettings.value.use_ai = false;
     }
   }
-  roomSettings.value.extra_line_count = roomSettings.value.extraLineCountByBoardSize[value] ?? 0;
+  roomSettings.value.extra_line_count =
+    value === 6 && roomSettings.value.type === BingoType.STANDARD
+      ? roomSettings.value.extraLineCountByBoardSize[value] ?? 0
+      : 0;
   roomSettings.value.custom_level_count = roomSettings.value.customLevelCountByBoardSize[value] || roomStore.defaultCustomCountsForBoard(value);
   await roomStore.updateRoomConfig();
 };

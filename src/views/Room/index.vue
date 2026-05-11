@@ -49,7 +49,7 @@
           @click="warnPlayer(roomData.names[0])"
           :disabled="!inGame"
         >
-          璀﹀憡
+          警告
         </el-button>
         <el-button
           class="alert-button"
@@ -103,7 +103,7 @@
           @click="warnPlayer(roomData.names[1])"
           :disabled="!inGame"
         >
-          璀﹀憡
+          警告
         </el-button>
         <el-button
           class="alert-button"
@@ -177,7 +177,7 @@
             :disabled="replayInstance.state.currentTime <= 0"
             circle
           />
-          <!-- 鏃堕棿杞存粦鍧?-->
+          <!-- 回放进度条-->
           <el-slider
             v-if="replayInstance.state.totalTime > 0"
             v-model="replayInstance.state.currentTime"
@@ -1190,6 +1190,18 @@ const canLinkSkip = computed(() => {
   return linkNow.value - myLinkLastGetTime.value >= (spell.star + 1) * 60000;
 });
 
+const linkCdForPlayer = (playerIndex: 0 | 1) => playerIndex === 0 ? roomStore.actualCdTimeA : roomStore.actualCdTimeB;
+const linkActiveUsedMs = (playerIndex: 0 | 1, step: number, event: number, start: number, end: number, now: number) => {
+  if (start <= 0) return 0;
+  const stop = event === 3 && end > 0 ? end : now;
+  const elapsed = Math.max(0, stop - start);
+  const cd = Math.max(0, linkCdForPlayer(playerIndex));
+  const completedCd = Math.max(0, step - 1) * cd;
+  const lastGet = playerIndex === 0 ? linkData.value.last_get_time_a : linkData.value.last_get_time_b;
+  const currentCd = event === 3 || step <= 0 || lastGet <= 0 ? 0 : Math.min(cd, Math.max(0, stop - lastGet));
+  return Math.max(0, elapsed - completedCd - currentCd);
+};
+
 const decideLink = () => {
   const now = Date.now();
   const liveScore = (playerIndex: 0 | 1) => {
@@ -1201,7 +1213,7 @@ const decideLink = () => {
     const taken = route.slice(0, step);
     const level = taken.reduce((sum, idx) => sum + (gameStore.spells[idx]?.star || 0), 0);
     const fastest = taken.reduce((sum, idx) => sum + (gameStore.spells[idx]?.fastest || 0), 0);
-    const usedMs = start > 0 ? (event === 3 && end > 0 ? end : now) - start : 0;
+    const usedMs = linkActiveUsedMs(playerIndex, step, event, start, end, now);
     return (
       boardSpec.value.size * 200 +
       level * (roomStore.roomConfig.link_level_coefficient ?? 2) +
@@ -1255,10 +1267,21 @@ const setLinkSkipUsed = (playerIndex: 0 | 1, value: number) => {
   gameStore.linkSetSkipUsed(playerIndex, value);
 };
 
+const lastLinkStepA = ref(0);
+const lastLinkStepB = ref(0);
+const linkStepSoundInited = ref(false);
 watch(
   () => gameStore.linkGameData,
   () => {
     if (isBingoLink.value) decideLink();
+    const stepA = gameStore.linkGameData.current_step_a || 0;
+    const stepB = gameStore.linkGameData.current_step_b || 0;
+    if (linkStepSoundInited.value && ((isPlayerA.value && stepA > lastLinkStepA.value) || (isPlayerB.value && stepB > lastLinkStepB.value))) {
+      layoutRef.value?.infoCaptureCard();
+    }
+    lastLinkStepA.value = stepA;
+    lastLinkStepB.value = stepB;
+    linkStepSoundInited.value = true;
   },
   { deep: true, immediate: true }
 );

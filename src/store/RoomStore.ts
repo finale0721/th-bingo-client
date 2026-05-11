@@ -249,8 +249,16 @@ export const useRoomStore = defineStore("room", () => {
     roomSettings.extraLineCountByBoardSize[roomSettings.board_size] = count;
   };
 
+  const syncActiveExtraLineCount = () => {
+    roomSettings.extra_line_count = activeExtraLineCount();
+  };
+
   const saveRoomSettings = () => {
-    updateExtraLineCountCache();
+    if (roomSettings.type === BingoType.STANDARD && roomSettings.board_size === 6) {
+      updateExtraLineCountCache();
+    } else {
+      syncActiveExtraLineCount();
+    }
     checkAIPracticeEnabled();
     local.set("roomSettings", roomSettings);
   };
@@ -372,6 +380,7 @@ export const useRoomStore = defineStore("room", () => {
         params.type = allParams.type
         params.game_time = allParams.game_time
         params.countdown = allParams.countdown
+        params.extra_line_count = allParams.extra_line_count
       }else{
         params[key] = allParams[key];
       }
@@ -648,6 +657,7 @@ export const useRoomStore = defineStore("room", () => {
   // 计算各选手的实际CD时间（毫秒）
   const actualCdTimeA = computed(() => {
     const baseCd = (roomConfig.cd_time || 0) * 1000;
+    if (roomConfig.type === BingoType.LINK) return Math.max(1000, baseCd);
     const modifier = (roomConfig.cd_modifier_a || 0) * 1000;
     const actual = baseCd + modifier;
     // 最低1秒，最高为基础值的3倍
@@ -656,6 +666,7 @@ export const useRoomStore = defineStore("room", () => {
 
   const actualCdTimeB = computed(() => {
     const baseCd = (roomConfig.cd_time || 0) * 1000;
+    if (roomConfig.type === BingoType.LINK) return Math.max(1000, baseCd);
     const modifier = (roomConfig.cd_modifier_b || 0) * 1000;
     const actual = baseCd + modifier;
     // 最低1秒，最高为基础值的3倍
