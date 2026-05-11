@@ -1228,7 +1228,7 @@ const linkSkipWaitLeftForPlayer = (playerIndex: 0 | 1) => {
   const spell = gameStore.spells[route[step]];
   if (!spell) return 0;
   const lastGet = playerIndex === 0 ? linkData.value.last_get_time_a : linkData.value.last_get_time_b;
-  return Math.max(0, lastGet + (spell.star + 1) * 60_000 - linkNow.value);
+  return Math.max(0, 45_000- linkNow.value);
 };
 const linkSkipButtonText = computed(() => {
   if (controlledLinkPlayer.value == null) return "跳过";
