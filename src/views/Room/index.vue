@@ -1386,6 +1386,7 @@ const lastLinkStepA = ref(0);
 const lastLinkStepB = ref(0);
 const linkStepSoundInited = ref(false);
 const resetLocalGameState = () => {
+  countdownRef.value?.pause();
   gameModeSelectedSpellIndex.value = -1;
   winFlag.value = 0;
   playerAScore.value = 0;
@@ -1500,6 +1501,7 @@ const startGame = () => {
       roomStore.updateChangeCardCount(roomData.value.names[1], roomSettings.value.playerB.changeCardCount);
       if (isBingoLink.value) gameStore.linkSetPhase(1);
       if (isBingoLink.value) {
+        countdownRef.value?.stop();
         gameStore.gameStatus = GameStatus.COUNT_DOWN;
         gameStore.leftTime = roomConfig.value.countdown * 1000;
         nextTick(() => countdownRef.value?.start());
@@ -1623,10 +1625,12 @@ const warnPlayer = (name) => {
   return ws.send(WebSocketActionType.GM_WARN_PLAYER, { name });
 };
 const onCountDownComplete = () => {
-  if (isBingoLink.value && linkPhase.value === 1) {
-    gameStore.gameStatus = GameStatus.STARTED;
-    if (isOwner.value) {
-      gameStore.linkSetPhase(2);
+  if (isBingoLink.value) {
+    if (linkPhase.value === 1) {
+      gameStore.gameStatus = GameStatus.STARTED;
+      if (isOwner.value) {
+        gameStore.linkSetPhase(2);
+      }
     }
     return;
   }
