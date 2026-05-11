@@ -59,6 +59,7 @@
                         :selected="selectedSpellIndex === index"
                         :status="displayStatus(index)"
                         :index="index"
+                        :link-marker="linkMarker(index)"
                         :isPortalA="
                           roomStore.roomConfig.dual_board > 0 && dataSource.normalGameData?.is_portal_a[index] > 0
                         "
@@ -387,11 +388,26 @@ const selectSpellCard = (index: number) => {
 const displayStatus = (index: number) => {
   if (!isBingoLink.value) return dataSource.value.spellStatus[index];
   const linkData = gameStore.linkGameData;
+  if (linkData.disabled_idx?.includes(index)) return -1;
   const a = linkData.status_a?.[index] || 0;
   const b = linkData.status_b?.[index] || 0;
   if (a === 5 && b === 7) return 6;
   if (a === 1 && b === 3) return 2;
   return a || b || 0;
+};
+const linkMarker = (index: number) => {
+  if (!isBingoLink.value) return "";
+  const markers: string[] = [];
+  const data = gameStore.linkGameData;
+  const startA = data.link_idx_a?.[0] ?? roomStore.roomConfig.link_start_a;
+  const startB = data.link_idx_b?.[0] ?? roomStore.roomConfig.link_start_b;
+  const endA = roomStore.roomConfig.link_end_a;
+  const endB = roomStore.roomConfig.link_end_b;
+  if (index === startA) markers.push("A起");
+  if (index === endA) markers.push("A终");
+  if (index === startB) markers.push("B起");
+  if (index === endB) markers.push("B终");
+  return markers.join(" ");
 };
 
 function canSelectBlindCard(status: number) {

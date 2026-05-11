@@ -118,8 +118,18 @@
 
       <template #extra>
         <div v-if="isBingoLink && inGame" class="link-board-summary">
-          <span>A 路线 {{ routeA.length }} / 等级分 {{ linkRouteScoreA }}<template v-if="linkRouteFastestA > 0"> / 理论 {{ linkRouteFastestA }}s</template></span>
-          <span>B 路线 {{ routeB.length }} / 等级分 {{ linkRouteScoreB }}<template v-if="linkRouteFastestB > 0"> / 理论 {{ linkRouteFastestB }}s</template></span>
+          <span>
+            A 路线 {{ routeA.length }} / 等级分 {{ linkRouteScoreA }}
+            <template v-if="linkRouteFastestA > 0"> / 理论 {{ linkRouteFastestA }}s</template>
+            / 用时 {{ formatLinkDuration(linkEffectiveUsedMsA) }}
+            <template v-if="linkCdLeftA > 0"> / CD {{ Math.ceil(linkCdLeftA / 1000) }}s</template>
+          </span>
+          <span>
+            B 路线 {{ routeB.length }} / 等级分 {{ linkRouteScoreB }}
+            <template v-if="linkRouteFastestB > 0"> / 理论 {{ linkRouteFastestB }}s</template>
+            / 用时 {{ formatLinkDuration(linkEffectiveUsedMsB) }}
+            <template v-if="linkCdLeftB > 0"> / CD {{ Math.ceil(linkCdLeftB / 1000) }}s</template>
+          </span>
         </div>
         <div v-if="isBingoStandard && currentBoardLevelTotal > 0" class="board-level-summary">
           <span>总等级{{ currentBoardLevelTotal }}</span>
@@ -204,7 +214,7 @@
             <el-button type="primary" v-if="isBpPhase" @click="drawSpellCard" :disabled="banPick.phase < 99">
               抽取符卡
             </el-button>
-            <el-button type="primary" v-if="inGame && winFlag === 0 && !isBingoLink" @click="stopGame">结束比赛</el-button>
+            <el-button type="primary" v-if="inGame && winFlag === 0" @click="stopGame">结束比赛</el-button>
             <el-button type="primary" v-if="winFlag !== 0" @click="confirmWinner">
               确认：{{ winFlag < 0 ? roomData.names[0] : roomData.names[1] }}获胜
             </el-button>
@@ -1145,8 +1155,8 @@ const linkRouteFastest = (route: number[]) => {
 };
 const linkRouteFastestA = computed(() => linkRouteFastest(routeA.value));
 const linkRouteFastestB = computed(() => linkRouteFastest(routeB.value));
-const linkEndA = computed(() => boardSpec.value.area - 1);
-const linkEndB = computed(() => boardSpec.value.index(boardSpec.value.size - 1, 0));
+const linkEndA = computed(() => roomStore.roomConfig.link_end_a ?? boardSpec.value.area - 1);
+const linkEndB = computed(() => roomStore.roomConfig.link_end_b ?? boardSpec.value.index(boardSpec.value.size - 1, 0));
 const myLinkRoute = computed(() => (isPlayerA.value ? routeA.value : routeB.value));
 const myLinkRouteConfirmed = computed(() =>
   isPlayerA.value ? linkData.value.route_confirmed_a : linkData.value.route_confirmed_b
@@ -1201,6 +1211,44 @@ const linkActiveUsedMs = (playerIndex: 0 | 1, step: number, event: number, start
   const currentCd = event === 3 || step <= 0 || lastGet <= 0 ? 0 : Math.min(cd, Math.max(0, stop - lastGet));
   return Math.max(0, elapsed - completedCd - currentCd);
 };
+const linkEffectiveUsedMsA = computed(() =>
+  linkActiveUsedMs(
+    0,
+    linkData.value.current_step_a || 0,
+    linkData.value.event_a,
+    linkData.value.start_ms_a,
+    linkData.value.end_ms_a,
+    linkNow.value
+  )
+);
+const linkEffectiveUsedMsB = computed(() =>
+  linkActiveUsedMs(
+    1,
+    linkData.value.current_step_b || 0,
+    linkData.value.event_b,
+    linkData.value.start_ms_b,
+    linkData.value.end_ms_b,
+    linkNow.value
+  )
+);
+const linkCdLeftForPlayer = (playerIndex: 0 | 1) => {
+  const data = linkData.value;
+  const event = playerIndex === 0 ? data.event_a : data.event_b;
+  if (event !== 1) return 0;
+  const step = playerIndex === 0 ? data.current_step_a || 0 : data.current_step_b || 0;
+  if (step <= 0) return 0;
+  const lastGet = playerIndex === 0 ? data.last_get_time_a : data.last_get_time_b;
+  if (lastGet <= 0) return 0;
+  return Math.max(0, lastGet + linkCdForPlayer(playerIndex) - linkNow.value);
+};
+const linkCdLeftA = computed(() => linkCdLeftForPlayer(0));
+const linkCdLeftB = computed(() => linkCdLeftForPlayer(1));
+const formatLinkDuration = (milliseconds: number) => {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
 
 const decideLink = () => {
   const now = Date.now();
@@ -1210,7 +1258,8 @@ const decideLink = () => {
     const start = playerIndex === 0 ? linkData.value.start_ms_a : linkData.value.start_ms_b;
     const end = playerIndex === 0 ? linkData.value.end_ms_a : linkData.value.end_ms_b;
     const event = playerIndex === 0 ? linkData.value.event_a : linkData.value.event_b;
-    const taken = route.slice(0, step);
+    const skipped = new Set(playerIndex === 0 ? linkData.value.skipped_idx_a || [] : linkData.value.skipped_idx_b || []);
+    const taken = route.slice(0, step).filter((idx) => !skipped.has(idx));
     const level = taken.reduce((sum, idx) => sum + (gameStore.spells[idx]?.star || 0), 0);
     const fastest = taken.reduce((sum, idx) => sum + (gameStore.spells[idx]?.fastest || 0), 0);
     const usedMs = linkActiveUsedMs(playerIndex, step, event, start, end, now);
@@ -1223,10 +1272,14 @@ const decideLink = () => {
   };
   playerAScore.value = Math.round(liveScore(0) * 10) / 10;
   playerBScore.value = Math.round(liveScore(1) * 10) / 10;
+  const skippedA = new Set(linkData.value.skipped_idx_a || []);
+  const skippedB = new Set(linkData.value.skipped_idx_b || []);
   playerALevel.value = routeA.value.slice(0, linkData.value.current_step_a || 0).reduce((sum, idx) => {
+    if (skippedA.has(idx)) return sum;
     return sum + (gameStore.spells[idx]?.star || 0);
   }, 0);
   playerBLevel.value = routeB.value.slice(0, linkData.value.current_step_b || 0).reduce((sum, idx) => {
+    if (skippedB.has(idx)) return sum;
     return sum + (gameStore.spells[idx]?.star || 0);
   }, 0);
   if (linkData.value.event_a === 3 && linkData.value.event_b === 3) {

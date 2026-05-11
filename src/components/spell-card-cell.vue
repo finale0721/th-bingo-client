@@ -17,6 +17,7 @@
       <div class="name">{{ name }}</div>
       <div class="fail-count-a" v-if="failCountA && status < 5">失败：{{ failCountA }}</div>
       <div class="fail-count-b" v-if="failCountB && status < 5">失败：{{ failCountB }}</div>
+      <div class="link-marker" v-if="linkMarker">{{ linkMarker }}</div>
     </div>
   </div>
 </template>
@@ -53,6 +54,7 @@ const props = withDefaults(
     previewGetOnWhichBoard?: number[] | null;
     previewViewerIsPlayerA?: boolean | null;
     previewViewerIsPlayerB?: boolean | null;
+    linkMarker?: string;
   }>(),
   {
     level: 0,
@@ -75,6 +77,7 @@ const props = withDefaults(
     previewGetOnWhichBoard: null,
     previewViewerIsPlayerA: null,
     previewViewerIsPlayerB: null,
+    linkMarker: "",
   }
 );
 
@@ -245,6 +248,25 @@ const onClick = () => {
       left: 0;
       font-size: 12px;
       color: var(--B-color);
+    }
+
+    .link-marker {
+      position: absolute;
+      right: 50%;
+      bottom: 2px;
+      transform: translateX(50%);
+      z-index: 3;
+      display: flex;
+      max-width: calc(100% - 8px);
+      padding: 1px 4px;
+      border: 1px solid rgba(0, 0, 0, 0.22);
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.84);
+      color: #303133;
+      font-size: 11px;
+      line-height: 14px;
+      pointer-events: none;
+      white-space: nowrap;
     }
   }
 

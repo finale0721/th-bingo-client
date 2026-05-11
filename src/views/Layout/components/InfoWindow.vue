@@ -504,6 +504,9 @@
                         />
                         <span class="input-number-text">Y</span>
                       </el-form-item>
+                      <el-form-item label="特殊格：">
+                        <el-button size="small" :disabled="inGame" @click="openLinkBoardSettings">设置起终点/禁用格</el-button>
+                      </el-form-item>
                     </template>
                   </el-form>
                 </el-collapse-item>
@@ -716,7 +719,7 @@
                   @change="saveRoomSettings"
                 />
               </el-form-item>
-              <el-form-item label="盘面背景：" v-if="roomStore.roomConfig.dual_board > 0">
+              <el-form-item label="盘面背景：" v-if="roomStore.roomConfig.dual_board > 0 && roomSettings.type !== BingoType.LINK">
                 <el-color-picker
                   v-model="roomSettings.backgroundColor"
                   size="small"
@@ -806,6 +809,51 @@
       @confirm="handleCustomLevelConfirm"
     />
 
+    <el-dialog v-model="linkBoardDialogVisible" title="Link 赛特殊格设置" width="640px" class="link-board-dialog">
+      <div class="link-board-config">
+        <div
+          class="link-board-grid"
+          :style="{ gridTemplateColumns: `repeat(${currentBoardSize}, 1fr)` }"
+        >
+          <button
+            v-for="cell in linkBoardCells"
+            :key="cell.index"
+            type="button"
+            class="link-board-cell"
+            :class="cell.class"
+            :disabled="inGame"
+            @click="handleLinkBoardCellClick(cell.index)"
+          >
+            <span class="link-board-cell-index">{{ cell.index + 1 }}</span>
+            <span class="link-board-cell-labels">
+              <span v-for="label in cell.labels" :key="label" class="link-board-cell-label">{{ label }}</span>
+            </span>
+          </button>
+        </div>
+        <div class="link-board-controls">
+          <div class="link-board-panel-title">编辑模式</div>
+          <el-radio-group v-model="linkBoardEditMode" size="small" class="link-board-mode-grid">
+            <el-radio-button label="disabled">禁用格</el-radio-button>
+            <el-radio-button label="startA">A 起点</el-radio-button>
+            <el-radio-button label="endA">A 终点</el-radio-button>
+            <el-radio-button label="startB">B 起点</el-radio-button>
+            <el-radio-button label="endB">B 终点</el-radio-button>
+          </el-radio-group>
+          <div class="link-board-summary-panel">
+            <div><span>A</span>{{ linkBoardDraft.startA + 1 }} -> {{ linkBoardDraft.endA + 1 }}</div>
+            <div><span>B</span>{{ linkBoardDraft.startB + 1 }} -> {{ linkBoardDraft.endB + 1 }}</div>
+            <div><span>禁</span>{{ linkBoardDraft.disabled.length }} 格</div>
+          </div>
+          <div class="link-board-hint">同一方起点和终点不能相同；双方允许共用起点或终点。禁用格不能覆盖任何起点或终点。</div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="cancelLinkBoardSettings">取消</el-button>
+        <el-button @click="resetLinkBoardSettings">重置</el-button>
+        <el-button type="primary" :disabled="inGame" @click="saveLinkBoardSettings">保存</el-button>
+      </template>
+    </el-dialog>
+
     <documentation :visible="showDoc" @close="showDoc = false" />
   </div>
 </template>
@@ -827,6 +875,7 @@ import {
   ElCheckbox,
   ElRadioGroup,
   ElRadio,
+  ElRadioButton,
   ElInputNumber,
   ElColorPicker,
   ElScrollbar,
@@ -860,6 +909,15 @@ const scrollbar = ref<InstanceType<typeof ElScrollbar>>();
 const weightBalancerVisible = ref(false);
 const aiPreferenceVisible = ref(false);
 const customLevelBalancerVisible = ref(false);
+const linkBoardDialogVisible = ref(false);
+const linkBoardEditMode = ref<"disabled" | "startA" | "endA" | "startB" | "endB">("disabled");
+const linkBoardDraft = ref({
+  disabled: [] as number[],
+  startA: 0,
+  endA: 24,
+  startB: 4,
+  endB: 20,
+});
 
 const tabIndex = ref(0);
 const showTypeInput = ref(false);
@@ -925,6 +983,49 @@ const currentCustomLevelCount = computed({
   set: (value: number[]) => {
     roomSettings.value.customLevelCountByBoardSize[currentBoardSize.value] = value;
   },
+});
+const defaultLinkBoardSettings = () => {
+  const size = currentBoardSize.value;
+  const cached = roomStore.roomSettings.linkBoardSettingsByBoardSize?.[size];
+  if (cached) {
+    return {
+      disabled: [...cached.disabled],
+      startA: cached.startA,
+      endA: cached.endA,
+      startB: cached.startB,
+      endB: cached.endB,
+    };
+  }
+  return {
+    disabled: [] as number[],
+    startA: 0,
+    endA: size * size - 1,
+    startB: size - 1,
+    endB: size * (size - 1),
+  };
+};
+const linkEndpointSet = computed(
+  () => new Set([linkBoardDraft.value.startA, linkBoardDraft.value.endA, linkBoardDraft.value.startB, linkBoardDraft.value.endB])
+);
+const linkBoardCells = computed(() => {
+  const area = currentBoardSize.value * currentBoardSize.value;
+  const disabled = new Set(linkBoardDraft.value.disabled);
+  return Array.from({ length: area }, (_, index) => {
+    const labels: string[] = [];
+    if (index === linkBoardDraft.value.startA) labels.push("A起");
+    if (index === linkBoardDraft.value.endA) labels.push("A终");
+    if (index === linkBoardDraft.value.startB) labels.push("B起");
+    if (index === linkBoardDraft.value.endB) labels.push("B终");
+    if (disabled.has(index)) labels.push("禁");
+    return {
+      index,
+      labels,
+      class: {
+        disabled: disabled.has(index),
+        endpoint: linkEndpointSet.value.has(index),
+      },
+    };
+  });
 });
 const gameLogs = computed(() => gameStore.gameLogs);
 const inRoom = computed(() => roomStore.inRoom);
@@ -1192,6 +1293,84 @@ const handleCustomLevelConfirm = (counts: number[]) => {
   roomStore.updateRoomConfig('custom_level_count');
 };
 
+const copyLinkBoardSettingsToDraft = () => {
+  const defaults = defaultLinkBoardSettings();
+  const area = currentBoardSize.value * currentBoardSize.value;
+  const endpoint = (value: number | undefined, fallback: number) =>
+    Number.isInteger(value) && value! >= 0 && value! < area ? value! : fallback;
+  linkBoardDraft.value = {
+    disabled: Array.isArray(roomSettings.value.link_disabled_idx)
+      ? [...new Set(roomSettings.value.link_disabled_idx.filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < area))]
+      : [],
+    startA: endpoint(roomSettings.value.link_start_a, defaults.startA),
+    endA: endpoint(roomSettings.value.link_end_a, defaults.endA),
+    startB: endpoint(roomSettings.value.link_start_b, defaults.startB),
+    endB: endpoint(roomSettings.value.link_end_b, defaults.endB),
+  };
+  linkBoardDraft.value.disabled = linkBoardDraft.value.disabled.filter((idx) => !linkEndpointSet.value.has(idx)).sort((a, b) => a - b);
+};
+
+const openLinkBoardSettings = () => {
+  copyLinkBoardSettingsToDraft();
+  linkBoardDialogVisible.value = true;
+};
+
+const handleLinkBoardCellClick = (index: number) => {
+  if (inGame.value) return;
+  const draft = linkBoardDraft.value;
+  if (linkBoardEditMode.value === "disabled") {
+    if (linkEndpointSet.value.has(index)) {
+      ElMessage.warning("起点和终点不能禁用");
+      return;
+    }
+    const disabled = new Set(draft.disabled);
+    disabled.has(index) ? disabled.delete(index) : disabled.add(index);
+    draft.disabled = Array.from(disabled).sort((a, b) => a - b);
+    return;
+  }
+  const nextEndpoints = {
+    startA: draft.startA,
+    endA: draft.endA,
+    startB: draft.startB,
+    endB: draft.endB,
+    [linkBoardEditMode.value]: index,
+  };
+  if (nextEndpoints.startA === nextEndpoints.endA || nextEndpoints.startB === nextEndpoints.endB) {
+    ElMessage.warning("同一方起点和终点不能相同");
+    return;
+  }
+  draft[linkBoardEditMode.value] = index;
+  draft.disabled = draft.disabled.filter((idx) => idx !== index);
+};
+
+const resetLinkBoardSettings = () => {
+  linkBoardDraft.value = defaultLinkBoardSettings();
+};
+
+const cancelLinkBoardSettings = () => {
+  linkBoardDialogVisible.value = false;
+  copyLinkBoardSettingsToDraft();
+};
+
+const saveLinkBoardSettings = () => {
+  const draft = linkBoardDraft.value;
+  roomSettings.value.linkBoardSettingsByBoardSize[currentBoardSize.value] = {
+    disabled: [...draft.disabled],
+    startA: draft.startA,
+    endA: draft.endA,
+    startB: draft.startB,
+    endB: draft.endB,
+  };
+  roomSettings.value.link_disabled_idx = [...draft.disabled];
+  roomSettings.value.link_start_a = draft.startA;
+  roomSettings.value.link_end_a = draft.endA;
+  roomSettings.value.link_start_b = draft.startB;
+  roomSettings.value.link_end_b = draft.endB;
+  roomStore.updateRoomConfig().then(() => {
+    linkBoardDialogVisible.value = false;
+  });
+};
+
 const customDifficultyButtonType = computed(() => {
   const counts = currentCustomLevelCount.value;
   if (!counts || counts.length < 5) {
@@ -1308,6 +1487,140 @@ const activeCollapseNames = ref(['basic', 'gameplay', 'game', 'playerA', 'player
 
 .input-number-text {
   margin-left: 5px;
+}
+
+.link-board-config {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 4px 0;
+}
+
+.link-board-grid {
+  display: grid;
+  width: 336px;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.link-board-cell {
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #fff;
+  color: #303133;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.link-board-cell:hover:not(:disabled) {
+  border-color: #409eff;
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.link-board-cell.disabled {
+  border-color: #c8cdd6;
+  background: repeating-linear-gradient(135deg, #f2f3f5 0, #f2f3f5 6px, #e4e7ed 6px, #e4e7ed 12px);
+  color: #606266;
+  text-decoration: line-through;
+}
+
+.link-board-cell.endpoint {
+  border-color: #2f80ff;
+  background: linear-gradient(180deg, #ecf5ff, #dcecff);
+  color: #174f91;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.link-board-cell-index {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  color: #909399;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.link-board-cell-labels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  justify-content: center;
+  align-content: center;
+  gap: 3px;
+  min-height: 28px;
+  padding-top: 8px;
+}
+
+.link-board-cell-label {
+  min-width: 22px;
+  padding: 2px 3px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.72);
+  line-height: 1.1;
+  text-align: center;
+}
+
+.link-board-controls {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 230px;
+}
+
+.link-board-panel-title {
+  color: #303133;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.link-board-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+
+  :deep(.el-radio-button__inner) {
+    width: 100%;
+    border-left: 1px solid var(--el-border-color);
+    border-radius: 4px;
+  }
+}
+
+.link-board-summary-panel {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fff;
+  color: #303133;
+  font-size: 13px;
+
+  span {
+    display: inline-flex;
+    justify-content: center;
+    width: 24px;
+    margin-right: 8px;
+    border-radius: 3px;
+    background: #ecf5ff;
+    color: #1f5fa8;
+    font-weight: 600;
+  }
+}
+
+.link-board-hint {
+  color: #606266;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .log-list {

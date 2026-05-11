@@ -63,6 +63,14 @@ export const useRoomStore = defineStore("room", () => {
     return [...(boardSizeDefaults.customLevelCount[boardSize as keyof typeof boardSizeDefaults.customLevelCount] || boardSizeDefaults.customLevelCount[5])];
   };
   const boardSizeKeys = [4, 5, 6];
+  const defaultLinkBoardSettingsForBoard = (boardSize: number) => ({
+    disabled: [] as number[],
+    startA: 0,
+    endA: boardSize * boardSize - 1,
+    startB: boardSize - 1,
+    endB: boardSize * (boardSize - 1),
+  });
+  type LinkBoardSettings = ReturnType<typeof defaultLinkBoardSettingsForBoard>;
 
   //本地房间设置
   const roomSettings = reactive({
@@ -130,6 +138,16 @@ export const useRoomStore = defineStore("room", () => {
     link_level_coefficient: 2,
     link_fastest_coefficient: 1,
     link_connectivity: 8,
+    link_disabled_idx: [] as number[],
+    link_start_a: 0,
+    link_end_a: 24,
+    link_start_b: 4,
+    link_end_b: 20,
+    linkBoardSettingsByBoardSize: {
+      4: defaultLinkBoardSettingsForBoard(4),
+      5: defaultLinkBoardSettingsForBoard(5),
+      6: defaultLinkBoardSettingsForBoard(6),
+    } as Record<number, LinkBoardSettings>,
   });
 
   //加载本地设置
@@ -148,6 +166,8 @@ export const useRoomStore = defineStore("room", () => {
     if (roomSettings.link_fastest_coefficient === undefined) roomSettings.link_fastest_coefficient = 1;
     if (roomSettings.link_connectivity === undefined) roomSettings.link_connectivity = 8;
     normalizeBoardSizeCaches(savedSettings || {});
+    normalizeLinkBoardSettingsCache(savedSettings || {});
+    normalizeLinkSettings();
     //checkAIPracticeEnabled();
   };
   loadRoomSettings();
@@ -197,6 +217,76 @@ export const useRoomStore = defineStore("room", () => {
       savedSettings.extra_line_count
     );
     roomSettings.extra_line_count = roomSettings.extraLineCountByBoardSize[boardSize] ?? 0;
+  }
+
+  function normalizeLinkSettings() {
+    const area = roomSettings.board_size * roomSettings.board_size;
+    const defaultStartA = 0;
+    const defaultEndA = area - 1;
+    const defaultStartB = roomSettings.board_size - 1;
+    const defaultEndB = roomSettings.board_size * (roomSettings.board_size - 1);
+    const cached = roomSettings.linkBoardSettingsByBoardSize?.[roomSettings.board_size];
+    if (cached) {
+      roomSettings.link_disabled_idx = Array.isArray(cached.disabled) ? [...cached.disabled] : [];
+      roomSettings.link_start_a = cached.startA;
+      roomSettings.link_end_a = cached.endA;
+      roomSettings.link_start_b = cached.startB;
+      roomSettings.link_end_b = cached.endB;
+    }
+    const valid = (value: any, fallback: number) =>
+      Number.isInteger(value) && value >= 0 && value < area ? value : fallback;
+    roomSettings.link_start_a = valid(roomSettings.link_start_a, defaultStartA);
+    roomSettings.link_end_a = valid(roomSettings.link_end_a, defaultEndA);
+    roomSettings.link_start_b = valid(roomSettings.link_start_b, defaultStartB);
+    roomSettings.link_end_b = valid(roomSettings.link_end_b, defaultEndB);
+    if (roomSettings.link_start_a === roomSettings.link_end_a || roomSettings.link_start_b === roomSettings.link_end_b) {
+      roomSettings.link_start_a = defaultStartA;
+      roomSettings.link_end_a = defaultEndA;
+      roomSettings.link_start_b = defaultStartB;
+      roomSettings.link_end_b = defaultEndB;
+    }
+    const blocked = new Set([
+      roomSettings.link_start_a,
+      roomSettings.link_end_a,
+      roomSettings.link_start_b,
+      roomSettings.link_end_b,
+    ]);
+    roomSettings.link_disabled_idx = Array.isArray(roomSettings.link_disabled_idx)
+      ? Array.from(new Set(roomSettings.link_disabled_idx.filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < area && !blocked.has(idx)))).sort((a, b) => a - b)
+      : [];
+    roomSettings.linkBoardSettingsByBoardSize[roomSettings.board_size] = {
+      disabled: [...roomSettings.link_disabled_idx],
+      startA: roomSettings.link_start_a,
+      endA: roomSettings.link_end_a,
+      startB: roomSettings.link_start_b,
+      endB: roomSettings.link_end_b,
+    };
+  }
+
+  function normalizeLinkBoardSettingsCache(savedSettings: any) {
+    const cache = savedSettings.linkBoardSettingsByBoardSize || roomSettings.linkBoardSettingsByBoardSize || {};
+    const normalized: Record<number, LinkBoardSettings> = {};
+    for (const key of boardSizeKeys) {
+      const defaults = defaultLinkBoardSettingsForBoard(key);
+      const current = cache[key] || cache[String(key)];
+      normalized[key] = {
+        disabled: Array.isArray(current?.disabled) ? [...current.disabled] : [],
+        startA: Number.isInteger(current?.startA) ? current.startA : defaults.startA,
+        endA: Number.isInteger(current?.endA) ? current.endA : defaults.endA,
+        startB: Number.isInteger(current?.startB) ? current.startB : defaults.startB,
+        endB: Number.isInteger(current?.endB) ? current.endB : defaults.endB,
+      };
+    }
+    if (!savedSettings.linkBoardSettingsByBoardSize) {
+      normalized[roomSettings.board_size] = {
+        disabled: Array.isArray(roomSettings.link_disabled_idx) ? [...roomSettings.link_disabled_idx] : [],
+        startA: roomSettings.link_start_a,
+        endA: roomSettings.link_end_a,
+        startB: roomSettings.link_start_b,
+        endB: roomSettings.link_end_b,
+      };
+    }
+    roomSettings.linkBoardSettingsByBoardSize = normalized;
   }
 
   function normalizeBoardSizeCache(cache: any, defaults: Record<number, number>, currentBoardSize: number, legacyValue?: number) {
@@ -254,6 +344,9 @@ export const useRoomStore = defineStore("room", () => {
   };
 
   const saveRoomSettings = () => {
+    if (roomSettings.type === BingoType.LINK) {
+      roomSettings.dual_board = 0;
+    }
     if (roomSettings.type === BingoType.STANDARD && roomSettings.board_size === 6) {
       updateExtraLineCountCache();
     } else {
@@ -305,6 +398,11 @@ export const useRoomStore = defineStore("room", () => {
     link_level_coefficient: 2,
     link_fastest_coefficient: 1,
     link_connectivity: 8,
+    link_disabled_idx: [] as number[],
+    link_start_a: 0,
+    link_end_a: 24,
+    link_start_b: 4,
+    link_end_b: 20,
   });
 
   const getRoomConfig = () => {
@@ -334,8 +432,13 @@ export const useRoomStore = defineStore("room", () => {
       | "use_ai" | "ai_strategy_level" | "ai_style" | "ai_base_power" | "ai_experience" | "ai_temperature"
       | "game_weight" | "ai_preference" | "custom_level_count"
       | "board_size" | "extra_line_count" | "hidden_select_threshold_a" | "hidden_select_threshold_b"
-      | "link_level_coefficient" | "link_fastest_coefficient" | "link_connectivity",
+      | "link_level_coefficient" | "link_fastest_coefficient" | "link_connectivity"
+      | "link_disabled_idx" | "link_start_a" | "link_end_a" | "link_start_b" | "link_end_b",
   ) => {
+    if (roomSettings.type === BingoType.LINK) {
+      roomSettings.dual_board = 0;
+    }
+    normalizeLinkSettings();
     saveRoomSettings();
     const allParams = {
       rid: roomId.value,
@@ -371,6 +474,11 @@ export const useRoomStore = defineStore("room", () => {
       link_level_coefficient: roomSettings.link_level_coefficient,
       link_fastest_coefficient: roomSettings.link_fastest_coefficient,
       link_connectivity: roomSettings.link_connectivity,
+      link_disabled_idx: roomSettings.link_disabled_idx,
+      link_start_a: roomSettings.link_start_a,
+      link_end_a: roomSettings.link_end_a,
+      link_start_b: roomSettings.link_start_b,
+      link_end_b: roomSettings.link_end_b,
     };
     const params: any = {};
     if (key) {
@@ -381,6 +489,7 @@ export const useRoomStore = defineStore("room", () => {
         params.game_time = allParams.game_time
         params.countdown = allParams.countdown
         params.extra_line_count = allParams.extra_line_count
+        params.dual_board = allParams.dual_board
       }else{
         params[key] = allParams[key];
       }
@@ -413,11 +522,16 @@ export const useRoomStore = defineStore("room", () => {
     last_winner: -1, // 上一场是谁赢，0或1，-1表示没有上一场
   });
   const setRoomData = (data) => {
+    if (data.room_config) {
+      applyRoomConfig(data.room_config, true);
+    }
     for (const i in data) {
       if (i === "ban_pick") {
         for (const j in data["ban_pick"]) {
           banPick[j] = data["ban_pick"][j];
         }
+      } else if (i === "room_config") {
+        continue;
       } else {
         roomData[i] = data[i];
       }
@@ -461,6 +575,11 @@ export const useRoomStore = defineStore("room", () => {
           link_level_coefficient: roomSettings.link_level_coefficient,
           link_fastest_coefficient: roomSettings.link_fastest_coefficient,
           link_connectivity: roomSettings.link_connectivity,
+          link_disabled_idx: roomSettings.link_disabled_idx,
+          link_start_a: roomSettings.link_start_a,
+          link_end_a: roomSettings.link_end_a,
+          link_start_b: roomSettings.link_start_b,
+          link_end_b: roomSettings.link_end_b,
         },
         solo: soloMode,
         add_robot: addRobot,
@@ -504,9 +623,7 @@ export const useRoomStore = defineStore("room", () => {
       .send(WebSocketActionType.JOIN_ROOM, { rid })
       .then((data) => {
         roomId.value = rid;
-        for (const i in data) {
-          roomData[i] = data[i];
-        }
+        setRoomData(data);
       })
       .catch(() => {});
   };

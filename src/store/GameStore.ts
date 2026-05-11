@@ -76,11 +76,24 @@ export const useGameStore = defineStore("game", () => {
     last_get_time_b: 0,
     skip_used_a: 0,
     skip_used_b: 0,
+    skipped_idx_a: [],
+    skipped_idx_b: [],
     score_a: 0,
     score_b: 0,
     disabled_idx: [],
   });
   const linkGameData = reactive<LinkData>(createBlankLinkData());
+  let linkLogSnapshot: LinkData | null = null;
+  const cloneLinkData = (data: LinkData): LinkData => ({
+    ...data,
+    link_idx_a: [...(data.link_idx_a || [])],
+    link_idx_b: [...(data.link_idx_b || [])],
+    status_a: [...(data.status_a || [])],
+    status_b: [...(data.status_b || [])],
+    skipped_idx_a: [...(data.skipped_idx_a || [])],
+    skipped_idx_b: [...(data.skipped_idx_b || [])],
+    disabled_idx: [...(data.disabled_idx || [])],
+  });
   const applyLinkData = (data?: Partial<LinkData> | null) => {
     if (!data) return;
     Object.assign(linkGameData, data);
@@ -107,6 +120,7 @@ export const useGameStore = defineStore("game", () => {
           }
         }
         applyLinkData(data.link_data as Partial<LinkData> | null);
+        linkLogSnapshot = cloneLinkData(linkGameData);
       })
       .catch(() => {});
   };
@@ -138,6 +152,7 @@ export const useGameStore = defineStore("game", () => {
     normalGameData.get_on_which_board = [];
     normalGameData.extra_lines = [];
     Object.assign(linkGameData, createBlankLinkData());
+    linkLogSnapshot = null;
     currentBoard.value = 0;
   };
 
@@ -518,8 +533,88 @@ export const useGameStore = defineStore("game", () => {
   const linkSetSkipUsed = (playerIndex: number, value: number) => ws.send(WebSocketActionType.LINK_SET_SKIP_USED, { player_index: playerIndex, value });
   const linkSetPhase = (phase: number) => ws.send(WebSocketActionType.LINK_SET_PHASE, { phase });
 
+  const linkPlayerName = (playerIndex: 0 | 1) => {
+    const name = roomStore.roomData.names[playerIndex] || (playerIndex === 0 ? "A" : "B");
+    const color = playerIndex === 0 ? "var(--A-color)" : "var(--B-color)";
+    return `<span style="padding:0 2px;color:${color}">${name}</span>`;
+  };
+  const linkSpellName = (index: number) => {
+    const name = spells.value[index]?.name || `#${index + 1}`;
+    return `<span style="padding:0 2px;font-weight:600;">${name}</span>`;
+  };
+  const linkCellText = (index: number) => {
+    const board = new BoardSpec(roomStore.roomConfig.board_size || 5);
+    return `${board.row(index) + 1}行${board.col(index) + 1}列`;
+  };
+  const pushLinkPlayerLogs = (
+    oldData: LinkData,
+    newData: LinkData,
+    playerIndex: 0 | 1,
+    routeKey: "link_idx_a" | "link_idx_b",
+    confirmedKey: "route_confirmed_a" | "route_confirmed_b",
+    stepKey: "current_step_a" | "current_step_b",
+    skipKey: "skip_used_a" | "skip_used_b",
+    eventKey: "event_a" | "event_b"
+  ) => {
+    const player = linkPlayerName(playerIndex);
+    const oldRoute = oldData[routeKey] || [];
+    const newRoute = newData[routeKey] || [];
+    const oldStep = oldData[stepKey] || 0;
+    const newStep = newData[stepKey] || 0;
+    const oldSkip = oldData[skipKey] || 0;
+    const newSkip = newData[skipKey] || 0;
+
+    if (newRoute.length > oldRoute.length) {
+      const index = newRoute[newRoute.length - 1];
+      gameLogs.push(`${player}将${linkCellText(index)}的符卡${linkSpellName(index)}加入路线`);
+    } else if (newRoute.length < oldRoute.length) {
+      const index = oldRoute[oldRoute.length - 1];
+      gameLogs.push(`${player}撤回${linkCellText(index)}的符卡${linkSpellName(index)}`);
+    }
+
+    if (!oldData[confirmedKey] && newData[confirmedKey]) {
+      gameLogs.push(`${player}确认路线`);
+    } else if (oldData[confirmedKey] && !newData[confirmedKey]) {
+      gameLogs.push(`${player}取消确认路线`);
+    }
+
+    if (oldData[eventKey] === 0 && newData[eventKey] === 1) {
+      gameLogs.push(`${player}开始收取路线`);
+    }
+
+    if (newStep > oldStep) {
+      for (let step = oldStep; step < newStep; step++) {
+        const index = newRoute[step];
+        if (index == null) continue;
+        const skipped = newSkip > oldSkip && step === newStep - 1;
+        gameLogs.push(`${player}${skipped ? "跳过" : "收取"}了${linkCellText(index)}的符卡${linkSpellName(index)}`);
+      }
+    } else if (newStep < oldStep) {
+      const index = oldRoute[Math.max(newStep, 0)];
+      if (index != null) {
+        gameLogs.push(`${player}撤销收取${linkCellText(index)}的符卡${linkSpellName(index)}`);
+      }
+    } else if (newSkip !== oldSkip) {
+      gameLogs.push(`${player}跳过次数调整为${newSkip}`);
+    }
+
+    if (oldData[eventKey] !== 3 && newData[eventKey] === 3) {
+      gameLogs.push(`${player}完成路线`);
+    }
+  };
+  const pushLinkLogs = (oldData: LinkData, newData: LinkData) => {
+    pushLinkPlayerLogs(oldData, newData, 0, "link_idx_a", "route_confirmed_a", "current_step_a", "skip_used_a", "event_a");
+    pushLinkPlayerLogs(oldData, newData, 1, "link_idx_b", "route_confirmed_b", "current_step_b", "skip_used_b", "event_b");
+  };
+
   ws.on<LinkData>(WebSocketPushActionType.PUSH_LINK_DATA, (data) => {
+    const oldData = linkLogSnapshot ? cloneLinkData(linkLogSnapshot) : cloneLinkData(linkGameData);
     applyLinkData(data);
+    const newData = cloneLinkData(linkGameData);
+    if (linkLogSnapshot && roomStore.roomData.type === BingoType.LINK) {
+      pushLinkLogs(oldData, newData);
+    }
+    linkLogSnapshot = newData;
   });
 
   watch(

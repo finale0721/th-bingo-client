@@ -106,6 +106,8 @@ export interface LinkData {
   last_get_time_b: number;
   skip_used_a: number;
   skip_used_b: number;
+  skipped_idx_a: number[];
+  skipped_idx_b: number[];
   score_a: number;
   score_b: number;
   disabled_idx: number[];
@@ -153,6 +155,11 @@ export interface RoomConfig {
   link_level_coefficient?: number;
   link_fastest_coefficient?: number;
   link_connectivity?: number;
+  link_disabled_idx?: number[];
+  link_start_a?: number;
+  link_end_a?: number;
+  link_start_b?: number;
+  link_end_b?: number;
 }
 
 export interface EditorPreset {
