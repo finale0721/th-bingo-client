@@ -26,7 +26,7 @@
           :disabled="!inGame"
         ></score-board>
         <score-board class="spell-card-score-card" :size="30" label="得分" v-model="playerAScore"></score-board>
-        <score-board class="spell-card-score-card" :size="30" label="等级" v-model="playerALevel"></score-board>
+        <score-board class="spell-card-score-card" :size="30" :label="isBingoLink ? '已收等级' : '等级'" v-model="playerALevel"></score-board>
         <el-button
           class="alert-button"
           type="primary"
@@ -65,7 +65,7 @@
           :disabled="!inGame"
         ></score-board>
         <score-board class="spell-card-score-card" :size="30" label="得分" v-model="playerBScore"></score-board>
-        <score-board class="spell-card-score-card" :size="30" label="等级" v-model="playerBLevel"></score-board>
+        <score-board class="spell-card-score-card" :size="30" :label="isBingoLink ? '已收等级' : '等级'" v-model="playerBLevel"></score-board>
         <el-button
           class="alert-button"
           type="primary"
@@ -87,9 +87,9 @@
       </template>
 
       <template #extra>
-        <!-- <div class="bingo-effect" v-if="isBingoLink">
-          <bingo-link-effect :route-a="routeA" :route-b="routeB" />
-        </div> -->
+        <div class="bingo-effect" v-if="isBingoLink">
+          <bingo-link-effect :route-a="routeA" :route-b="routeB" :board-size="boardSpec.size" />
+        </div>
         <div v-if="isBingoStandard && currentBoardLevelTotal > 0" class="board-level-summary">
           <span>总等级 {{ currentBoardLevelTotal }}</span>
           <span>剩余 {{ currentBoardRemainingLevel }}</span>
@@ -178,6 +178,10 @@
           <template v-if="soloMode && isPlayerA">
             <el-button type="primary" v-if="!inGame && !isBpPhase" @click="startGame">开始比赛</el-button>
             <el-button type="primary" v-if="banPick.phase === 9999" @click="drawSpellCard">抽取符卡</el-button>
+            <el-button type="primary" v-if="inGame && isBingoLink && winFlag === 0" @click="stopGame">结束比赛</el-button>
+            <el-button type="primary" v-if="isBingoLink && winFlag !== 0" @click="confirmWinner">
+              确认：{{ winFlag < 0 ? roomData.names[0] : roomData.names[1] }}获胜
+            </el-button>
           </template>
 
           <template v-if="isPlayer">
@@ -218,15 +222,29 @@
                   >{{ bingoBpPhase ? (isMyTurn ? "禁用符卡" : "等待对手禁用符卡") : "等待房主操作" }}</el-button
                 >
               </template>
-              <!-- <template v-if="isBingoLink">
+              <template v-if="isBingoLink">
                 <el-button
                   type="primary"
-                  @click="confirmSelect"
-                  :disabled="gamePaused || !routeComplete"
-                  v-if="(gamePhase === 1 || !confirmed) && !(gamePhase > 1 && routeComplete)"
-                  >{{ confirmed ? "取消确认" : "确认路线" }}</el-button
+                  @click="confirmLinkRoute"
+                  :disabled="!linkRouteComplete"
+                  v-if="linkPhase === 1"
+                  >{{ myLinkRouteConfirmed ? "取消确认" : "确认路线" }}</el-button
                 >
-              </template> -->
+                <confirm-select-button
+                  v-if="linkPhase === 2 && !myLinkFinished"
+                  @click="linkNextCard"
+                  :cooldown="linkCooldown"
+                  :immediate="true"
+                  text="收取下一张"
+                ></confirm-select-button>
+                <el-button
+                  v-if="linkPhase === 2 && !myLinkFinished"
+                  size="small"
+                  @click="linkSkipCard"
+                  :disabled="!canLinkSkip"
+                  >跳过</el-button
+                >
+              </template>
             </template>
 
             <template v-if="isBpPhase">
@@ -299,11 +317,22 @@
                 >进入下轮</el-button
               >
             </template>
+            <template v-if="isBingoLink">
+              <el-button
+                size="small"
+                @click="startLinkRun"
+                :disabled="!inGame || linkPhase !== 1 || !bothLinkRoutesConfirmed"
+                >开始收卡</el-button
+              >
+            </template>
           </template>
         </div>
       </template>
 
       <template #button-right-2>
+        <template v-if="isBingoLink && linkPhase === 1 && isPlayer">
+          <el-button type="primary" @click="linkUndo" :disabled="myLinkRouteConfirmed">撤回路线</el-button>
+        </template>
         <template v-if="isDualBoard && roomStore.roomConfig.type == BingoType.STANDARD">
           <el-button type="primary" @click="switchDualBoardSide">
             {{ boardNotDecided() ? "切换盘面" : isOnCurrentBoard() ? "查看另一面" : "返回当前面" }}
@@ -346,6 +375,7 @@ import SpellEditorModal from "@/components/SpellEditorModal.vue";
 import SpellDatabasePanel from "@/components/SpellDatabasePanel.vue";
 import PresetManager from "@/components/PresetManager.vue";
 import { BoardSpec } from "@/utils/board";
+import BingoLinkEffect from "@/components/bingo-effect/link.vue";
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
@@ -1046,8 +1076,91 @@ const decideBp = (status) => {
 };
 
 //link赛
-// const routeA = ref([]);
-// const routeB = ref([]);
+const linkData = computed(() => gameStore.linkGameData);
+const linkPhase = computed(() => {
+  if (!inGame.value) return 0;
+  if (linkData.value.event_a === 1 || linkData.value.event_b === 1) return 2;
+  if (linkData.value.route_confirmed_a || linkData.value.route_confirmed_b || routeA.value.length > 1 || routeB.value.length > 1) {
+    return 1;
+  }
+  return 1;
+});
+const routeA = computed(() => linkData.value.link_idx_a?.length ? linkData.value.link_idx_a : [0]);
+const routeB = computed(() =>
+  linkData.value.link_idx_b?.length ? linkData.value.link_idx_b : [boardSpec.value.size - 1]
+);
+const linkEndA = computed(() => boardSpec.value.area - 1);
+const linkEndB = computed(() => boardSpec.value.index(boardSpec.value.size - 1, 0));
+const myLinkRoute = computed(() => (isPlayerA.value ? routeA.value : routeB.value));
+const myLinkRouteConfirmed = computed(() =>
+  isPlayerA.value ? linkData.value.route_confirmed_a : linkData.value.route_confirmed_b
+);
+const linkRouteComplete = computed(() => {
+  const route = myLinkRoute.value;
+  const end = isPlayerA.value ? linkEndA.value : linkEndB.value;
+  return route.length > 0 && route[route.length - 1] === end;
+});
+const bothLinkRoutesConfirmed = computed(() => linkData.value.route_confirmed_a && linkData.value.route_confirmed_b);
+const myLinkFinished = computed(() => (isPlayerA.value ? linkData.value.event_a === 3 : linkData.value.event_b === 3));
+const myLinkCurrentStep = computed(() => (isPlayerA.value ? linkData.value.current_step_a : linkData.value.current_step_b));
+const myLinkLastGetTime = computed(() => (isPlayerA.value ? linkData.value.last_get_time_a : linkData.value.last_get_time_b));
+const myLinkSkipUsed = computed(() => (isPlayerA.value ? linkData.value.skip_used_a : linkData.value.skip_used_b));
+const linkCooldown = computed(() => {
+  if (linkPhase.value !== 2) return -1;
+  const cd = isPlayerA.value ? roomStore.actualCdTimeA : roomStore.actualCdTimeB;
+  return Math.max(0, myLinkLastGetTime.value + cd - Date.now());
+});
+const canLinkSkip = computed(() => {
+  const route = myLinkRoute.value;
+  const step = myLinkCurrentStep.value;
+  if (step >= route.length) return false;
+  const skipLimit = route.length > 10 ? 2 : 1;
+  if (myLinkSkipUsed.value >= skipLimit) return false;
+  const spell = gameStore.spells[route[step]];
+  if (!spell) return false;
+  return Date.now() - myLinkLastGetTime.value >= (spell.star + 1) * 60000;
+});
+
+const decideLink = () => {
+  playerAScore.value = Math.round((linkData.value.score_a || 0) * 10) / 10;
+  playerBScore.value = Math.round((linkData.value.score_b || 0) * 10) / 10;
+  playerALevel.value = routeA.value.slice(0, linkData.value.current_step_a || 0).reduce((sum, idx) => {
+    return sum + (gameStore.spells[idx]?.star || 0);
+  }, 0);
+  playerBLevel.value = routeB.value.slice(0, linkData.value.current_step_b || 0).reduce((sum, idx) => {
+    return sum + (gameStore.spells[idx]?.star || 0);
+  }, 0);
+  if (linkData.value.event_a === 3 && linkData.value.event_b === 3) {
+    winFlag.value = (linkData.value.score_a || 0) >= (linkData.value.score_b || 0) ? -30 : 30;
+    if (!isOwner.value) layoutRef.value?.showAlert("双方已完成，等待确认胜负", "red");
+  } else if (inGame.value && isBingoLink.value) {
+    winFlag.value = 0;
+  }
+};
+
+const confirmLinkRoute = () => {
+  gameStore.linkConfirmRoute(!myLinkRouteConfirmed.value);
+};
+const linkUndo = () => {
+  gameStore.linkUndo();
+};
+const startLinkRun = () => {
+  gameStore.linkSetPhase(2);
+};
+const linkNextCard = () => {
+  gameStore.linkNextCard();
+};
+const linkSkipCard = () => {
+  gameStore.linkSkipCard();
+};
+
+watch(
+  () => gameStore.linkGameData,
+  () => {
+    if (isBingoLink.value) decideLink();
+  },
+  { deep: true, immediate: true }
+);
 
 watch(
   () => gameStore.gameStatus,
@@ -1119,6 +1232,7 @@ const startGame = () => {
     gameStore.startGame().then(() => {
       roomStore.updateChangeCardCount(roomData.value.names[0], roomSettings.value.playerA.changeCardCount);
       roomStore.updateChangeCardCount(roomData.value.names[1], roomSettings.value.playerB.changeCardCount);
+      if (isBingoLink.value) gameStore.linkSetPhase(1);
       layoutRef.value?.hideAlert();
     });
   }

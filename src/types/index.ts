@@ -87,6 +87,30 @@ export interface GameData {
   room_config?: RoomConfig;
 }
 
+export interface LinkData {
+  link_idx_a: number[];
+  link_idx_b: number[];
+  start_ms_a: number;
+  end_ms_a: number;
+  event_a: number;
+  start_ms_b: number;
+  end_ms_b: number;
+  event_b: number;
+  route_confirmed_a: boolean;
+  route_confirmed_b: boolean;
+  current_step_a: number;
+  current_step_b: number;
+  status_a: number[];
+  status_b: number[];
+  last_get_time_a: number;
+  last_get_time_b: number;
+  skip_used_a: number;
+  skip_used_b: number;
+  score_a: number;
+  score_b: number;
+  disabled_idx: number[];
+}
+
 export interface OneSpell{
   board_idx: number;
   spell_idx: number;

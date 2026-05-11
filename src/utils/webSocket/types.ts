@@ -70,6 +70,13 @@ export enum WebSocketActionType {
   //获取卡池
   GET_XLSX_DATA = "get_xlsx_data",
   START_CUSTOM_GAME = "start_custom_game",
+  LINK_ROUTE = "link_route",
+  LINK_UNDO = "link_undo",
+  LINK_CONFIRM_ROUTE = "link_confirm_route",
+  LINK_NEXT_CARD = "link_next_card",
+  LINK_SKIP_CARD = "link_skip_card",
+  LINK_SET_PHASE = "link_set_phase",
+  LINK_SET_DISABLED = "link_set_disabled",
 }
 
 export enum WebSocketPushActionType {
@@ -90,6 +97,7 @@ export enum WebSocketPushActionType {
   PUSH_PRINT_LOG = "push_print_log",
   PUSH_GET_ROOM_LIST = "push_get_room_list",
   PUSH_NORMAL_DUAL_BOARD_CHANGE = "push_normal_dual_board_change",
+  PUSH_LINK_DATA = "push_link_data",
 
   //bp赛
   PUSH_BP_GAME_NEXT_ROUND = "push_bp_game_next_round",

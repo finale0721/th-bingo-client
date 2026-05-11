@@ -7,8 +7,9 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, watch } from "vue";
+import { defineComponent, ref, computed, watch, nextTick } from "vue";
 import Konva from "konva";
+import { useRoomStore } from "@/store/RoomStore";
 
 export default defineComponent({
   name: "BingoEffect",
@@ -23,6 +24,7 @@ export default defineComponent({
     };
   },
   setup() {
+    const roomStore = useRoomStore();
     const wrap = ref();
     const stage = ref();
     const layer = ref();
@@ -51,7 +53,7 @@ export default defineComponent({
       layer,
       lineA,
       lineB,
-      // roomSettings: computed(() => store.getters.roomSettings),
+      roomSettings: computed(() => roomStore.roomSettings),
     };
   },
   props: {
@@ -63,81 +65,87 @@ export default defineComponent({
       type: Array,
       required: true,
     },
+    boardSize: {
+      type: Number,
+      default: 5,
+    },
   },
-  // watch: {
-  //   routeA(value) {
-  //     this.listA = value;
-  //     this.drawLine("A");
-  //   },
-  //   routeB(value) {
-  //     this.listB = value;
-  //     this.drawLine("B");
-  //   },
-  // },
+  watch: {
+    routeA(value) {
+      this.listA = value as number[];
+      this.drawLine("A");
+    },
+    routeB(value) {
+      this.listB = value as number[];
+      this.drawLine("B");
+    },
+  },
   computed: {
     stageConfig(): any {
       return { width: this.width, height: this.height };
     },
   },
-  // mounted() {
-  //   this.stageNode = this.stage.getNode();
-  //   this.layerNode = this.layer.getNode();
-  //   this.width = this.wrap.offsetWidth;
-  //   this.height = this.wrap.offsetHeight;
-  //   const AStart = this.getCenterPosition(0);
-  //   const BStart = this.getCenterPosition(4);
-  //   this.lineA = new Konva.Line({
-  //     points: [AStart.x, AStart.y, AStart.x, AStart.y],
-  //     stroke: this.roomSettings.playerA.color,
-  //     strokeWidth: 8,
-  //     lineCap: "round",
-  //     lineJoin: "round",
-  //     opacity: 0.6,
-  //     closed: false,
-  //   });
-  //   this.lineB = new Konva.Line({
-  //     points: [BStart.x, BStart.y, BStart.x, BStart.y],
-  //     stroke: this.roomSettings.playerB.color,
-  //     strokeWidth: 8,
-  //     lineCap: "round",
-  //     lineJoin: "round",
-  //     opacity: 0.6,
-  //     closed: false,
-  //   });
-  //   this.layerNode.add(this.lineA);
-  //   this.layerNode.add(this.lineB);
-  // },
-  // methods: {
-  //   drawLine(tag: string) {
-  //     const listName = "list" + tag;
-  //     const lineArr: number[] = [];
-  //     if (this[listName].length === 1) {
-  //       const position = this.getCenterPosition(this[listName][0]);
-  //       lineArr.push(position.x);
-  //       lineArr.push(position.y);
-  //       lineArr.push(position.x);
-  //       lineArr.push(position.y);
-  //     } else {
-  //       for (let item of this[listName]) {
-  //         const position = this.getCenterPosition(item);
-  //         lineArr.push(position.x);
-  //         lineArr.push(position.y);
-  //       }
-  //     }
-  //     this["line" + tag].points(lineArr);
-  //     // this["line" + tag].draw();
-  //   },
-  //   getCenterPosition(index: number) {
-  //     const cellWidth = this.width / 5;
-  //     const cellHeight = this.height / 5;
-  //     const r = index % 5;
-  //     const c = Math.floor(index / 5);
-  //     return {
-  //       x: (r + 0.5) * cellWidth,
-  //       y: (c + 0.5) * cellHeight,
-  //     };
-  //   },
-  // },
+  mounted() {
+    this.stageNode = this.stage.getNode();
+    this.layerNode = this.layer.getNode();
+    nextTick(() => {
+      this.width = this.wrap.offsetWidth;
+      this.height = this.wrap.offsetHeight;
+      const AStart = this.getCenterPosition(this.listA[0] || 0);
+      const BStart = this.getCenterPosition(this.listB[0] || this.boardSize - 1);
+      this.lineA = new Konva.Line({
+        points: [AStart.x, AStart.y, AStart.x, AStart.y],
+        stroke: this.roomSettings.playerA.color,
+        strokeWidth: 8,
+        lineCap: "round",
+        lineJoin: "round",
+        opacity: 0.6,
+        closed: false,
+      });
+      this.lineB = new Konva.Line({
+        points: [BStart.x, BStart.y, BStart.x, BStart.y],
+        stroke: this.roomSettings.playerB.color,
+        strokeWidth: 8,
+        lineCap: "round",
+        lineJoin: "round",
+        opacity: 0.6,
+        closed: false,
+      });
+      this.layerNode.add(this.lineA);
+      this.layerNode.add(this.lineB);
+      this.drawLine("A");
+      this.drawLine("B");
+    });
+  },
+  methods: {
+    drawLine(tag: string) {
+      const list = tag === "A" ? this.listA : this.listB;
+      const line = tag === "A" ? this.lineA : this.lineB;
+      if (!line) return;
+      const lineArr: number[] = [];
+      if (list.length <= 1) {
+        const position = this.getCenterPosition(list[0] || 0);
+        lineArr.push(position.x, position.y, position.x, position.y);
+      } else {
+        for (const item of list) {
+          const position = this.getCenterPosition(item);
+          lineArr.push(position.x, position.y);
+        }
+      }
+      line.points(lineArr);
+      line.draw();
+    },
+    getCenterPosition(index: number) {
+      const cellWidth = this.width / this.boardSize;
+      const cellHeight = this.height / this.boardSize;
+      const r = index % this.boardSize;
+      const c = Math.floor(index / this.boardSize);
+      return {
+        x: (r + 0.5) * cellWidth,
+        y: (c + 0.5) * cellHeight,
+      };
+    },
+  },
 });
 </script>
 

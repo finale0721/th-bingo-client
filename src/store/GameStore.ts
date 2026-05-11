@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useRoomStore } from "./RoomStore";
-import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStatus, EditorPreset } from "@/types";
+import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStatus, EditorPreset, LinkData } from "@/types";
 import { BoardSpec } from "@/utils/board";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
@@ -57,7 +57,34 @@ export const useGameStore = defineStore("game", () => {
     bothSelectedIndex.value === -1 ? spellStatus.value.indexOf(SpellStatus.B_SELECTED) : bothSelectedIndex.value
   );
 
-  const linkGameData = reactive({});
+  const createBlankLinkData = (): LinkData => ({
+    link_idx_a: [],
+    link_idx_b: [],
+    start_ms_a: 0,
+    end_ms_a: 0,
+    event_a: 0,
+    start_ms_b: 0,
+    end_ms_b: 0,
+    event_b: 0,
+    route_confirmed_a: false,
+    route_confirmed_b: false,
+    current_step_a: 0,
+    current_step_b: 0,
+    status_a: [],
+    status_b: [],
+    last_get_time_a: 0,
+    last_get_time_b: 0,
+    skip_used_a: 0,
+    skip_used_b: 0,
+    score_a: 0,
+    score_b: 0,
+    disabled_idx: [],
+  });
+  const linkGameData = reactive<LinkData>(createBlankLinkData());
+  const applyLinkData = (data?: Partial<LinkData> | null) => {
+    if (!data) return;
+    Object.assign(linkGameData, data);
+  };
 
   const getGameData = () => {
     return ws
@@ -79,6 +106,7 @@ export const useGameStore = defineStore("game", () => {
             normalGameData[i] = data.normal_data[i];
           }
         }
+        applyLinkData(data.link_data as Partial<LinkData> | null);
       })
       .catch(() => {});
   };
@@ -109,6 +137,7 @@ export const useGameStore = defineStore("game", () => {
     normalGameData.is_portal_b = [];
     normalGameData.get_on_which_board = [];
     normalGameData.extra_lines = [];
+    Object.assign(linkGameData, createBlankLinkData());
     currentBoard.value = 0;
   };
 
@@ -478,6 +507,17 @@ export const useGameStore = defineStore("game", () => {
     bpGameData.ban_pick = data!.ban_pick;
   });
 
+  const linkRoute = (index: number) => ws.send(WebSocketActionType.LINK_ROUTE, { index });
+  const linkUndo = () => ws.send(WebSocketActionType.LINK_UNDO);
+  const linkConfirmRoute = (confirmed: boolean) => ws.send(WebSocketActionType.LINK_CONFIRM_ROUTE, { confirmed });
+  const linkNextCard = () => ws.send(WebSocketActionType.LINK_NEXT_CARD);
+  const linkSkipCard = () => ws.send(WebSocketActionType.LINK_SKIP_CARD);
+  const linkSetPhase = (phase: number) => ws.send(WebSocketActionType.LINK_SET_PHASE, { phase });
+
+  ws.on<LinkData>(WebSocketPushActionType.PUSH_LINK_DATA, (data) => {
+    applyLinkData(data);
+  });
+
   watch(
     () => normalGameData.which_board_a,
     (newVal, oldVal) => {
@@ -541,6 +581,7 @@ export const useGameStore = defineStore("game", () => {
     inited,
     spellCardGrabbedFlag,
     bpGameData,
+    linkGameData,
     normalGameData,
     alreadySelectCard,
     spells2,
@@ -556,6 +597,12 @@ export const useGameStore = defineStore("game", () => {
     updateSpellStatus,
     bpGameBanPick,
     bpGameNextRound,
+    linkRoute,
+    linkUndo,
+    linkConfirmRoute,
+    linkNextCard,
+    linkSkipCard,
+    linkSetPhase,
     refreshSpell,
     resetGameData,
     setReplayMode,

@@ -57,7 +57,7 @@
                         :failCountB="dataSource.bpGameData?.spell_failed_count_b[index] || 0"
                         @click="isEditorMode ? emits('editor-cell-click', index) : selectSpellCard(index)"
                         :selected="selectedSpellIndex === index"
-                        :status="dataSource.spellStatus[index]"
+                        :status="displayStatus(index)"
                         :index="index"
                         :isPortalA="
                           roomStore.roomConfig.dual_board > 0 && dataSource.normalGameData?.is_portal_a[index] > 0
@@ -233,6 +233,7 @@ const isPlayerB = computed(() => roomStore.isPlayerB);
 const inGame = computed(() => roomStore.inGame);
 const needWin = computed(() => roomStore.roomConfig.need_win);
 const isBingoStandard = computed(() => roomData.value.type === BingoType.STANDARD);
+const isBingoLink = computed(() => roomData.value.type === BingoType.LINK);
 
 const boardSizeFromSpells = computed(() => {
   const length = dataSource.value.spells?.length || 0;
@@ -319,6 +320,16 @@ const selectSpellCard = (index: number) => {
   if (isWatcher.value) {
     return;
   }
+  if (isBingoLink.value) {
+    if (gameStore.linkGameData.route_confirmed_a && isPlayerA.value) return;
+    if (gameStore.linkGameData.route_confirmed_b && isPlayerB.value) return;
+    if (gameStore.linkGameData.event_a > 0 || gameStore.linkGameData.event_b > 0) return;
+    selectedSpellIndex.value = index;
+    gameStore.linkRoute(index).catch(() => {
+      if (selectedSpellIndex.value === index) selectedSpellIndex.value = -1;
+    });
+    return;
+  }
   if (selectedSpellIndex.value === index) {
     selectedSpellIndex.value = -1;
   } else {
@@ -336,6 +347,16 @@ const selectSpellCard = (index: number) => {
       }
     }
   }
+};
+
+const displayStatus = (index: number) => {
+  if (!isBingoLink.value) return dataSource.value.spellStatus[index];
+  const linkData = gameStore.linkGameData;
+  const a = linkData.status_a?.[index] || 0;
+  const b = linkData.status_b?.[index] || 0;
+  if (a === 5 && b === 7) return 6;
+  if (a === 1 && b === 3) return 2;
+  return a || b || 0;
 };
 
 function canSelectBlindCard(status: number) {

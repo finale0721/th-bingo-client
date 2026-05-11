@@ -107,7 +107,7 @@
                               :key="index"
                               :label="item.name"
                               :value="item.type"
-                              :disabled="item.type !== 1 && roomSettings.board_size !== 5"
+                              :disabled="item.type === BingoType.BP && roomSettings.board_size !== 5"
                             ></el-option>
                           </el-select>
                           <span v-else> {{ roomTypeText }}</span>
@@ -123,9 +123,9 @@
                         :disabled="inGame"
                         @change="onBoardSizeChange"
                       >
-                        <el-radio :value="4" :disabled="roomSettings.type !== BingoType.STANDARD">4×4</el-radio>
+                        <el-radio :value="4" :disabled="roomSettings.type === BingoType.BP">4×4</el-radio>
                         <el-radio :value="5">5×5</el-radio>
-                        <el-radio :value="6" :disabled="roomSettings.type !== BingoType.STANDARD">6×6</el-radio>
+                        <el-radio :value="6" :disabled="roomSettings.type === BingoType.BP">6×6</el-radio>
                       </el-radio-group>
                     </el-form-item>
                     <el-form-item label="比赛时长：" v-if="roomData.type !== BingoType.LINK">
@@ -526,7 +526,12 @@
                     :disabled="inGame"
                     @change="roomStore.updateRoomConfig('difficulty')"
                   >
-                    <el-radio v-for="(item, index) in difficultyList" :value="item.value" :key="index">{{
+                    <el-radio
+                      v-for="(item, index) in difficultyList"
+                      :value="item.value"
+                      :key="index"
+                      :disabled="roomSettings.type === BingoType.LINK && item.value > 3"
+                    >{{
                         item.name
                       }}</el-radio>
                   </el-radio-group>
@@ -999,7 +1004,7 @@ const onExtraLineCountChange = (value) => {
 };
 const onBoardSizeChange = async (value) => {
   if (value !== 5) {
-    if (roomSettings.value.type !== BingoType.STANDARD) {
+    if (roomSettings.value.type === BingoType.BP) {
       roomSettings.value.type = BingoType.STANDARD;
     }
     if (roomSettings.value.use_ai) {
