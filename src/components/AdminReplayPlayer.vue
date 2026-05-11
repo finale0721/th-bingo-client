@@ -225,11 +225,17 @@ const playerNames = computed<[string, string]>(() => {
 });
 
 const totalTime = computed(() => {
-  const actions = logData.value?.actions || [];
+  const actions = replayActions.value;
   return actions.length ? actions[actions.length - 1].timestamp : 0;
 });
 
-const actionCount = computed(() => logData.value?.actions.length || 0);
+const replayActions = computed(() =>
+  (logData.value?.actions || [])
+    .map((action, index) => ({ action, index }))
+    .sort((a, b) => a.action.timestamp - b.action.timestamp || a.index - b.index)
+    .map((item) => item.action)
+);
+const actionCount = computed(() => replayActions.value.length);
 const isDualBoard = computed(() => (logData.value?.roomConfig.dual_board || 0) > 0 && !!logData.value?.spells2?.length);
 const isLinkReplay = computed(() => logData.value?.roomConfig.type === BingoType.LINK);
 const replayBoardSize = computed(() => logData.value?.roomConfig.board_size || 5);
@@ -366,19 +372,51 @@ const getInitialPlayerBoards = (): [number, number] => {
   return [logData.value.normalData.which_board_a || 0, logData.value.normalData.which_board_b || 0];
 };
 
+const createBlankLinkData = (): LinkData => {
+  const area = replayBoardSize.value * replayBoardSize.value;
+  return {
+    link_idx_a: [],
+    link_idx_b: [],
+    start_ms_a: 0,
+    end_ms_a: 0,
+    event_a: 0,
+    start_ms_b: 0,
+    end_ms_b: 0,
+    event_b: 0,
+    route_confirmed_a: false,
+    route_confirmed_b: false,
+    current_step_a: 0,
+    current_step_b: 0,
+    status_a: Array(area).fill(0),
+    status_b: Array(area).fill(0),
+    last_get_time_a: 0,
+    last_get_time_b: 0,
+    skip_used_a: 0,
+    skip_used_b: 0,
+    skipped_idx_a: [],
+    skipped_idx_b: [],
+    score_a: 0,
+    score_b: 0,
+    disabled_idx: [],
+  };
+};
+
 const cloneLinkData = (data: LinkData | null | undefined): LinkData | null => {
-  if (!data) {
+  if (!isLinkReplay.value) {
     return null;
   }
+  const empty = createBlankLinkData();
+  const source = data || empty;
   return {
-    ...data,
-    link_idx_a: [...(data.link_idx_a || [])],
-    link_idx_b: [...(data.link_idx_b || [])],
-    status_a: [...(data.status_a || [])],
-    status_b: [...(data.status_b || [])],
-    skipped_idx_a: [...(data.skipped_idx_a || [])],
-    skipped_idx_b: [...(data.skipped_idx_b || [])],
-    disabled_idx: [...(data.disabled_idx || [])],
+    ...empty,
+    ...source,
+    link_idx_a: [...(source.link_idx_a || [])],
+    link_idx_b: [...(source.link_idx_b || [])],
+    status_a: [...(source.status_a || empty.status_a)],
+    status_b: [...(source.status_b || empty.status_b)],
+    skipped_idx_a: [...(source.skipped_idx_a || [])],
+    skipped_idx_b: [...(source.skipped_idx_b || [])],
+    disabled_idx: [...(source.disabled_idx || [])],
   };
 };
 
@@ -387,10 +425,8 @@ const resetSimulation = () => {
   simulation.playerBoards = getInitialPlayerBoards();
   simulation.gameStatus = actionCount.value ? GameStatus.STARTED : GameStatus.NOT_STARTED;
   simulation.currentAction = null;
-  simulation.linkData = cloneLinkData(logData.value?.linkData);
-  simulation.currentScore = isLinkReplay.value && simulation.linkData
-    ? [Math.floor(simulation.linkData.score_a || 0), Math.floor(simulation.linkData.score_b || 0)]
-    : [0, 0];
+  simulation.linkData = cloneLinkData(null);
+  simulation.currentScore = [0, 0];
   actionCursor.value = 0;
   currentTime.value = 0;
   viewBoard.value = 0;
@@ -512,6 +548,32 @@ const maybeSwitchBoard = (playerIndex: number, spellIndex: number) => {
   }
 };
 
+const syncLinkSpellStatus = () => {
+  if (!isLinkReplay.value || !simulation.linkData) {
+    return;
+  }
+  const area = replayBoardSize.value * replayBoardSize.value;
+  const status = Array(area).fill(SpellStatus.NONE);
+  for (let i = 0; i < area; i += 1) {
+    const a = simulation.linkData.status_a?.[i] || 0;
+    const b = simulation.linkData.status_b?.[i] || 0;
+    if (a === SpellStatus.A_ATTAINED && b === SpellStatus.B_ATTAINED) {
+      status[i] = SpellStatus.BOTH_ATTAINED;
+    } else if (a === SpellStatus.A_SELECTED && b === SpellStatus.B_SELECTED) {
+      status[i] = SpellStatus.BOTH_SELECTED;
+    } else if (a === SpellStatus.A_ATTAINED) {
+      status[i] = SpellStatus.A_ATTAINED;
+    } else if (b === SpellStatus.B_ATTAINED) {
+      status[i] = SpellStatus.B_ATTAINED;
+    } else if (a === SpellStatus.A_SELECTED) {
+      status[i] = SpellStatus.A_SELECTED;
+    } else if (b === SpellStatus.B_SELECTED) {
+      status[i] = SpellStatus.B_SELECTED;
+    }
+  }
+  simulation.spellStatus = status;
+};
+
 const applyAction = (action: PlayerAction) => {
   const actionType = action.actionType.split("-")[0];
   const spellIndex = action.spellIndex;
@@ -519,6 +581,7 @@ const applyAction = (action: PlayerAction) => {
 
   if (isLinkReplay.value && action.linkData) {
     simulation.linkData = cloneLinkData(action.linkData);
+    syncLinkSpellStatus();
     simulation.currentScore = [
       Math.floor(action.linkData.score_a || action.scoreNow?.[0] || 0),
       Math.floor(action.linkData.score_b || action.scoreNow?.[1] || 0),
@@ -595,9 +658,9 @@ const seekTo = (target: number) => {
 
   while (
     actionCursor.value < actionCount.value &&
-    (logData.value.actions[actionCursor.value]?.timestamp || 0) <= normalizedTarget
+    (replayActions.value[actionCursor.value]?.timestamp || 0) <= normalizedTarget
   ) {
-    applyAction(logData.value.actions[actionCursor.value]);
+    applyAction(replayActions.value[actionCursor.value]);
     actionCursor.value += 1;
   }
 
@@ -653,7 +716,7 @@ const stepToPreviousAction = () => {
     return;
   }
   const previousIndex = Math.max(0, actionCursor.value - 2);
-  const timestamp = logData.value.actions[previousIndex]?.timestamp || 0;
+  const timestamp = replayActions.value[previousIndex]?.timestamp || 0;
   isPlaying.value = false;
   stopReplayTimer();
   seekTo(timestamp);
@@ -663,7 +726,7 @@ const stepToNextAction = () => {
   if (!logData.value?.actions.length) {
     return;
   }
-  const nextTimestamp = logData.value.actions[actionCursor.value]?.timestamp ?? totalTime.value;
+  const nextTimestamp = replayActions.value[actionCursor.value]?.timestamp ?? totalTime.value;
   isPlaying.value = false;
   stopReplayTimer();
   seekTo(nextTimestamp);

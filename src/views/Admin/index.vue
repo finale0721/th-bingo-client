@@ -428,7 +428,12 @@ const selectedReadablePreview = computed<ReadableLogBuildResult | null>(() =>
 const selectedReadableFull = computed<ReadableLogBuildResult | null>(() =>
   selectedRecord.value?.game_log ? Replay.buildReadableLogContent(selectedRecord.value.game_log) : null
 );
-const actionPreview = computed(() => selectedRecord.value?.game_log?.actions || []);
+const actionPreview = computed(() =>
+  (selectedRecord.value?.game_log?.actions || [])
+    .map((action, index) => ({ action, index }))
+    .sort((a, b) => a.action.timestamp - b.action.timestamp || a.index - b.index)
+    .map((item) => item.action)
+);
 const topUsers = computed(() => overview.value.top_active_users.slice(0, 12));
 const currentReplayableIds = computed(() => records.value.filter((item) => item.has_game_log).map((item) => item.id));
 const selectedReplayableIds = computed(() => selectedRows.value.filter((item) => item.has_game_log).map((item) => item.id));
