@@ -19,19 +19,19 @@
           v-if="isBingoStandard"
           :size="48"
           :manual="soloMode ? isPlayerA : isHost"
-          label="鎹㈠崱娆℃暟"
+          label="换卡次数"
           v-model="roomData.change_card_count[0]"
           @add="addChangeCardCount(0)"
           @minus="removeChangeCardCount(0)"
           :disabled="!inGame"
         ></score-board>
-        <score-board class="spell-card-score-card" :size="30" label="寰楀垎" v-model="playerAScore"></score-board>
-        <score-board class="spell-card-score-card" :size="30" :label="isBingoLink ? '宸叉敹绛夌骇' : '绛夌骇'" v-model="playerALevel"></score-board>
+        <score-board class="spell-card-score-card" :size="30" label="得分" v-model="playerAScore"></score-board>
+        <score-board class="spell-card-score-card" :size="30" :label="isBingoLink ? '已收等级' : '等级'" v-model="playerALevel"></score-board>
         <score-board
           v-if="isBingoLink"
           class="spell-card-score-card"
           :size="30"
-          label="鍓╀綑璺宠繃"
+          label="剩余跳过"
           :manual="canManageLinkA"
           :model-value="linkSkipRemainA"
           @add="setLinkSkipUsed(0, linkData.skip_used_a - 1)"
@@ -39,8 +39,8 @@
           :disabled="!inGame"
         ></score-board>
         <div v-if="isBingoLink && canManageLinkA && linkPhase === 2" class="link-manage-buttons">
-          <el-button size="small" @click="forceLinkSkip(0)" :disabled="linkPlayerFinished(0)">寮哄埗璺宠繃</el-button>
-          <el-button size="small" @click="undoLinkFinish(0)" :disabled="linkData.current_step_a <= 0">鎾ら攢鏀跺彇</el-button>
+          <el-button size="small" @click="forceLinkSkip(0)" :disabled="linkPlayerFinished(0)">强制跳过</el-button>
+          <el-button size="small" @click="undoLinkFinish(0)" :disabled="linkData.current_step_a <= 0">撤销收取</el-button>
         </div>
         <el-button
           class="alert-button"
@@ -58,7 +58,7 @@
           @click="hostSwitchPlayerSide(0)"
           :disabled="!inGame"
         >
-          鎹㈤潰
+          换面
         </el-button>
       </template>
 
@@ -73,19 +73,19 @@
           v-if="isBingoStandard"
           :size="48"
           :manual="soloMode ? isPlayerB : isHost"
-          label="鎹㈠崱娆℃暟"
+          label="换卡次数"
           v-model="roomData.change_card_count[1]"
           @add="addChangeCardCount(1)"
           @minus="removeChangeCardCount(1)"
           :disabled="!inGame"
         ></score-board>
-        <score-board class="spell-card-score-card" :size="30" label="寰楀垎" v-model="playerBScore"></score-board>
-        <score-board class="spell-card-score-card" :size="30" :label="isBingoLink ? '宸叉敹绛夌骇' : '绛夌骇'" v-model="playerBLevel"></score-board>
+        <score-board class="spell-card-score-card" :size="30" label="得分" v-model="playerBScore"></score-board>
+        <score-board class="spell-card-score-card" :size="30" :label="isBingoLink ? '已收等级' : '等级'" v-model="playerBLevel"></score-board>
         <score-board
           v-if="isBingoLink"
           class="spell-card-score-card"
           :size="30"
-          label="鍓╀綑璺宠繃"
+          label="剩余跳过"
           :manual="canManageLinkB"
           :model-value="linkSkipRemainB"
           @add="setLinkSkipUsed(1, linkData.skip_used_b - 1)"
@@ -93,8 +93,8 @@
           :disabled="!inGame"
         ></score-board>
         <div v-if="isBingoLink && canManageLinkB && linkPhase === 2" class="link-manage-buttons">
-          <el-button size="small" @click="forceLinkSkip(1)" :disabled="linkPlayerFinished(1)">寮哄埗璺宠繃</el-button>
-          <el-button size="small" @click="undoLinkFinish(1)" :disabled="linkData.current_step_b <= 0">鎾ら攢鏀跺彇</el-button>
+          <el-button size="small" @click="forceLinkSkip(1)" :disabled="linkPlayerFinished(1)">强制跳过</el-button>
+          <el-button size="small" @click="undoLinkFinish(1)" :disabled="linkData.current_step_b <= 0">撤销收取</el-button>
         </div>
         <el-button
           class="alert-button"
@@ -112,7 +112,7 @@
           @click="hostSwitchPlayerSide(1)"
           :disabled="!inGame"
         >
-          鎹㈤潰
+          换面
         </el-button>
       </template>
 
@@ -122,8 +122,8 @@
           <span>B 路线 {{ routeB.length }} / 等级分 {{ linkRouteScoreB }}<template v-if="linkRouteFastestB > 0"> / 理论 {{ linkRouteFastestB }}s</template></span>
         </div>
         <div v-if="isBingoStandard && currentBoardLevelTotal > 0" class="board-level-summary">
-          <span>鎬荤瓑绾?{{ currentBoardLevelTotal }}</span>
-          <span>鍓╀綑 {{ currentBoardRemainingLevel }}</span>
+          <span>总等级{{ currentBoardLevelTotal }}</span>
+          <span>剩余 {{ currentBoardRemainingLevel }}</span>
         </div>
         <game-bp v-if="isBpPhase" v-model="bpCode"></game-bp>
         <div
@@ -147,7 +147,7 @@
 
       <template #button-center>
         <div v-if="gameStore.isReplayMode" class="replay-controls">
-          <!-- 璋冮€?-->
+          <!-- 调速-->
           <el-slider
             v-model="replaySpeed"
             :marks="speedMarks"
@@ -164,7 +164,7 @@
             circle
           />
 
-          <!-- 鍥炴斁鎺у埗鎸夐挳 -->
+          <!-- 回放控制按钮 -->
           <el-button
             :icon="replayInstance.state.isPlaying ? VideoPause : VideoPlay"
             @click="toggleReplay"
@@ -192,7 +192,7 @@
             {{ formatReplayTime(replayInstance.state.totalTime) }}
           </div>
 
-          <el-button type="primary" @click="confirmExitReplay" style="margin-left: 15px"> 閫€鍑哄洖鏀?</el-button>
+          <el-button type="primary" @click="confirmExitReplay" style="margin-left: 15px">退出回放</el-button>
         </div>
 
         <template v-else-if="!editorStore.isEditorMode">
@@ -204,17 +204,17 @@
             <el-button type="primary" v-if="isBpPhase" @click="drawSpellCard" :disabled="banPick.phase < 99">
               抽取符卡
             </el-button>
-            <el-button type="primary" v-if="inGame && winFlag === 0 && !isBingoLink" @click="stopGame">缁撴潫姣旇禌</el-button>
+            <el-button type="primary" v-if="inGame && winFlag === 0 && !isBingoLink" @click="stopGame">结束比赛</el-button>
             <el-button type="primary" v-if="winFlag !== 0" @click="confirmWinner">
-              纭锛歿{ winFlag < 0 ? roomData.names[0] : roomData.names[1] }}鑾疯儨
+              确认：{{ winFlag < 0 ? roomData.names[0] : roomData.names[1] }}获胜
             </el-button>
           </template>
 
           <template v-if="soloMode && isPlayerA">
             <el-button type="primary" v-if="!inGame && !isBpPhase" @click="startGame">开始比赛</el-button>
-            <el-button type="primary" v-if="banPick.phase === 9999" @click="drawSpellCard">鎶藉彇绗﹀崱</el-button>
+            <el-button type="primary" v-if="banPick.phase === 9999" @click="drawSpellCard">抽取符卡</el-button>
             <el-button type="primary" v-if="isBingoLink && winFlag !== 0" @click="confirmWinner">
-              纭锛歿{ winFlag < 0 ? roomData.names[0] : roomData.names[1] }}鑾疯儨
+              确认：{{ winFlag < 0 ? roomData.names[0] : roomData.names[1] }}获胜
             </el-button>
           </template>
 
@@ -229,7 +229,7 @@
                   :immediate="gameStore.gameStatus === GameStatus.STARTED && !gameStore.spellCardGrabbedFlag"
                   :paused="gamePaused"
                   @finish="setCdTime"
-                  text="閫夋嫨绗﹀崱"
+                  text="选择符卡"
                 ></confirm-select-button>
                 <confirm-select-button
                   @click="confirmAttained"
@@ -237,7 +237,7 @@
                   :disabled="gameStore.gameStatus !== GameStatus.STARTED"
                   :cooldown="roomSettings.confirmDelay * 1000"
                   :immediate="gameStore.alreadySelectCard"
-                  text="纭鏀跺彇"
+                  text="确认收取"
                 ></confirm-select-button>
               </template>
               <template v-if="isBingoBp">
@@ -246,14 +246,14 @@
                   @click="confirmBp"
                   :disabled="!isMyTurn || !bingoBpPhase || selectedSpellIndex < 0"
                   v-if="!gameStore.bpGameData.ban_pick"
-                  >{{ bingoBpPhase ? (isMyTurn ? "閫夋嫨绗﹀崱" : "绛夊緟瀵规墜閫夋嫨绗﹀崱") : "绛夊緟鎴夸富鎿嶄綔" }}</el-button
+                  >{{ bingoBpPhase ? (isMyTurn ? "选择符卡" : "等待对手选择符卡") : "等待房主操作" }}</el-button
                 >
                 <el-button
                   type="primary"
                   @click="confirmBp"
                   v-if="gameStore.bpGameData.ban_pick"
                   :disabled="!isMyTurn || !bingoBpPhase || selectedSpellIndex < 0"
-                  >{{ bingoBpPhase ? (isMyTurn ? "绂佺敤绗﹀崱" : "绛夊緟瀵规墜绂佺敤绗﹀崱") : "绛夊緟鎴夸富鎿嶄綔" }}</el-button
+                  >{{ bingoBpPhase ? (isMyTurn ? "禁用符卡" : "等待对手禁用符卡") : "等待房主操作" }}</el-button
                 >
               </template>
               <template v-if="isBingoLink">
@@ -262,7 +262,7 @@
                   @click="confirmLinkRoute"
                   :disabled="!linkRouteComplete"
                   v-if="linkPhase === 1"
-                  >{{ myLinkRouteConfirmed ? "鍙栨秷纭" : "纭璺嚎" }}</el-button
+                  >{{ myLinkRouteConfirmed ? "取消确认" : "确认路线" }}</el-button
                 >
                 <confirm-select-button
                   v-if="linkPhase === 2 && !myLinkFinished && !myLinkCurrentSelected"
@@ -276,14 +276,14 @@
                   @click="linkFinishCard"
                   :cooldown="roomSettings.confirmDelay * 1000"
                   :immediate="true"
-                  text="纭鏀跺彇"
+                  text="确认收取"
                 ></confirm-select-button>
                 <el-button
                   v-if="linkPhase === 2 && !myLinkFinished"
                   size="small"
                   @click="linkSkipCard"
                   :disabled="!canLinkSkip"
-                  >璺宠繃</el-button
+                  >跳过</el-button
                 >
               </template>
             </template>
@@ -294,20 +294,20 @@
                 v-if="banPick.phase < 11"
                 :disabled="!(isPlayerA && playerACanBP) && !(isPlayerB && playerBCanBP)"
                 @click="playerBanPick"
-                >纭畾</el-button
+                >确定</el-button
               >
               <el-button type="primary" v-if="banPick.phase === 11" @click="confirmOpenEX(true)">开启</el-button>
               <el-button type="primary" v-if="banPick.phase === 11" @click="confirmOpenEX(false)">不开启</el-button>
             </template>
 
             <el-button type="primary" v-if="!inGame && !isBpPhase" @click="editorStore.openPresetManager('select')">
-              鑷畾涔夋父鎴?
+              自定义游戏
             </el-button>
           </template>
 
           <!-- <template v-if="isBingoLink">
-          <el-button type="primary" v-if="!inGame">寮€濮嬫瘮璧?/el-button>
-          <el-button type="primary" v-else>缁撴潫姣旇禌</el-button>
+          <el-button type="primary" v-if="!inGame">开始比赛</el-button>
+          <el-button type="primary" v-else>结束比赛</el-button>
           </template> -->
         </template>
 
@@ -316,7 +316,7 @@
             <el-button type="primary" @click="editorStore.toggleDatabasePanel">
               {{ editorStore.isDatabasePanelVisible ? "关闭数据库" : "打开数据库" }}
             </el-button>
-            <el-button type="primary" @click="editorStore.isPresetManagerVisible = true"> 棰勮绠＄悊 </el-button>
+            <el-button type="primary" @click="editorStore.isPresetManagerVisible = true"> 预设管理 </el-button>
           </div>
         </template>
       </template>
@@ -325,21 +325,21 @@
         <div v-if="!gameStore.isReplayMode && !editorStore.isEditorMode">
           <template v-if="!soloMode && isHost">
             <template v-if="isBingoStandard || !inGame">
-              <el-button size="small" :disabled="inGame" @click="resetRoom">閲嶇疆鎴块棿</el-button>
+              <el-button size="small" :disabled="inGame" @click="resetRoom">重置房间</el-button>
             </template>
             <template v-else>
-              <el-button size="small" :disabled="!inGame" v-if="gamePaused" @click="resumeGame"> 缁х画姣旇禌 </el-button>
-              <el-button size="small" :disabled="!inGame" v-else @click="pauseGame">鏆傚仠姣旇禌</el-button>
+              <el-button size="small" :disabled="!inGame" v-if="gamePaused" @click="resumeGame">继续比赛</el-button>
+              <el-button size="small" :disabled="!inGame" v-else @click="pauseGame">暂停比赛</el-button>
             </template>
           </template>
           <template v-if="soloMode && isPlayerA">
-            <el-button v-if="isPlayerA && !inGame" size="small" @click="resetRoom">閲嶇疆鎴块棿</el-button>
-            <el-button v-if="isPlayerA && inGame" size="small" @click="stopGame">缁撴潫姣旇禌</el-button>
+            <el-button v-if="isPlayerA && !inGame" size="small" @click="resetRoom">重置房间</el-button>
+            <el-button v-if="isPlayerA && inGame" size="small" @click="stopGame">结束比赛</el-button>
           </template>
         </div>
         <div v-else-if="editorStore.isEditorMode">
-          <el-button type="danger" size="small" @click="handleClearAll"> 娓呯┖鏍煎瓙 </el-button>
-          <el-button type="warning" size="small" @click="handleShuffleSpells"> 娲楁贩鏍煎瓙 </el-button>
+          <el-button type="danger" size="small" @click="handleClearAll">清空格子</el-button>
+          <el-button type="warning" size="small" @click="handleShuffleSpells">洗混格子</el-button>
         </div>
       </template>
 
@@ -348,14 +348,14 @@
           <template v-if="isOwner">
             <template v-if="isBingoStandard">
               <template v-if="!isBpPhase">
-                <el-button size="small" :disabled="!inGame" v-if="gamePaused" @click="resumeGame"> 缁х画姣旇禌 </el-button>
-                <el-button size="small" :disabled="!inGame" v-else @click="pauseGame">鏆傚仠姣旇禌</el-button>
+                <el-button size="small" :disabled="!inGame" v-if="gamePaused" @click="resumeGame">继续比赛</el-button>
+                <el-button size="small" :disabled="!inGame" v-else @click="pauseGame">暂停比赛</el-button>
               </template>
-              <el-button :disabled="bpStatus !== 5" size="small" v-else @click="startBP">閲嶆柊BP</el-button>
+              <el-button :disabled="bpStatus !== 5" size="small" v-else @click="startBP">重新BP</el-button>
             </template>
             <template v-if="isBingoBp">
               <el-button size="small" @click="nextRound" :disabled="!inGame || gameStore.bpGameData.ban_pick !== 2"
-                >杩涘叆涓嬭疆</el-button
+                >进入下轮</el-button
               >
             </template>
             <template v-if="isBingoLink">
@@ -372,7 +372,7 @@
 
       <template #button-right-2>
         <template v-if="isBingoLink && linkPhase === 1 && isPlayer">
-          <el-button type="primary" @click="linkUndo" :disabled="myLinkRouteConfirmed">鎾ゅ洖璺嚎</el-button>
+          <el-button type="primary" @click="linkUndo" :disabled="myLinkRouteConfirmed">撤回路线</el-button>
         </template>
         <template v-if="isDualBoard && roomStore.roomConfig.type == BingoType.STANDARD">
           <el-button type="primary" @click="switchDualBoardSide">
@@ -521,7 +521,7 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
       if (soloMode.value) {
         data = [
           {
-            label: "缃┖",
+            label: "置空",
             value: 0,
           },
         ];
@@ -529,29 +529,29 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
           data = [
             ...data,
             {
-              label: "閫夋嫨",
+              label: "选择",
               value: 1,
               tag: "playerA",
             },
             {
-              label: "鏀跺彇",
+              label: "收取",
               value: 5,
               tag: "playerA",
             },
             {
-              label: "閫夋嫨",
+              label: "选择",
               value: 3,
               tag: "playerB",
             },
             {
-              label: "鏀跺彇",
+              label: "收取",
               value: 7,
               tag: "playerB",
             },
 
             /*
             {
-              label: "鍒锋柊",
+              label: "刷新",
               value: 0x100,
             },
 
@@ -562,22 +562,22 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
           data = [
             ...data,
             {
-              label: "閫夋嫨",
+              label: "选择",
               value: 1,
               tag: "playerA",
             },
             {
-              label: "鏀跺彇",
+              label: "收取",
               value: 5,
               tag: "playerA",
             },
             {
-              label: "閫夋嫨",
+              label: "选择",
               value: 3,
               tag: "playerB",
             },
             {
-              label: "鏀跺彇",
+              label: "收取",
               value: 7,
               tag: "playerB",
             },
@@ -587,35 +587,35 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
         if (isHost.value) {
           data = [
             {
-              label: "缃┖",
+              label: "置空",
               value: 0,
             },
             {
-              label: "宸︿晶閫夋嫨",
+              label: "左侧选择",
               value: 1,
               tag: "playerA",
             },
             {
-              label: "鍙充晶閫夋嫨",
+              label: "右侧选择",
               value: 3,
               tag: "playerB",
             },
             {
-              label: "涓や晶閫夋嫨",
+              label: "两侧选择",
               value: 2,
             },
             {
-              label: "宸︿晶鏀跺彇",
+              label: "左侧收取",
               value: 5,
               tag: "playerA",
             },
             {
-              label: "鍙充晶鏀跺彇",
+              label: "右侧收取",
               value: 7,
               tag: "playerB",
             },
             {
-              label: "鍒锋柊",
+              label: "刷新",
               value: 0x100,
             },
           ];
@@ -626,45 +626,45 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
       if (isHost.value) {
         data = [
           {
-            label: "鏀跺彇澶辫触",
+            label: "收取失败",
             value: 0,
             isReset: false,
           },
           {
-            label: "绂佺敤",
+            label: "禁用",
             value: -1,
           },
           {
-            label: "缃┖",
+            label: "置空",
             value: 0,
             isReset: true,
           },
           {
-            label: "宸︿晶閫夋嫨",
+            label: "左侧选择",
             value: 1,
             tag: "playerA",
           },
           {
-            label: "鍙充晶閫夋嫨",
+            label: "右侧选择",
             value: 3,
             tag: "playerB",
           },
           // {
-          //   label: "涓や晶閫夋嫨",
+          //   label: "两侧选择",
           //   value: 2,
           // },
           {
-            label: "宸︿晶鏀跺彇",
+            label: "左侧收取",
             value: 5,
             tag: "playerA",
           },
           {
-            label: "鍙充晶鏀跺彇",
+            label: "右侧收取",
             value: 7,
             tag: "playerB",
           },
           {
-            label: "鍒锋柊",
+            label: "刷新",
             value: 0x100,
           },
         ];
@@ -674,7 +674,7 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
       if (soloMode.value) {
         data = [
           {
-            label: "缃┖",
+            label: "置空",
             value: 0,
           },
         ];
@@ -682,7 +682,7 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
           data = [
             ...data,
             {
-              label: "鏀跺彇",
+              label: "收取",
               value: 5,
               tag: "playerA",
             },
@@ -692,7 +692,7 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
           data = [
             ...data,
             {
-              label: "鏀跺彇",
+              label: "收取",
               value: 7,
               tag: "playerB",
             },
@@ -702,25 +702,25 @@ const menu = computed<{ label: string; value: number; tag?: string; isReset?: bo
         if (isHost.value) {
           data = [
             {
-              label: "缃┖",
+              label: "置空",
               value: 0,
             },
             {
-              label: "涓や晶鏀跺彇",
+              label: "两侧收取",
               value: 6,
             },
             {
-              label: "宸︿晶鏀跺彇",
+              label: "左侧收取",
               value: 5,
               tag: "playerA",
             },
             {
-              label: "鍙充晶鏀跺彇",
+              label: "右侧收取",
               value: 7,
               tag: "playerB",
             },
             {
-              label: "鍒锋柊",
+              label: "刷新",
               value: 0x100,
             },
           ];
@@ -796,7 +796,7 @@ watch(
   }
 );
 
-//璧涘墠BP
+//赛前BP
 const bpCode = ref("");
 const banPick = computed(() => roomStore.banPick);
 const bpStatus = computed(() => roomStore.bpStatus);
@@ -807,8 +807,8 @@ const startBP = () => {
 const playerBanPick = () => {
   if (!bpCode.value) {
     ElMessageBox.confirm("你没有选择作品，是否确认不选择？", "提示", {
-      confirmButtonText: "纭畾",
-      cancelButtonText: "鍙栨秷",
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
       type: "warning",
     })
       .then(() => {
@@ -827,7 +827,7 @@ const confirmOpenEX = (flag: boolean) => {
   }
 };
 
-//鏍囧噯璧?
+//标准赛
 const oldSumArr = ref<number[]>([]);
 const playerAScore = ref(0);
 const playerBScore = ref(0);
@@ -931,7 +931,7 @@ const decideStandard = (status) => {
       }
     }
   });
-  //璁＄畻鏄惁浜х敓浜嗘柊鐨勫洓杩?
+  //计算是否产生了新的四连
   let gamePointFlag = false;
   const fullLine = board.size;
   const nearLine = fullLine - 1;
@@ -953,7 +953,7 @@ const decideStandard = (status) => {
     layoutRef.value?.warnGamePoint();
   }
   oldSumArr.value = sumArr;
-  //鍔犲垎鐨勪竴鏂规敹鍗￠煶鏁?
+  //加分的一方收卡音效
   if ((playerAScore.value < scoreA && isPlayerA.value) || (playerBScore.value < scoreB && isPlayerB.value)) {
     layoutRef.value?.infoCaptureCard();
   }
@@ -986,14 +986,14 @@ const decideStandard = (status) => {
   if (soloMode.value && winFlag.value !== 0) {
     // if (trainingMode.value) Mit.emit("ai_game_over");
     //confirmWinner();
-    //濡傛灉娌℃湁瀵兼挱...
+    //如果没有导播...
     if (winFlag.value !== 0) {
-      //鍗曚汉缁冧範妯″紡鍏佽鍏抽棴鑳滃埄鍒ゅ畾
+      //单人练习模式允许关闭胜利判定
       if (roomStore.practiceMode && roomSettings.value.noWinningDeclaration) {
         layoutRef.value?.hideAlert();
       } else {
-        //鍚﹀垯鐢卞乏渚х帺瀹跺喅瀹氳儨鍒?
-        layoutRef.value?.showAlert("宸叉弧瓒宠儨鍒╂潯浠讹紝绛夊緟宸︿晶鐜╁鍒ゆ柇鑳滆礋", "red");
+        //否则由左侧玩家决定胜负
+        layoutRef.value?.showAlert("已满足胜利条件，等待左侧玩家判断胜负", "red");
       }
     } else {
       layoutRef.value?.hideAlert();
@@ -1001,21 +1001,21 @@ const decideStandard = (status) => {
   }
   if (!soloMode.value && !isHost.value) {
     if (winFlag.value !== 0) {
-      layoutRef.value?.showAlert("宸叉弧瓒宠儨鍒╂潯浠讹紝绛夊緟鎴夸富鍒ゆ柇鑳滆礋", "red");
+      layoutRef.value?.showAlert("已满足胜利条件，等待房主判断胜负", "red");
     } else {
       layoutRef.value?.hideAlert();
     }
   }
 };
 
-//BP璧?
+//BP赛
 const isMyTurn = computed(
   () =>
     (isPlayerA.value && gameStore.bpGameData.whose_turn === 0) ||
     (isPlayerB.value && gameStore.bpGameData.whose_turn === 1)
 );
 const bingoBpPhase = computed(() => gameStore.bpGameData.ban_pick !== 2);
-//鎬诲け璐ユ鏁?
+//总失败次数
 const playerAFailure = ref(0);
 const playerBFailure = ref(0);
 
@@ -1083,14 +1083,14 @@ const decideBp = (status) => {
     playerBFailureNew += item;
   });
 
-  //鍔犲垎鐨勪竴鏂规敹鍗￠煶鏁?
+  //加分的一方收卡音效
   if ((playerAScore.value < scoreA && isPlayerA.value) || (playerBScore.value < scoreB && isPlayerB.value)) {
     layoutRef.value?.infoCaptureCard();
   }
   playerAScore.value = scoreA;
   playerBScore.value = scoreB;
 
-  //澶辫触鐨勪竴鏂圭垎鐐搁煶鏁?
+  //失败的一方爆点音效
   if (
     (playerAFailure.value < playerAFailureNew && isPlayerA.value) ||
     (playerBFailure.value < playerBFailureNew && isPlayerB.value)
@@ -1110,14 +1110,15 @@ const decideBp = (status) => {
 
   if (!isHost.value) {
     if (winFlag.value !== 0) {
-      layoutRef.value?.showAlert("宸叉弧瓒宠儨鍒╂潯浠讹紝绛夊緟鎴夸富鍒ゆ柇鑳滆礋", "red");
+      layoutRef.value?.showAlert("已满足胜利条件，等待房主判断胜负", "red");
     } else {
       layoutRef.value?.hideAlert();
     }
   }
 };
 
-//link璧?const linkData = computed(() => gameStore.linkGameData);
+// link赛
+const linkData = computed(() => gameStore.linkGameData);
 const linkPhase = computed(() => {
   if (!inGame.value) return 0;
   if (linkData.value.event_a === 1 || linkData.value.event_b === 1) return 2;
@@ -1218,7 +1219,7 @@ const decideLink = () => {
   }, 0);
   if (linkData.value.event_a === 3 && linkData.value.event_b === 3) {
     winFlag.value = (linkData.value.score_a || 0) >= (linkData.value.score_b || 0) ? -30 : 30;
-    if (!isOwner.value) layoutRef.value?.showAlert("鍙屾柟宸插畬鎴愶紝绛夊緟纭鑳滆礋", "red");
+    if (!isOwner.value) layoutRef.value?.showAlert("双方已完成，等待确认胜负", "red");
   } else if (inGame.value && isBingoLink.value) {
     winFlag.value = 0;
   }
@@ -1313,9 +1314,9 @@ watch(
       case GameStatus.PAUSED:
         break;
       case GameStatus.ENDED:
-        layoutRef.value?.showAlert("姣旇禌宸茬粨鏉燂紝绛夊緟鎴夸富鎿嶄綔", "red");
-        // ElMessageBox.alert(`${roomData.value.last_winner}鑾疯儨`, "姣旇禌缁撴潫", {
-        //   confirmButtonText: "纭畾",
+        layoutRef.value?.showAlert("比赛已结束，等待房主操作", "red");
+        // ElMessageBox.alert(`${roomData.value.last_winner}获胜`, "比赛结束", {
+        //   confirmButtonText: "确定",
         // });
         // roomStore.roomData.change_card_count = [0, 0];
         break;
@@ -1348,7 +1349,7 @@ watch(
   { deep: true, immediate: true }
 );
 
-//鏂规硶
+//方法
 const startGame = () => {
   if (roomSettings.value.gamebp && (!roomSettings.value.matchbp || !inMatch.value)) {
     startBP();
@@ -1376,7 +1377,7 @@ const drawSpellCard = () => {
 const stopGame = () => {
   const checked = ref<1 | 0 | -1>(-1);
   ElMessageBox({
-    title: "杩樻病鏈変汉鑾疯儨锛岀幇鍦ㄧ粨鏉熸瘮璧涜閫夋嫨涓€涓€夐」",
+    title: "还没有人获胜，现在结束比赛请选择一个选项",
     message: () =>
       h(
         ElRadioGroup,
@@ -1393,7 +1394,7 @@ const stopGame = () => {
               value: -1,
             },
             {
-              default: () => "缁撴灉浣滃簾",
+              default: () => "结果作废",
             }
           ),
           h(
@@ -1402,7 +1403,7 @@ const stopGame = () => {
               value: 0,
             },
             {
-              default: () => roomData.value.names[0] + "鑾疯儨",
+              default: () => roomData.value.names[0] + "获胜",
             }
           ),
           h(
@@ -1411,7 +1412,7 @@ const stopGame = () => {
               value: 1,
             },
             {
-              default: () => roomData.value.names[1] + "鑾疯儨",
+              default: () => roomData.value.names[1] + "获胜",
             }
           ),
         ]
@@ -1499,16 +1500,16 @@ const onCountDownComplete = () => {
   } else if (gameStore.gameStatus === GameStatus.STARTED) {
     gameStore.gameStatus = GameStatus.ENDED;
     if (!isHost.value) {
-      layoutRef.value?.showAlert("娓告垙鏃堕棿鍒帮紝绛夊緟鎴夸富鍒ゆ柇鑳滆礋", "red");
+      layoutRef.value?.showAlert("游戏时间到，等待房主判断胜负", "red");
     } else {
-      layoutRef.value?.showAlert("娓告垙鏃堕棿鍒帮紝绛夊緟宸︿晶鐜╁鍒ゆ柇鑳滆礋", "red");
+      layoutRef.value?.showAlert("游戏时间到，等待左侧玩家判断胜负", "red");
     }
   }
 };
 const resetRoom = () => {
   ElMessageBox.confirm("该操作会把房间恢复到初始状态，是否确认？", "警告", {
-    confirmButtonText: "纭",
-    cancelButtonText: "鍙栨秷",
+    confirmButtonText: "确认",
+    cancelButtonText: "取消",
     type: "warning",
   })
     .then(() => {
@@ -1525,7 +1526,7 @@ const removeChangeCardCount = (index: number) => {
 
 const switchDualBoardSide = () => {
   gameStore.currentBoard = 1 - gameStore.currentBoard;
-  //浠呭€掕鏃舵湡闂翠笖鏈疄闄呴€夋嫨鏃跺厑璁稿疄闄呯殑鐩橀潰杞崲
+  //仅倒计时期间且未实际选择时允许实际的盘面转换
   if (boardNotDecided()) {
     ws.send(WebSocketActionType.NORMAL_DUAL_BOARD_CHANGE, {
       player: isPlayerA.value ? 0 : 1,
@@ -1546,8 +1547,8 @@ const switchSideForce = (playerId: number) => {
 };
 const hostSwitchPlayerSide = (playerId: number) => {
   ElMessageBox.confirm(`是否改变玩家 ` + roomStore.roomData.names[playerId] + ` 到另一面？`, "警告", {
-    confirmButtonText: "纭",
-    cancelButtonText: "鍙栨秷",
+    confirmButtonText: "确认",
+    cancelButtonText: "取消",
     type: "warning",
   })
     .then(() => {
@@ -1568,13 +1569,13 @@ ws.on(WebSocketPushActionType.PUSH_NORMAL_DUAL_BOARD_CHANGE, (data) => {
     gameStore.currentBoard = gameStore.normalGameData.which_board_b;
   }
 });
-//涓嶆槸閫夋墜锛屽缁堜负鏌ョ湅妯″紡
-//鏄€夋墜锛屽彧鏈夊€掕鏃舵湡闂翠笖鏈疄闄呴€夊崱鎵嶆湁鑷敱杩涜瀹為檯鐨勫垏鎹紝鍏朵綑鎯呭喌浠ユ湇鍔″櫒涓哄噯
+//不是选手，始终为查看模式
+//是选手，只有倒计时期间且未实际选卡才可自由切换，其余情况以服务端为准
 const boardNotDecided = () => {
   if (gameStore.isReplayMode) return false;
   return isPlayer.value && gameStore.gameStatus === GameStatus.COUNT_DOWN && !spellCardSelected.value;
 };
-//鍦ㄤ笉鍏佽鑷敱鍒囨崲鐨勬椂鍊欙紝鍒ゆ柇閫夋墜鏄惁涓庢湇鍔″櫒鏈€杩戣繑鍥炵殑鏁版嵁鐩哥
+//不允许自由切换时，判断选手是否与服务端最近返回的数据相符
 const isOnCurrentBoard = () => {
   if (boardNotDecided()) {
     return true;
@@ -1715,15 +1716,15 @@ watch(
   () => gameStore.isReplayMode,
   (isReplayActive) => {
     if (isReplayActive) {
-      // 褰撴柊鐨勫洖鏀惧紑濮嬫椂锛屽皢UI婊戝潡鐨勪綅缃噸缃负1
+      // 当新的回放开始时，将 UI 滑块的位置重置为 1
       replaySpeed.value = 1;
     }
   }
 );
-// 鍒囨崲鍥炴斁鎾斁/鏆傚仠
+// 切换回放播放/暂停
 const toggleReplay = () => {
   if (replayInstance.state.isReplayFinished) {
-    return; // 濡傛灉宸茬粨鏉燂紝涓嶅仛浠讳綍浜?
+    return; // 如果已经结束，不做任何事
   }
   layoutRef.value?.hideAlert();
   if (replayInstance.state.isPlaying) {
@@ -1732,7 +1733,7 @@ const toggleReplay = () => {
     replayInstance.resumeReplay();
   }
 };
-// 鏀瑰彉鍥炴斁閫熷害
+// 改变回放速度
 const changeReplaySpeed = (value: number) => {
   const newSpeed = speedValues[value - 1];
   if (newSpeed) {
@@ -1742,7 +1743,7 @@ const changeReplaySpeed = (value: number) => {
   }
 };
 
-// 鏍煎紡鍖栧洖鏀炬椂闂存樉绀?(淇濇寔涓嶅彉)
+// 格式化回放时间显示
 const formatReplayTime = (milliseconds: number): string => {
   const totalSeconds = Math.floor(milliseconds / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -1750,7 +1751,7 @@ const formatReplayTime = (milliseconds: number): string => {
   return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 };
 
-// 纭閫€鍑哄洖鏀?(淇濇寔涓嶅彉)
+// 确认退出回放(保持不变)
 const confirmExitReplay = () => {
   replayInstance.endReplay();
 };
@@ -1781,7 +1782,7 @@ const handleEditorCellClick = (index: number) => {
   editorStore.selectSpell(index);
 };
 
-// 璁＄畻灞炴€э紝鐢ㄤ簬鍚戞ā鎬佹浼犻€掓暟鎹?
+// 计算属性，用于向模态框传递数据
 const selectedSpellData = computed(() => {
   if (!editorStore.isEditorMode || editorStore.selectedSpellIndex === -1) {
     return { spell: {}, status: 0, isPortal: false };
@@ -1795,7 +1796,7 @@ const selectedSpellData = computed(() => {
   return { spell, status, isPortal };
 });
 
-// 澶勭悊妯℃€佹纭浜嬩欢
+// 处理模态框确认事件
 const handleEditorConfirm = (payload) => {
   const index = editorStore.selectedSpellIndex;
   editorStore.updateSpell({ index, spellData: payload.spellData });
@@ -1804,17 +1805,17 @@ const handleEditorConfirm = (payload) => {
   editorStore.closeModal();
 };
 
-// 澶勭悊妯℃€佹娓呯┖浜嬩欢
+// 处理模态框清空事件
 const handleEditorClear = () => {
   editorStore.clearSpell(editorStore.selectedSpellIndex);
   editorStore.closeModal();
 };
 
-// --- 閿洏蹇嵎閿?---
+// --- 键盘快捷键---
 const handleKeyDown = (e: KeyboardEvent) => {
   if (!editorStore.isEditorMode || editorStore.selectedSpellIndex === -1) return;
 
-  // 妫€鏌ユ槸鍚﹀湪杈撳叆妗嗗唴锛岄伩鍏嶅啿绐?
+  // 检查是否在输入框内，避免冲突
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
   if (e.ctrlKey || e.metaKey) {
@@ -1843,7 +1844,7 @@ onUnmounted(() => {
 const handleClearAll = () => {
   ElMessageBox.confirm("确定要清空所有格子的内容吗？此操作不可恢复。", "警告", {
     type: "warning",
-    confirmButtonText: "纭娓呯┖",
+    confirmButtonText: "确认清空",
     confirmButtonClass: "el-button--danger",
   })
     .then(() => {
@@ -1856,8 +1857,8 @@ const handleClearAll = () => {
 const handleShuffleSpells = () => {
   ElMessageBox.confirm("确定要洗混当前盘面的格子吗？此操作不可恢复。", "提示", {
     type: "warning",
-    confirmButtonText: "纭娲楁贩",
-    cancelButtonText: "鍙栨秷",
+    confirmButtonText: "确认洗混",
+    cancelButtonText: "取消",
   })
     .then(() => {
       const result = editorStore.shuffleSpells();
