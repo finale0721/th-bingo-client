@@ -381,14 +381,14 @@
                 >开始收卡</el-button
               >
             </template>
+            <template v-if="isBingoLink && linkPhase === 1 && isPlayer">
+              <el-button type="primary" @click="linkUndo" :disabled="myLinkRouteConfirmed">撤回路线</el-button>
+            </template>
           </template>
         </div>
       </template>
 
       <template #button-right-2>
-        <template v-if="isBingoLink && linkPhase === 1 && isPlayer">
-          <el-button type="primary" @click="linkUndo" :disabled="myLinkRouteConfirmed">撤回路线</el-button>
-        </template>
         <template v-if="isDualBoard && roomStore.roomConfig.type == BingoType.STANDARD">
           <el-button type="primary" @click="switchDualBoardSide">
             {{ boardNotDecided() ? "切换盘面" : isOnCurrentBoard() ? "查看另一面" : "返回当前面" }}
