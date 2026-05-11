@@ -700,6 +700,22 @@
                   @change="saveRoomSettings"
                 />
               </el-form-item>
+              <el-form-item label="link路线：">
+                <el-color-picker
+                  v-model="roomSettings.linkPathColorA"
+                  size="small"
+                  color-format="hex"
+                  :predefine="predefineExtraLineColors"
+                  @change="saveRoomSettings"
+                />
+                <el-color-picker
+                  v-model="roomSettings.linkPathColorB"
+                  size="small"
+                  color-format="hex"
+                  :predefine="predefineExtraLineColors"
+                  @change="saveRoomSettings"
+                />
+              </el-form-item>
               <el-form-item label="盘面背景：" v-if="roomStore.roomConfig.dual_board > 0">
                 <el-color-picker
                   v-model="roomSettings.backgroundColor"

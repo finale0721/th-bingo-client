@@ -76,6 +76,9 @@ export enum WebSocketActionType {
   LINK_NEXT_CARD = "link_next_card",
   LINK_FINISH_CARD = "link_finish_card",
   LINK_SKIP_CARD = "link_skip_card",
+  LINK_FORCE_SKIP = "link_force_skip",
+  LINK_UNDO_FINISH = "link_undo_finish",
+  LINK_SET_SKIP_USED = "link_set_skip_used",
   LINK_SET_PHASE = "link_set_phase",
   LINK_SET_DISABLED = "link_set_disabled",
 }

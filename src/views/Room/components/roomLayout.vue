@@ -333,10 +333,10 @@ const linkLinesForDisplay = computed(() => {
   const a = gameStore.linkGameData.link_idx_a || [];
   const b = gameStore.linkGameData.link_idx_b || [];
   if (a.length > 0) {
-    lines.push({ key: "link-a", points: routeToPolyline(a), color: roomStore.roomSettings.playerA.color });
+    lines.push({ key: "link-a", points: routeToPolyline(a), color: roomStore.roomSettings.linkPathColorA || roomStore.roomSettings.playerA.color });
   }
   if (b.length > 0) {
-    lines.push({ key: "link-b", points: routeToPolyline(b), color: roomStore.roomSettings.playerB.color });
+    lines.push({ key: "link-b", points: routeToPolyline(b), color: roomStore.roomSettings.linkPathColorB || roomStore.roomSettings.playerB.color });
   }
   return lines;
 });
@@ -460,6 +460,11 @@ const infoFailCard = () => {
   captureCardFailureAudioRef.value?.play();
 };
 
+const infoSkipAvailable = () => {
+  gamePointAudioRef.value?.stop();
+  gamePointAudioRef.value?.play();
+};
+
 const infoWinGame = () => {
   muteSFXOnGameEnd();
   winGameAudioRef.value?.play();
@@ -569,7 +574,7 @@ const contextMenuData = computed(() => {
   return props.menu;
 });
 
-defineExpose({ showAlert, hideAlert, warnGamePoint, infoCaptureCard, infoFailCard, infoWinGame, infoLoseGame });
+defineExpose({ showAlert, hideAlert, warnGamePoint, infoCaptureCard, infoFailCard, infoSkipAvailable, infoWinGame, infoLoseGame });
 </script>
 
 <style lang="scss" scoped>

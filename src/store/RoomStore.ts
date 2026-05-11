@@ -120,6 +120,8 @@ export const useRoomStore = defineStore("room", () => {
     autoSwitchInDualMode: false,
     autoSwitchInterval: 20,
     extraLineColor: "#0ce739",
+    linkPathColorA: "hsl(16, 100%, 50%)",
+    linkPathColorB: "hsl(210, 100%, 56%)",
     game_weight: {},
     ai_preference: {},
     custom_level_count: [2, 6, 12, 4, 1, 1, 0, 4, 1, 1, 5],
@@ -140,6 +142,8 @@ export const useRoomStore = defineStore("room", () => {
     if (roomSettings.extra_line_count === undefined) roomSettings.extra_line_count = 2;
     if (roomSettings.difficulty === 0) roomSettings.difficulty = 3;
     if (roomSettings.extraLineColor === undefined) roomSettings.extraLineColor = "#0ce739";
+    if (roomSettings.linkPathColorA === undefined) roomSettings.linkPathColorA = roomSettings.playerA.color;
+    if (roomSettings.linkPathColorB === undefined) roomSettings.linkPathColorB = roomSettings.playerB.color;
     if (roomSettings.link_level_coefficient === undefined) roomSettings.link_level_coefficient = 2;
     if (roomSettings.link_fastest_coefficient === undefined) roomSettings.link_fastest_coefficient = 1;
     if (roomSettings.link_connectivity === undefined) roomSettings.link_connectivity = 8;

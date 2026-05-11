@@ -513,6 +513,9 @@ export const useGameStore = defineStore("game", () => {
   const linkNextCard = () => ws.send(WebSocketActionType.LINK_NEXT_CARD);
   const linkFinishCard = () => ws.send(WebSocketActionType.LINK_FINISH_CARD);
   const linkSkipCard = () => ws.send(WebSocketActionType.LINK_SKIP_CARD);
+  const linkForceSkip = (playerIndex: number) => ws.send(WebSocketActionType.LINK_FORCE_SKIP, { player_index: playerIndex });
+  const linkUndoFinish = (playerIndex: number) => ws.send(WebSocketActionType.LINK_UNDO_FINISH, { player_index: playerIndex });
+  const linkSetSkipUsed = (playerIndex: number, value: number) => ws.send(WebSocketActionType.LINK_SET_SKIP_USED, { player_index: playerIndex, value });
   const linkSetPhase = (phase: number) => ws.send(WebSocketActionType.LINK_SET_PHASE, { phase });
 
   ws.on<LinkData>(WebSocketPushActionType.PUSH_LINK_DATA, (data) => {
@@ -604,6 +607,9 @@ export const useGameStore = defineStore("game", () => {
     linkNextCard,
     linkFinishCard,
     linkSkipCard,
+    linkForceSkip,
+    linkUndoFinish,
+    linkSetSkipUsed,
     linkSetPhase,
     refreshSpell,
     resetGameData,
