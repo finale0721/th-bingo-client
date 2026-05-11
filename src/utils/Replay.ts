@@ -90,6 +90,7 @@ class Replay {
     hidden_select_threshold_b: 5,
   };
   private originalPlayerNames: string[] = Array(2).fill("");
+  private originalRoomDataType: BingoType = BingoType.STANDARD;
 
   public isPlaying = false;
 
@@ -119,12 +120,14 @@ class Replay {
       this.originalRoomConfig[i] = this.roomStore.roomConfig[i];
     }
     this.originalPlayerNames = [...this.roomStore.roomData.names];
+    this.originalRoomDataType = this.roomStore.roomData.type;
 
     //  设置回放用的房间配置和玩家名称
     for (const i in this.gameLogData.roomConfig) {
       this.roomStore.roomConfig[i] = this.gameLogData.roomConfig[i];
     }
     this.roomStore.roomData.names = [...this.gameLogData.players];
+    this.roomStore.roomData.type = this.gameLogData.roomConfig.type;
 
     //  基于回放数据初始化游戏
     this.initGameData();
@@ -232,6 +235,7 @@ class Replay {
 
     // 设置初始spellStatus
     this.gameStore.spellStatus = [...this.gameLogData.initStatus];
+    this.applyReplayLinkData(this.gameLogData.linkData);
 
     // 标记游戏开始
     this.roomStore.roomData.started = true;
@@ -239,7 +243,63 @@ class Replay {
   }
 
   // 执行单个操作
+  private applyReplayLinkData(data?: LinkData | null): void {
+    if (this.gameLogData?.roomConfig.type !== BingoType.LINK) return;
+
+    const source = data || this.gameLogData?.linkData || null;
+    const boardSize = this.gameLogData?.roomConfig.board_size || 5;
+    const area = boardSize * boardSize;
+    const empty: LinkData = {
+      link_idx_a: [],
+      link_idx_b: [],
+      start_ms_a: 0,
+      end_ms_a: 0,
+      event_a: 0,
+      start_ms_b: 0,
+      end_ms_b: 0,
+      event_b: 0,
+      route_confirmed_a: false,
+      route_confirmed_b: false,
+      current_step_a: 0,
+      current_step_b: 0,
+      status_a: Array(area).fill(0),
+      status_b: Array(area).fill(0),
+      last_get_time_a: 0,
+      last_get_time_b: 0,
+      skip_used_a: 0,
+      skip_used_b: 0,
+      skipped_idx_a: [],
+      skipped_idx_b: [],
+      score_a: 0,
+      score_b: 0,
+      disabled_idx: [],
+    };
+    const next: LinkData = {
+      ...empty,
+      ...(source || {}),
+      link_idx_a: [...(source?.link_idx_a || [])],
+      link_idx_b: [...(source?.link_idx_b || [])],
+      status_a: this.fitArray(source?.status_a, area, 0),
+      status_b: this.fitArray(source?.status_b, area, 0),
+      skipped_idx_a: [...(source?.skipped_idx_a || [])],
+      skipped_idx_b: [...(source?.skipped_idx_b || [])],
+      disabled_idx: [...(source?.disabled_idx || [])],
+    };
+    const linkData = next as unknown as Record<string, unknown>;
+    const target = this.gameStore.linkGameData as unknown as Record<string, unknown>;
+    for (const key in linkData) {
+      const value = linkData[key];
+      target[key] = Array.isArray(value) ? [...value] : value;
+    }
+    this.roomStore.roomData.score = [Math.floor(next.score_a || 0), Math.floor(next.score_b || 0)];
+  }
+
   private executeAction(action: PlayerAction): void {
+    if (this.gameLogData?.roomConfig.type === BingoType.LINK && action.linkData) {
+      this.applyReplayLinkData(action.linkData);
+      return;
+    }
+
     switch (action.actionType.split("-")[0]) {
       case "select":
         this.handleSelect(action);
@@ -310,6 +370,7 @@ class Replay {
       this.roomStore.roomConfig[i] = this.originalRoomConfig[i];
     }
     this.roomStore.roomData.names = [...this.originalPlayerNames];
+    this.roomStore.roomData.type = this.originalRoomDataType;
 
     // 重置游戏状态
     this.gameStore.resetGameData();
@@ -319,6 +380,11 @@ class Replay {
   public getTotalTime(): number {
     if (!this.gameLogData || this.gameLogData.actions.length === 0) return 0;
     return this.gameLogData.actions[this.gameLogData.actions.length - 1].timestamp;
+  }
+
+  public getReplayWallTime(): number {
+    if (!this.gameLogData) return Date.now();
+    return this.gameLogData.gameStartTimestamp + this.state.currentTime;
   }
 
   private cleanupPreviousReplay(): void {

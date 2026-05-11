@@ -436,6 +436,7 @@ import Config from "@/config";
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
 const editorStore = useEditorStore();
+const replayInstance = Replay;
 
 const countdownRef = ref<InstanceType<typeof CountDown>>();
 const layoutRef = ref<InstanceType<typeof RoomLayout>>();
@@ -1210,6 +1211,7 @@ const linkCurrentSelectedForPlayer = (playerIndex: 0 | 1) => {
 const myLinkCurrentIndex = computed(() => controlledLinkPlayer.value == null ? -1 : linkCurrentIndexForPlayer(controlledLinkPlayer.value));
 const myLinkCurrentSelected = computed(() => controlledLinkPlayer.value != null && linkCurrentSelectedForPlayer(controlledLinkPlayer.value));
 const linkNow = ref(Date.now());
+const getLinkNow = () => gameStore.isReplayMode ? replayInstance.getReplayWallTime() : Date.now();
 const linkCooldown = computed(() => {
   if (linkPhase.value !== 2) return -1;
   const cd = isPlayerA.value ? roomStore.actualCdTimeA : roomStore.actualCdTimeB;
@@ -1301,7 +1303,7 @@ const formatLinkDuration = (milliseconds: number) => {
 };
 
 const decideLink = () => {
-  const now = Date.now();
+  const now = getLinkNow();
   const liveScore = (playerIndex: 0 | 1) => {
     const route = playerIndex === 0 ? routeA.value : routeB.value;
     const step = playerIndex === 0 ? linkData.value.current_step_a || 0 : linkData.value.current_step_b || 0;
@@ -1395,7 +1397,7 @@ const resetLocalGameState = () => {
   lastLinkStepA.value = 0;
   lastLinkStepB.value = 0;
   linkStepSoundInited.value = false;
-  linkNow.value = Date.now();
+  linkNow.value = getLinkNow();
 };
 watch(
   () => gameStore.linkGameData,
@@ -1423,7 +1425,7 @@ watch(
     }
     if (isLink && phase === 2) {
       linkLiveTimer.value = window.setInterval(() => {
-        linkNow.value = Date.now();
+        linkNow.value = getLinkNow();
         decideLink();
       }, 1000);
     }
@@ -1838,7 +1840,6 @@ onUnmounted(() => {
   }
 });
 
-const replayInstance = Replay;
 const replaySpeed = ref(1);
 const speedValues = [1, 1.5, 2, 3, 5, 8, 15, 30];
 const speedMarks = {
