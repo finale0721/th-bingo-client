@@ -1,7 +1,7 @@
 import { useGameStore } from "@/store/GameStore";
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useRoomStore } from "@/store/RoomStore";
-import { BingoType, GameData, GameStatus, OneSpell, RoomConfig, Spell, SpellStatus } from "@/types";
+import { BingoType, GameData, GameStatus, LinkData, OneSpell, RoomConfig, Spell, SpellStatus } from "@/types";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
 import Config from "@/config";
@@ -13,6 +13,7 @@ export interface PlayerAction {
   spellIndex: number;
   spellName: string;
   timestamp: number;
+  linkData?: LinkData | null;
   spell?: Spell; // 附加一个spell对象，方便处理
   scoreNow?: number[];
 }
@@ -35,6 +36,7 @@ export interface GameLogData {
   score: number[];
   initStatus: number[];
   isCustomGame: boolean | null;
+  linkData?: LinkData | null;
 }
 
 export interface ReplayPayload {
@@ -483,10 +485,47 @@ class Replay {
     );
   };
 
+  private normalizeLinkData = (linkData: Partial<LinkData> | undefined | null, area: number): LinkData | null => {
+    if (!linkData) return null;
+    const fitNumbers = (source: unknown, fillValue = 0) =>
+      this.fitArray(Array.isArray(source) ? (source as number[]) : [], area, fillValue);
+    const cleanRoute = (source: unknown) =>
+      Array.isArray(source)
+        ? (source as number[]).filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < area)
+        : [];
+
+    return {
+      link_idx_a: cleanRoute(linkData.link_idx_a),
+      link_idx_b: cleanRoute(linkData.link_idx_b),
+      start_ms_a: Number(linkData.start_ms_a || 0),
+      end_ms_a: Number(linkData.end_ms_a || 0),
+      event_a: Number(linkData.event_a || 0),
+      start_ms_b: Number(linkData.start_ms_b || 0),
+      end_ms_b: Number(linkData.end_ms_b || 0),
+      event_b: Number(linkData.event_b || 0),
+      route_confirmed_a: Boolean(linkData.route_confirmed_a),
+      route_confirmed_b: Boolean(linkData.route_confirmed_b),
+      current_step_a: Number(linkData.current_step_a || 0),
+      current_step_b: Number(linkData.current_step_b || 0),
+      status_a: fitNumbers(linkData.status_a),
+      status_b: fitNumbers(linkData.status_b),
+      last_get_time_a: Number(linkData.last_get_time_a || 0),
+      last_get_time_b: Number(linkData.last_get_time_b || 0),
+      skip_used_a: Number(linkData.skip_used_a || 0),
+      skip_used_b: Number(linkData.skip_used_b || 0),
+      skipped_idx_a: cleanRoute(linkData.skipped_idx_a),
+      skipped_idx_b: cleanRoute(linkData.skipped_idx_b),
+      score_a: Number(linkData.score_a || 0),
+      score_b: Number(linkData.score_b || 0),
+      disabled_idx: cleanRoute(linkData.disabled_idx),
+    };
+  };
+
   private normalizeActions = (
     actions: PlayerAction[] | undefined,
     players: string[],
-    initStatus: number[]
+    initStatus: number[],
+    area: number
   ): PlayerAction[] => {
     const statuses = [...initStatus];
     let runningScore = this.scoreFromStatus(statuses);
@@ -512,6 +551,7 @@ class Replay {
         action.scoreNow = this.fitArray(action.scoreNow, 2, 0);
         runningScore = [...action.scoreNow];
       }
+      action.linkData = this.normalizeLinkData(action.linkData, area);
 
       return action;
     });
@@ -600,6 +640,11 @@ class Replay {
     const area = roomConfig.board_size * roomConfig.board_size;
     const players = this.normalizePlayers(logObject.players);
     const initStatus = this.fitArray(logObject.initStatus, area, SpellStatus.NONE);
+    const normalizedActions = this.normalizeActions(logObject.actions, players, initStatus, area);
+    const lastLinkAction = normalizedActions
+      .slice()
+      .reverse()
+      .find((action) => action.linkData);
     const normalizedLog: GameLogData = {
       ...logObject,
       roomConfig,
@@ -607,10 +652,11 @@ class Replay {
       spells: Array.isArray(logObject.spells) ? [...logObject.spells] : [],
       spells2: Array.isArray(logObject.spells2) ? [...logObject.spells2] : null,
       normalData: this.normalizeNormalData(logObject.normalData, roomConfig, area),
-      actions: this.normalizeActions(logObject.actions, players, initStatus),
+      actions: normalizedActions,
       score: this.fitArray(logObject.score, 2, 0),
       initStatus,
       isCustomGame: logObject.isCustomGame ?? false,
+      linkData: lastLinkAction?.linkData || this.normalizeLinkData(logObject.linkData, area),
     };
 
     normalizedLog.actions.forEach((action) => {
@@ -624,9 +670,13 @@ class Replay {
 
   public buildReplayCode = (logObject: GameLogData): string => {
     const normalizedLog = this.normalizeGameLog(logObject);
+    const replayLog = {
+      ...normalizedLog,
+      actions: normalizedLog.actions.map(({ scoreNow, ...action }) => action),
+    };
     const dataToEncode: ReplayPayload = {
       version: REPLAY_DATA_VERSION,
-      data: normalizedLog,
+      data: replayLog,
     };
     const originalLogString = JSON.stringify(dataToEncode);
     const compressedData = pako.deflate(originalLogString);
@@ -702,6 +752,189 @@ class Replay {
   public downloadReadableLog = (logObject: GameLogData) => {
     const result = this.buildReadableLogContent(logObject);
     this.triggerDownload(result.content, result.fileName);
+  };
+
+  private formatLinkReadableLogForDownload = (
+    logData: GameLogData,
+    replayDataB64: string,
+    helpers: {
+      formatTimestamp: (ms: number) => string;
+      padStart: (str: string, targetLength: number, padString?: string) => string;
+      formatBoard: (boardSpells: Spell[], portals: number[] | undefined, title: string) => void;
+    },
+    _baseOutput: string[]
+  ): string => {
+    const { roomConfig, players, spells, actions } = logData;
+    const { formatTimestamp, formatBoard } = helpers;
+    const output: string[] = [];
+    const bs = roomConfig.board_size || 5;
+    const area = bs * bs;
+    const finalLinkData =
+      actions
+        .slice()
+        .reverse()
+        .find((action) => action.linkData)?.linkData ||
+      logData.linkData ||
+      null;
+    const routeActions = new Set(["link_route", "link_undo", "link_confirm_route", "link_unconfirm_route"]);
+    const scoreLabel = (data: LinkData | null | undefined) =>
+      data ? `${(data.score_a || 0).toFixed(2)} - ${(data.score_b || 0).toFixed(2)}` : "0.00 - 0.00";
+    const cellLabel = (idx: number) => `(${Math.floor(idx / bs) + 1}, ${(idx % bs) + 1})`;
+    const routeLabel = (route: number[] | undefined) => (route || []).map(cellLabel).join(" -> ") || "-";
+    const usedMs = (data: LinkData | null | undefined, playerIndex: number) => {
+      if (!data) return 0;
+      const start = playerIndex === 0 ? data.start_ms_a : data.start_ms_b;
+      const end = playerIndex === 0 ? data.end_ms_a : data.end_ms_b;
+      return start > 0 && end > start ? end - start : 0;
+    };
+    const collectStats = players.map((player) => {
+      const stats = {
+        selectActionByIndex: new Map<number, PlayerAction>(),
+        completedTasks: [] as string[],
+        skippedTasks: [] as string[],
+        totalTime: 0,
+        totalFastest: 0,
+        totalFastestWeighted: 0,
+        starCounts: [0, 0, 0, 0, 0],
+      };
+      actions.forEach((action) => {
+        if (action.playerName !== player || action.spellIndex < 0) return;
+        if (action.actionType === "link_start_run" || action.actionType === "link_next_card") {
+          stats.selectActionByIndex.set(action.spellIndex, action);
+          return;
+        }
+        if (action.actionType === "link_skip_card") {
+          const spell = spells[action.spellIndex];
+          stats.selectActionByIndex.delete(action.spellIndex);
+          stats.skippedTasks.push(`- "${spell?.name || action.spellName}" (跳过)`);
+          return;
+        }
+        if (action.actionType !== "link_finish_card") return;
+        const spell = spells[action.spellIndex];
+        if (!spell) return;
+        const selectAction = stats.selectActionByIndex.get(action.spellIndex);
+        stats.selectActionByIndex.delete(action.spellIndex);
+        const duration = selectAction ? Math.max(0, action.timestamp - selectAction.timestamp) : 0;
+        stats.totalTime += duration;
+        stats.totalFastest += spell.fastest || 0;
+        stats.totalFastestWeighted +=
+          (spell.fastest || 0) + 3.5 + (1 / this.getDifficultyFix(spell) - 1) * ((spell.miss_time || 0) + 1.5);
+        stats.starCounts[spell.star - 1] = (stats.starCounts[spell.star - 1] || 0) + 1;
+        stats.completedTasks.push(`- "${spell.name}": ${(duration / 1000).toFixed(2)}s`);
+      });
+      return stats;
+    });
+
+    output.push(`东方Bingo Link赛日志`);
+    output.push(`对局开始时间: ${new Date(logData.gameStartTimestamp).toLocaleString()}`);
+    output.push(`玩家: ${players[0]} vs ${players[1]}`);
+    output.push(`最终分数: ${scoreLabel(finalLinkData)}`);
+    output.push("---");
+    output.push("【游戏设置】");
+    output.push(`模式: ${Config.gameTypeList.find((g) => g.type === roomConfig.type)?.name || "Link赛"}`);
+    output.push(`盘面尺寸: ${bs}x${bs}`);
+    output.push(`CD: ${roomConfig.cd_time}秒, 连接规则: ${roomConfig.link_connectivity === 4 ? "四向" : "八向"}`);
+    output.push(`计分系数: 等级 ${roomConfig.link_level_coefficient ?? 0}, 最速 ${roomConfig.link_fastest_coefficient ?? 0}`);
+    if (roomConfig.use_ai) {
+      output.push(`AI练习: 开启`);
+    }
+    output.push(`A路线端点: ${cellLabel(roomConfig.link_start_a ?? 0)} -> ${cellLabel(roomConfig.link_end_a ?? area - 1)}`);
+    output.push(`B路线端点: ${cellLabel(roomConfig.link_start_b ?? bs - 1)} -> ${cellLabel(roomConfig.link_end_b ?? area - bs)}`);
+    if (roomConfig.link_disabled_idx?.length) {
+      output.push(`禁用格: ${roomConfig.link_disabled_idx.map(cellLabel).join(", ")}`);
+    }
+    output.push("---");
+    formatBoard(spells, undefined, "【盘面】");
+    output.push("");
+    output.push("【路线】");
+    output.push(`${players[0]}: ${routeLabel(finalLinkData?.link_idx_a)}`);
+    output.push(`${players[1]}: ${routeLabel(finalLinkData?.link_idx_b)}`);
+    output.push("---");
+    output.push("【游戏进程】");
+
+    actions
+      .filter((action) => !routeActions.has(action.actionType))
+      .forEach((action) => {
+        const timeStr = `[${formatTimestamp(action.timestamp)}]`;
+        const spellText = action.spellIndex >= 0 ? `${cellLabel(action.spellIndex)} "${action.spellName}"` : "";
+        let line = `${timeStr} `;
+        switch (action.actionType) {
+          case "link_start_run":
+            line += `${action.playerName} 开始竞速。`;
+            break;
+          case "link_next_card":
+            line += `${action.playerName} 选择 ${spellText}。`;
+            break;
+          case "link_finish_card":
+            line += `${action.playerName} 收取 ${spellText}。`;
+            break;
+          case "link_skip_card":
+            line += `${action.playerName} 跳过 ${spellText}。`;
+            break;
+          case "link_undo_finish":
+            line += `${action.playerName} 撤销收取 ${spellText}。`;
+            break;
+          case "link_set_skip_used":
+            line += `${action.playerName} 调整跳过次数。`;
+            break;
+          case "link_finish_run":
+            line += `${action.playerName} 结束竞速。`;
+            break;
+          case "link_ai_speedrun":
+            line += `${action.playerName} 使用AI速通模式完成路线，已按真实触发时间还原耗时。`;
+            break;
+          default:
+            line += `${action.playerName || "-"} ${this.getActionTypeLabel(action.actionType)} ${spellText}`;
+            break;
+        }
+        output.push(line);
+      });
+
+    output.push("---");
+    output.push("【数据分析】");
+    players.forEach((player, playerIndex) => {
+      const route = playerIndex === 0 ? finalLinkData?.link_idx_a || [] : finalLinkData?.link_idx_b || [];
+      const skipped = new Set(playerIndex === 0 ? finalLinkData?.skipped_idx_a || [] : finalLinkData?.skipped_idx_b || []);
+      const currentStep = playerIndex === 0 ? finalLinkData?.current_step_a || 0 : finalLinkData?.current_step_b || 0;
+      const completedRoute = route.slice(0, currentStep);
+      const capturedRoute = completedRoute.filter((idx) => !skipped.has(idx));
+      let levelSum = 0;
+      capturedRoute.forEach((idx) => {
+        const spell = spells[idx];
+        if (!spell) return;
+        levelSum += spell.star || 0;
+      });
+      const elapsed = usedMs(finalLinkData, playerIndex);
+      const scoreValue = playerIndex === 0 ? finalLinkData?.score_a || 0 : finalLinkData?.score_b || 0;
+      const stats = collectStats[playerIndex];
+      output.push(`[玩家: ${player}]`);
+      output.push(...stats.completedTasks);
+      output.push(...stats.skippedTasks);
+      output.push(`完成进度: ${completedRoute.length}/${route.length}, 收取 ${capturedRoute.length} 张, 跳过 ${skipped.size} 张`);
+      output.push(`等级分布: [${stats.starCounts.join(",")}], 总等级: ${levelSum}`);
+      output.push(`收卡时间: ${formatTimestamp(stats.totalTime)} (${(stats.totalTime / 1000).toFixed(2)}s)`);
+      output.push(`路线耗时: ${formatTimestamp(elapsed)} (${(elapsed / 1000).toFixed(2)}s), 理论最速合计: ${stats.totalFastest.toFixed(2)}s`);
+      if (Config.spellListWithTimer.includes(roomConfig.spell_version) && !logData.isCustomGame) {
+        const captureEfficiency =
+          stats.totalTime > 0 ? (((stats.totalFastest * 1000) / stats.totalTime) * 100).toFixed(2) : "N/A";
+        const routeEfficiency =
+          elapsed > 0 ? (((stats.totalFastestWeighted * 1000) / elapsed) * 100).toFixed(2) : "N/A";
+        output.push(
+          `纯收卡效率 ${captureEfficiency}% (${stats.totalFastest.toFixed(2)}s / ${(stats.totalTime / 1000).toFixed(2)}s)`
+        );
+        output.push(
+          `总时间效率 ${routeEfficiency}% (${stats.totalFastestWeighted.toFixed(2)}s / ${(elapsed / 1000).toFixed(2)}s)`
+        );
+      }
+      output.push(`Link分数: ${scoreValue.toFixed(2)}`);
+      output.push("");
+    });
+
+    const formattedReplayData = this.formatStringWithLineBreaks(replayDataB64, 128);
+    output.push("\n\n--- DO NOT EDIT BELOW THIS LINE ---");
+    output.push("本局回放代码：\n");
+    output.push(formattedReplayData);
+    return output.join("\n");
   };
 
   public fetchAndProcessGameLog = async () => {
@@ -940,6 +1173,16 @@ class Replay {
 
     // 4. 游戏进程
     output.push("【游戏进程】");
+    if (roomConfig.type === BingoType.LINK) {
+      output.pop();
+      return this.formatLinkReadableLogForDownload(
+        logData,
+        replayDataB64,
+        { formatTimestamp, padStart, formatBoard },
+        output
+      );
+    }
+
     const playerBoards: { [key: string]: number } = { [players[0]]: 0, [players[1]]: 0 };
     // 预处理，为每个玩家的 select 动作找到对应的 finish
     const playerSelectHistory: { [key: string]: PlayerAction[] } = { [players[0]]: [], [players[1]]: [] };

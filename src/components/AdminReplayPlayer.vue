@@ -90,10 +90,34 @@
                   :preview-get-on-which-board="logData.normalData?.get_on_which_board || []"
                   :preview-viewer-is-player-a="false"
                   :preview-viewer-is-player-b="false"
+                  :link-marker="linkMarker(index)"
+                  :link-status-a="simulation.linkData?.status_a?.[index] || 0"
+                  :link-status-b="simulation.linkData?.status_b?.[index] || 0"
+                  :link-skipped-a="simulation.linkData?.skipped_idx_a?.includes(index) || false"
+                  :link-skipped-b="simulation.linkData?.skipped_idx_b?.includes(index) || false"
                 />
                 <span v-if="currentAction?.spellIndex === index" class="focus-marker">Now</span>
               </div>
             </div>
+            <svg
+              v-if="linkLinesForDisplay.length > 0"
+              class="link-lines-overlay"
+              :viewBox="`0 0 ${replayBoardSize} ${replayBoardSize}`"
+              preserveAspectRatio="none"
+            >
+              <polyline
+                v-for="line in linkLinesForDisplay"
+                :key="line.key"
+                :points="line.points"
+                :stroke="line.color"
+                stroke-width="7"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                vector-effect="non-scaling-stroke"
+                opacity="0.82"
+              />
+            </svg>
             <div v-if="isDualBoard" :class="viewBoard === 0 ? 'page' : 'page-reverse'"></div>
             <svg
               v-if="extraLinesForDisplay.length > 0"
@@ -159,7 +183,7 @@
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { BingoType, GameStatus, SpellStatus } from "@/types";
-import type { Spell } from "@/types";
+import type { LinkData, Spell } from "@/types";
 import { ElButton, ElEmpty, ElOption, ElSelect, ElSlider, ElTag } from "element-plus";
 import Replay, { type GameLogData, type PlayerAction } from "@/utils/Replay";
 import SpellCardCell from "@/components/spell-card-cell.vue";
@@ -185,6 +209,7 @@ const simulation = reactive({
   gameStatus: GameStatus.NOT_STARTED,
   currentAction: null as PlayerAction | null,
   currentScore: [0, 0] as [number, number],
+  linkData: null as LinkData | null,
 });
 
 const logData = computed(() => {
@@ -206,6 +231,7 @@ const totalTime = computed(() => {
 
 const actionCount = computed(() => logData.value?.actions.length || 0);
 const isDualBoard = computed(() => (logData.value?.roomConfig.dual_board || 0) > 0 && !!logData.value?.spells2?.length);
+const isLinkReplay = computed(() => logData.value?.roomConfig.type === BingoType.LINK);
 const replayBoardSize = computed(() => logData.value?.roomConfig.board_size || 5);
 const extraLineColor = computed(() => palette.value.extraLineColor || "#fbff00");
 const spellCardSizePercent = computed(() => {
@@ -240,6 +266,31 @@ const extraLinesForDisplay = computed(() => {
       .join(" ");
     return { points };
   });
+});
+
+const linkRouteToPoints = (route: number[] | undefined) => {
+  const bs = replayBoardSize.value;
+  return (route || [])
+    .map((idx) => {
+      const row = Math.floor(idx / bs);
+      const col = idx % bs;
+      return `${col + 0.5},${row + 0.5}`;
+    })
+    .join(" ");
+};
+
+const linkLinesForDisplay = computed(() => {
+  if (!isLinkReplay.value || !simulation.linkData) {
+    return [];
+  }
+  const lines = [];
+  if (simulation.linkData.link_idx_a.length > 0) {
+    lines.push({ key: "link-a", points: linkRouteToPoints(simulation.linkData.link_idx_a), color: palette.value.linkPathColorA });
+  }
+  if (simulation.linkData.link_idx_b.length > 0) {
+    lines.push({ key: "link-b", points: linkRouteToPoints(simulation.linkData.link_idx_b), color: palette.value.linkPathColorB });
+  }
+  return lines;
 });
 
 const playbackStateLabel = computed(() => {
@@ -278,6 +329,8 @@ function readPaletteSettings() {
     backgroundColor: settings.backgroundColor || "hsl(58, 63%, 79%)",
     backgroundColorReverse: settings.backgroundColorReverse || "hsl(258, 100%, 77%)",
     extraLineColor: settings.extraLineColor || "#fbff00",
+    linkPathColorA: settings.linkPathColorA || settings.playerA?.color || "hsl(16, 100%, 50%)",
+    linkPathColorB: settings.linkPathColorB || settings.playerB?.color || "hsl(210, 100%, 56%)",
   };
 }
 
@@ -313,12 +366,31 @@ const getInitialPlayerBoards = (): [number, number] => {
   return [logData.value.normalData.which_board_a || 0, logData.value.normalData.which_board_b || 0];
 };
 
+const cloneLinkData = (data: LinkData | null | undefined): LinkData | null => {
+  if (!data) {
+    return null;
+  }
+  return {
+    ...data,
+    link_idx_a: [...(data.link_idx_a || [])],
+    link_idx_b: [...(data.link_idx_b || [])],
+    status_a: [...(data.status_a || [])],
+    status_b: [...(data.status_b || [])],
+    skipped_idx_a: [...(data.skipped_idx_a || [])],
+    skipped_idx_b: [...(data.skipped_idx_b || [])],
+    disabled_idx: [...(data.disabled_idx || [])],
+  };
+};
+
 const resetSimulation = () => {
   simulation.spellStatus = [...(logData.value?.initStatus || [])];
   simulation.playerBoards = getInitialPlayerBoards();
   simulation.gameStatus = actionCount.value ? GameStatus.STARTED : GameStatus.NOT_STARTED;
   simulation.currentAction = null;
-  simulation.currentScore = [0, 0];
+  simulation.linkData = cloneLinkData(logData.value?.linkData);
+  simulation.currentScore = isLinkReplay.value && simulation.linkData
+    ? [Math.floor(simulation.linkData.score_a || 0), Math.floor(simulation.linkData.score_b || 0)]
+    : [0, 0];
   actionCursor.value = 0;
   currentTime.value = 0;
   viewBoard.value = 0;
@@ -332,6 +404,18 @@ const getActionTypeLabel = (actionType: string) => {
   if (actionType === "contest_win") return "抢卡成功";
   if (actionType === "pause") return "暂停比赛";
   if (actionType === "resume") return "恢复比赛";
+  if (actionType === "link_route") return "加入路线";
+  if (actionType === "link_undo") return "撤回路线";
+  if (actionType === "link_confirm_route") return "确认路线";
+  if (actionType === "link_unconfirm_route") return "取消确认路线";
+  if (actionType === "link_start_run") return "开始竞速";
+  if (actionType === "link_next_card") return "选择下一张";
+  if (actionType === "link_finish_card") return "收取符卡";
+  if (actionType === "link_skip_card") return "跳过符卡";
+  if (actionType === "link_undo_finish") return "撤销收取";
+  if (actionType === "link_set_skip_used") return "调整跳过次数";
+  if (actionType === "link_finish_run") return "结束竞速";
+  if (actionType === "link_ai_speedrun") return "AI速通";
   if (actionType.startsWith("set-")) {
     const status = Number(actionType.split("-")[1] || 0);
     switch (status) {
@@ -403,6 +487,21 @@ const isPortalOnBoard = (boardIndex: number, spellIndex: number) => {
 const isPortalA = (spellIndex: number) => isPortalOnBoard(0, spellIndex);
 const isPortalB = (spellIndex: number) => isPortalOnBoard(1, spellIndex);
 
+const linkMarker = (spellIndex: number) => {
+  if (!isLinkReplay.value) {
+    return "";
+  }
+  const linkData = simulation.linkData;
+  const startA = linkData?.link_idx_a?.[0] ?? logData.value?.roomConfig.link_start_a;
+  const startB = linkData?.link_idx_b?.[0] ?? logData.value?.roomConfig.link_start_b;
+  const labels: string[] = [];
+  if (spellIndex === startA) labels.push("A起");
+  if (spellIndex === logData.value?.roomConfig.link_end_a) labels.push("A终");
+  if (spellIndex === startB) labels.push("B起");
+  if (spellIndex === logData.value?.roomConfig.link_end_b) labels.push("B终");
+  return labels.join(" ");
+};
+
 const maybeSwitchBoard = (playerIndex: number, spellIndex: number) => {
   if (!isDualBoard.value || playerIndex < 0 || playerIndex > 1) {
     return;
@@ -417,6 +516,17 @@ const applyAction = (action: PlayerAction) => {
   const actionType = action.actionType.split("-")[0];
   const spellIndex = action.spellIndex;
   const playerIndex = getPlayerIndex(action);
+
+  if (isLinkReplay.value && action.linkData) {
+    simulation.linkData = cloneLinkData(action.linkData);
+    simulation.currentScore = [
+      Math.floor(action.linkData.score_a || action.scoreNow?.[0] || 0),
+      Math.floor(action.linkData.score_b || action.scoreNow?.[1] || 0),
+    ];
+    simulation.gameStatus = GameStatus.STARTED;
+    simulation.currentAction = action;
+    return;
+  }
 
   if (Array.isArray(action.scoreNow) && action.scoreNow.length === 2) {
     simulation.currentScore = [action.scoreNow[0] || 0, action.scoreNow[1] || 0];
@@ -822,7 +932,8 @@ defineExpose({
     linear-gradient(360deg, transparent 95%, var(--bg-color-reverse));
 }
 
-.extra-lines-overlay {
+.extra-lines-overlay,
+.link-lines-overlay {
   position: absolute;
   top: 4px;
   left: 4px;
@@ -830,6 +941,10 @@ defineExpose({
   height: calc(100% - 8px);
   pointer-events: none;
   z-index: 6;
+}
+
+.link-lines-overlay {
+  z-index: 5;
 }
 
 .timeline-wrap {
