@@ -1383,6 +1383,20 @@ const linkAiSpeedrun = () => {
 const lastLinkStepA = ref(0);
 const lastLinkStepB = ref(0);
 const linkStepSoundInited = ref(false);
+const resetLocalGameState = () => {
+  gameModeSelectedSpellIndex.value = -1;
+  winFlag.value = 0;
+  playerAScore.value = 0;
+  playerBScore.value = 0;
+  playerAFailure.value = 0;
+  playerBFailure.value = 0;
+  playerALevel.value = 0;
+  playerBLevel.value = 0;
+  lastLinkStepA.value = 0;
+  lastLinkStepB.value = 0;
+  linkStepSoundInited.value = false;
+  linkNow.value = Date.now();
+};
 watch(
   () => gameStore.linkGameData,
   () => {
@@ -1422,12 +1436,7 @@ watch(
   (newVal, oldVal) => {
     switch (newVal) {
       case GameStatus.NOT_STARTED:
-        playerAScore.value = 0;
-        playerBScore.value = 0;
-        playerAFailure.value = 0;
-        playerBFailure.value = 0;
-        playerALevel.value = 0;
-        playerBLevel.value = 0;
+        resetLocalGameState();
         break;
       case GameStatus.COUNT_DOWN:
         nextTick(() => {

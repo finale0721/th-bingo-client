@@ -40,6 +40,7 @@ export const useGameStore = defineStore("game", () => {
   const isReplayMode = ref(false);
 
   const spellCardGrabbedFlag = ref(false);
+  let pendingSpellStatusTimers: number[] = [];
   watch(spellCardGrabbedFlag, (val) => {
     if (val) {
       leftCdTime.value = 0;
@@ -84,8 +85,19 @@ export const useGameStore = defineStore("game", () => {
   });
   const linkGameData = reactive<LinkData>(createBlankLinkData());
   let linkLogSnapshot: LinkData | null = null;
+  const normalizeLinkData = (data?: Partial<LinkData> | null): LinkData => ({
+    ...createBlankLinkData(),
+    ...(data || {}),
+    link_idx_a: [...(data?.link_idx_a || [])],
+    link_idx_b: [...(data?.link_idx_b || [])],
+    status_a: [...(data?.status_a || [])],
+    status_b: [...(data?.status_b || [])],
+    skipped_idx_a: [...(data?.skipped_idx_a || [])],
+    skipped_idx_b: [...(data?.skipped_idx_b || [])],
+    disabled_idx: [...(data?.disabled_idx || [])],
+  });
   const cloneLinkData = (data: LinkData): LinkData => ({
-    ...data,
+    ...normalizeLinkData(data),
     link_idx_a: [...(data.link_idx_a || [])],
     link_idx_b: [...(data.link_idx_b || [])],
     status_a: [...(data.status_a || [])],
@@ -94,15 +106,24 @@ export const useGameStore = defineStore("game", () => {
     skipped_idx_b: [...(data.skipped_idx_b || [])],
     disabled_idx: [...(data.disabled_idx || [])],
   });
-  const applyLinkData = (data?: Partial<LinkData> | null) => {
+  const applyLinkData = (data?: Partial<LinkData> | null, replace = false) => {
+    if (replace) {
+      Object.assign(linkGameData, normalizeLinkData(data));
+      return;
+    }
     if (!data) return;
-    Object.assign(linkGameData, data);
+    for (const key in data) {
+      const value = data[key];
+      linkGameData[key] = Array.isArray(value) ? [...value] : value;
+    }
   };
 
   const getGameData = () => {
+    const requestRoomId = roomStore.roomId;
     return ws
       .send(WebSocketActionType.GET_ALL_SPELLS)
       .then((data: GameData) => {
+        if (requestRoomId !== roomStore.roomId) return;
         if (data.room_config) roomStore.applyRoomConfig(data.room_config, true);
         spells.value = data.spells;
         spells2.value = data.spells2 || [];
@@ -119,11 +140,24 @@ export const useGameStore = defineStore("game", () => {
             normalGameData[i] = data.normal_data[i];
           }
         }
-        applyLinkData(data.link_data as Partial<LinkData> | null);
+        applyLinkData(data.link_data as Partial<LinkData> | null, true);
         linkLogSnapshot = cloneLinkData(linkGameData);
       })
       .catch(() => {});
   };
+  const clearPendingSpellStatusTimers = () => {
+    pendingSpellStatusTimers.forEach((timer) => window.clearTimeout(timer));
+    pendingSpellStatusTimers = [];
+  };
+
+  const scheduleSpellStatusUpdate = (index: number, status: number, delay: number) => {
+    const timer = window.setTimeout(() => {
+      spellStatus.value[index] = status;
+      pendingSpellStatusTimers = pendingSpellStatusTimers.filter((item) => item !== timer);
+    }, delay);
+    pendingSpellStatusTimers.push(timer);
+  };
+
   watch(
     () => roomStore.roomData.started,
     (started) => {
@@ -135,11 +169,18 @@ export const useGameStore = defineStore("game", () => {
   );
 
   const resetGameData = () => {
+    clearPendingSpellStatusTimers();
     spells.value = [];
     spellStatus.value = [];
     leftTime.value = 0;
+    countDownTime.value = 0;
     gameStatus.value = GameStatus.NOT_STARTED;
     leftCdTime.value = -1;
+    gameLogs.splice(0);
+    winner.value = null;
+    inited.value = false;
+    alreadySelectCard.value = false;
+    spellCardGrabbedFlag.value = false;
     bpGameData.whose_turn = 0;
     bpGameData.ban_pick = 0;
     bpGameData.spell_failed_count_a = [];
@@ -151,18 +192,29 @@ export const useGameStore = defineStore("game", () => {
     normalGameData.is_portal_b = [];
     normalGameData.get_on_which_board = [];
     normalGameData.extra_lines = [];
-    Object.assign(linkGameData, createBlankLinkData());
+    applyLinkData(null, true);
     linkLogSnapshot = null;
     currentBoard.value = 0;
   };
+
+  watch(
+    () => roomStore.roomId,
+    (id) => {
+      if (!id && !isReplayMode.value) resetGameData();
+    }
+  );
 
   const startGame = () => {
     return ws.send(WebSocketActionType.START_GAME);
   };
   ws.on<RoomConfig>(WebSocketPushActionType.PUSH_START_GAME, (data) => {
+    resetGameData();
     roomStore.applyRoomConfig(data, true);
     roomStore.roomData.started = true;
     roomStore.resetBanPick();
+  });
+  ws.on(WebSocketPushActionType.PUSH_RESET_ROOM, () => {
+    if (!isReplayMode.value) resetGameData();
   });
 
   // const setPhase = (p) => {
@@ -278,13 +330,9 @@ export const useGameStore = defineStore("game", () => {
 
     if (roomStore.isHost) {
       if (data!.causer === roomStore.roomData.names[0]) {
-        setTimeout(() => {
-          spellStatus.value[data!.index] = data!.status;
-        }, roomStore.roomSettings.playerA.delay * 1000);
+        scheduleSpellStatusUpdate(data!.index, data!.status, roomStore.roomSettings.playerA.delay * 1000);
       } else if (data!.causer === roomStore.roomData.names[1]) {
-        setTimeout(() => {
-          spellStatus.value[data!.index] = data!.status;
-        }, roomStore.roomSettings.playerB.delay * 1000);
+        scheduleSpellStatusUpdate(data!.index, data!.status, roomStore.roomSettings.playerB.delay * 1000);
       } else {
         spellStatus.value[data!.index] = data!.status;
       }
