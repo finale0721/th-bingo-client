@@ -315,7 +315,7 @@
               <el-button type="primary" v-if="banPick.phase === 11" @click="confirmOpenEX(false)">不开启</el-button>
             </template>
 
-            <el-button type="primary" v-if="!inGame && !isBpPhase" @click="editorStore.openPresetManager('select')">
+            <el-button type="primary" v-if="!inGame && !isBpPhase && isBingoStandard" @click="editorStore.openPresetManager('select')">
               自定义游戏
             </el-button>
           </template>
