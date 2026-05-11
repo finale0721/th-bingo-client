@@ -533,6 +533,7 @@ export const useGameStore = defineStore("game", () => {
   const linkUndoFinish = (playerIndex: number) => ws.send(WebSocketActionType.LINK_UNDO_FINISH, { player_index: playerIndex });
   const linkSetSkipUsed = (playerIndex: number, value: number) => ws.send(WebSocketActionType.LINK_SET_SKIP_USED, { player_index: playerIndex, value });
   const linkSetPhase = (phase: number) => ws.send(WebSocketActionType.LINK_SET_PHASE, { phase });
+  const linkAiSpeedrun = () => ws.send(WebSocketActionType.LINK_AI_SPEEDRUN);
 
   const linkPlayerName = (playerIndex: 0 | 1) => {
     const name = roomStore.roomData.names[playerIndex] || (playerIndex === 0 ? "A" : "B");
@@ -707,6 +708,7 @@ export const useGameStore = defineStore("game", () => {
     linkUndoFinish,
     linkSetSkipUsed,
     linkSetPhase,
+    linkAiSpeedrun,
     refreshSpell,
     resetGameData,
     setReplayMode,

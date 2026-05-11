@@ -260,12 +260,12 @@
                     <el-form-item label="AI练习：" v-if="roomStore.practiceMode && Config.spellListWithTimer.includes(roomSettings.spell_version) ">
                       <el-checkbox
                           v-model="roomSettings.use_ai"
-                          :disabled="inGame || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0 || roomSettings.board_size !== 5"
+                          :disabled="inGame || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0 || (roomSettings.board_size !== 5 && isBingoStandard)"
                           @change="roomStore.updateRoomConfig()"
                           style="margin-right: 0"
                       ></el-checkbox>
                     </el-form-item>
-                    <el-form-item label="AI策略：" v-if="roomSettings.use_ai">
+                    <el-form-item label="AI策略：" v-if="roomSettings.use_ai && roomSettings.type !== BingoType.LINK">
                       <el-select
                           v-model="roomSettings.ai_strategy_level"
                           style="width: 120px"
@@ -345,7 +345,7 @@
                         />
                       </div>
                     </el-form-item>
-                    <el-form-item label="选卡温度：" v-if="roomSettings.use_ai && roomSettings.ai_strategy_level >= 3">
+                    <el-form-item label="选卡温度：" v-if="roomSettings.use_ai && roomSettings.type !== BingoType.LINK && roomSettings.ai_strategy_level >= 3">
                       <div style="display: flex; align-items: center; width: 100%;">
                         <el-slider
                           v-model="roomSettings.ai_temperature"
@@ -948,6 +948,11 @@ const currentGameTime = computed({
     }
   },
 });
+
+const isBingoStandard = computed(() => roomStore.roomData.type === BingoType.STANDARD);
+const isBingoBp = computed(() => roomStore.roomData.type === BingoType.BP);
+const isBingoLink = computed(() => roomStore.roomData.type === BingoType.LINK);
+
 const currentCountdown = computed({
   get: () => roomSettings.value.type === BingoType.STANDARD
     ? roomSettings.value.countdownByBoardSize[currentBoardSize.value]

@@ -80,6 +80,7 @@ export enum WebSocketActionType {
   LINK_UNDO_FINISH = "link_undo_finish",
   LINK_SET_SKIP_USED = "link_set_skip_used",
   LINK_SET_PHASE = "link_set_phase",
+  LINK_AI_SPEEDRUN = "link_ai_speedrun",
 }
 
 export enum WebSocketPushActionType {

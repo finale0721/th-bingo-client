@@ -100,6 +100,9 @@
           <el-button size="small" @click="forceLinkSkip(1)" :disabled="linkPlayerFinished(1)">强制跳过</el-button>
           <el-button size="small" @click="undoLinkFinish(1)" :disabled="linkData.current_step_b <= 0">撤销收取</el-button>
         </div>
+        <div v-if="showLinkAiSpeedrun" class="link-manage-buttons">
+          <el-button size="small" type="warning" @click="linkAiSpeedrun" :disabled="linkPlayerFinished(1)">速通</el-button>
+        </div>
         <el-button
           class="alert-button"
           type="primary"
@@ -473,6 +476,9 @@ const isPlayer = computed(() => roomStore.isPlayer);
 const isPlayerA = computed(() => roomStore.isPlayerA);
 const isPlayerB = computed(() => roomStore.isPlayerB);
 const isOwner = computed(() => (soloMode.value ? isPlayerA.value : isHost.value));
+const showLinkAiSpeedrun = computed(() =>
+  isBingoLink.value && inGame.value && roomStore.roomConfig.use_ai && isOwner.value
+);
 
 const inMatch = computed(() => roomStore.inMatch);
 const isBingoStandard = computed(() => roomStore.roomData.type === BingoType.STANDARD);
@@ -1350,6 +1356,9 @@ const setLinkSkipRemain = (playerIndex: 0 | 1, remain: number) => {
   const route = playerIndex === 0 ? routeA.value : routeB.value;
   const limit = linkSkipLimit(route);
   gameStore.linkSetSkipUsed(playerIndex, Math.max(0, Math.min(limit, limit - remain)));
+};
+const linkAiSpeedrun = () => {
+  gameStore.linkAiSpeedrun();
 };
 
 const lastLinkStepA = ref(0);

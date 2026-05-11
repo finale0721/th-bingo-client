@@ -357,7 +357,7 @@ export const useRoomStore = defineStore("room", () => {
   };
 
   const checkAIPracticeEnabled = () => {
-    if(!(practiceMode.value) || !Config.spellListWithTimer.includes(roomSettings.spell_version) || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0 || roomSettings.board_size !== 5){
+    if(!(practiceMode.value) || !Config.spellListWithTimer.includes(roomSettings.spell_version) || roomSettings.blind_setting > 1 || roomSettings.dual_board > 0 || (roomSettings.board_size !== 5 && roomData.type === BingoType.STANDARD)){
       roomSettings.use_ai = false;
     }
   }
