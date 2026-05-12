@@ -489,7 +489,7 @@
                           @change="roomStore.updateRoomConfig('link_level_coefficient')"
                         />
                       </el-form-item>
-                      <el-form-item label="补偿系数：">
+                      <el-form-item label="时长系数：">
                         <el-input-number
                           class="input-number"
                           v-model="roomSettings.link_fastest_coefficient"
