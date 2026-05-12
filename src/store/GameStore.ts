@@ -204,8 +204,8 @@ export const useGameStore = defineStore("game", () => {
     }
   );
 
-  const startGame = () => {
-    return ws.send(WebSocketActionType.START_GAME);
+  const startGame = (payload?: any) => {
+    return ws.send(WebSocketActionType.START_GAME, payload || {});
   };
   ws.on<RoomConfig>(WebSocketPushActionType.PUSH_START_GAME, (data) => {
     resetGameData();

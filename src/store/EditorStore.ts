@@ -8,6 +8,7 @@ import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType } from "@/utils/webSocket/types";
 import { BoardSpec } from "@/utils/board";
 import pako from "pako";
+import { useCustomCardPoolStore } from "@/store/CustomCardPoolStore";
 
 // 创建一个默认的空白Spell对象
 const createBlankSpell = (): Spell => ({
@@ -39,6 +40,7 @@ const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours
 export const useEditorStore = defineStore("editor", () => {
   const roomStore = useRoomStore();
   const gameStore = useGameStore();
+  const customCardPoolStore = useCustomCardPoolStore();
 
   const boardSpec = computed(() => new BoardSpec(roomStore.roomConfig.board_size || 5));
   const boardArea = computed(() => boardSpec.value.area);
@@ -183,7 +185,7 @@ export const useEditorStore = defineStore("editor", () => {
     const merged = {
       ...base,
       ...(source || {}),
-    } as RoomConfig;
+    } as unknown as RoomConfig;
     merged.type = BingoType.STANDARD;
     merged.board_size = boardSize;
     (merged as any).portal_count = Math.max(0, Math.min(boardSize * boardSize, Number(merged.portal_count ?? base.portal_count ?? 0)));
@@ -598,7 +600,7 @@ export const useEditorStore = defineStore("editor", () => {
         spells: deepClone(spells.value),
         spells2: deepClone(spells2.value),
         spellStatus: [...spellStatus.value],
-        roomConfig: deepClone(roomStore.roomConfig) as RoomConfig,
+        roomConfig: deepClone(roomStore.roomConfig) as unknown as RoomConfig,
         initialLeftTime: initialLeftTime.value,
         initialCountDown: initialCountDown.value,
         initialCdTimeA: initialCdTimeA.value,
@@ -976,6 +978,8 @@ export const useEditorStore = defineStore("editor", () => {
     }
   };
 
+  const customPoolSpellDatabase = computed(() => customCardPoolStore.selectedSpells(false));
+
   const getNormalizedPreset = (preset: EditorPreset) => normalizePreset(preset);
 
   watch(() => isEditorMode.value, (value) => {
@@ -1023,6 +1027,7 @@ export const useEditorStore = defineStore("editor", () => {
     closeModal,
     isDatabasePanelVisible,
     localSpellDatabase,
+    customPoolSpellDatabase,
     serverSpellCache,
     isFetchingServerData,
     toggleDatabasePanel,

@@ -243,7 +243,18 @@
                 <el-collapse-item title="玩法设置" name="gameplay" v-if="(!soloMode && isHost) || (soloMode && isPlayerA)">
                   <el-form label-width="90px">
                     <el-form-item label="卡池设定：">
+                      <el-radio-group
+                        v-model="cardPoolMode"
+                        :disabled="inGame"
+                        size="small"
+                        @change="onCardPoolModeChange"
+                        style="margin-right: 8px"
+                      >
+                        <el-radio-button label="system">系统</el-radio-button>
+                        <el-radio-button label="custom">自定义</el-radio-button>
+                      </el-radio-group>
                       <el-select
+                          v-if="!customCardPoolActive"
                           v-model="roomSettings.spell_version"
                           style="width: 120px"
                           @change="roomStore.updateRoomConfig()"
@@ -256,11 +267,20 @@
                             :value="item.type"
                         ></el-option>
                       </el-select>
+                      <el-button
+                        v-else
+                        size="small"
+                        type="primary"
+                        :disabled="inGame"
+                        @click="customCardPoolDialogVisible = true"
+                      >
+                        自定义卡池
+                      </el-button>
                     </el-form-item>
                     <el-form-item label="AI练习：" v-if="aiPracticeVisible">
                       <el-checkbox
                           v-model="roomSettings.use_ai"
-                          :disabled="aiPracticeDisabled"
+                          :disabled="aiPracticeDisabled || customCardPoolActive"
                           @change="roomStore.updateRoomConfig()"
                           style="margin-right: 0"
                       ></el-checkbox>
@@ -515,7 +535,7 @@
                 <el-form-item label="作品BP：">
                   <el-checkbox
                       v-model="roomSettings.gamebp"
-                      :disabled="inMatch"
+                      :disabled="inMatch || customCardPoolActive"
                       @change="saveRoomSettings"
                       style="margin-right: 0"
                   ></el-checkbox>
@@ -535,7 +555,7 @@
                       :min="1"
                       @change="roomStore.updateRoomConfig('games')"
                   >
-                    <el-checkbox v-for="(item, index) in gameList" :value="item.code" :key="index" :disabled="inGame">{{
+                    <el-checkbox v-for="(item, index) in activeGameList" :value="item.code" :key="index" :disabled="inGame">{{
                         item.name
                       }}</el-checkbox>
                   </el-checkbox-group>
@@ -554,7 +574,7 @@
                   <el-button
                       :type="isWeightModified ? 'success' : 'primary'"
                       @click="showWeightBalancer"
-                      :disabled="gameList.length <= 1 || inGame"
+                      :disabled="activeGameList.length <= 1 || inGame"
                       size="small"
                   >
                     设置权重
@@ -794,7 +814,7 @@
     <!-- AI偏好设置对话框 -->
     <AIPreferenceBalancer
         v-model:visible="aiPreferenceVisible"
-        :game-list="gameList"
+        :game-list="activeGameList"
         :current-preferences="roomSettings.ai_preference"
         @confirm="handleAIPreferenceConfirm"
     />
@@ -805,6 +825,11 @@
       :board-area="roomSettings.board_size * roomSettings.board_size"
       :default-counts="roomStore.defaultCustomCountsForBoard(currentBoardSize)"
       @confirm="handleCustomLevelConfirm"
+    />
+
+    <CustomCardPoolDialog
+      v-model:visible="customCardPoolDialogVisible"
+      @selected="roomStore.updateRoomConfig()"
     />
 
     <el-dialog v-model="linkBoardDialogVisible" title="Link 赛特殊格设置" width="640px" class="link-board-dialog">
@@ -883,6 +908,7 @@ import {
   ElSlider,
   ElCollapse,
   ElCollapseItem,
+  ElAlert,
 } from "element-plus";
 import Config from "@/config";
 import { useRoomStore } from "@/store/RoomStore";
@@ -897,16 +923,20 @@ import Documentation from '@/components/Documentation.vue';
 import { QuestionFilled } from '@element-plus/icons-vue'
 import { useEditorStore } from "@/store/EditorStore";
 import PresetManager from "@/components/PresetManager.vue";
+import CustomCardPoolDialog from "@/components/CustomCardPoolDialog.vue";
+import { useCustomCardPoolStore } from "@/store/CustomCardPoolStore";
 
 const roomStore = useRoomStore();
 const localStore = useLocalStore();
 const gameStore = useGameStore();
 const editorStore = useEditorStore();
+const customCardPoolStore = useCustomCardPoolStore();
 
 const scrollbar = ref<InstanceType<typeof ElScrollbar>>();
 const weightBalancerVisible = ref(false);
 const aiPreferenceVisible = ref(false);
 const customLevelBalancerVisible = ref(false);
+const customCardPoolDialogVisible = ref(false);
 const linkBoardDialogVisible = ref(false);
 const linkBoardEditMode = ref<"disabled" | "startA" | "endA" | "startB" | "endB">("disabled");
 const linkBoardDraft = ref({
@@ -920,6 +950,14 @@ const linkBoardDraft = ref({
 const tabIndex = ref(0);
 const showTypeInput = ref(false);
 const gameList = computed( () => Config.gameOptionList(roomStore.roomConfig.spell_version));
+const customCardPoolActive = computed(() => roomStore.customCardPoolActive);
+const activeGameList = computed(() => customCardPoolActive.value ? customCardPoolStore.selectedGames : gameList.value);
+const cardPoolMode = computed({
+  get: () => customCardPoolActive.value ? "custom" : "system",
+  set: (value: string) => {
+    roomStore.setCustomCardPoolEnabled(value === "custom");
+  },
+});
 const rankList = Config.rankList;
 const difficultyList = Config.difficultyList;
 const predefineColors = Config.predefineColors;
@@ -968,6 +1006,7 @@ const aiPracticeVisible = computed(() =>
 );
 const aiPracticeDisabled = computed(() =>
   inGame.value
+  || customCardPoolActive.value
   || roomSettings.value.dual_board > 0
   || (roomSettings.value.type === BingoType.STANDARD
     && (roomSettings.value.board_size !== 5 || roomSettings.value.blind_setting > 1)),
@@ -1300,7 +1339,7 @@ const startReplay = () => {
 };
 
 const weightBalancerGameList = computed(() => {
-  const list = [...gameList.value]
+  const list = [...activeGameList.value]
 
   // 如果游戏列表不为空，在开头插入特殊的均衡器滑块
   if (list.length > 0) {
@@ -1316,6 +1355,13 @@ const weightBalancerGameList = computed(() => {
 const showWeightBalancer = () => {
   weightBalancerVisible.value = true
 }
+
+const onCardPoolModeChange = () => {
+  if (roomSettings.value.custom_card_pool_enabled && !customCardPoolStore.selectedSlot) {
+    customCardPoolDialogVisible.value = true;
+  }
+  roomStore.updateRoomConfig();
+};
 
 // 处理权重确认
 const handleWeightConfirm = (weights: Record<string, number>) => {
@@ -1440,7 +1486,10 @@ const isWeightModified = computed(() => {
     return false;
   }
   // 检查是否有任何权重值不等于1（默认值为1）
-  return Object.values(weights).some(value => value !== 0);
+  return Object.entries(weights).some(([key, value]) => {
+    if (key !== "weight_balancer" && !activeGameList.value.some((game) => game.code === key)) return false;
+    return value !== 0;
+  });
 });
 
 const showDoc = ref(false);

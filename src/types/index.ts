@@ -160,6 +160,8 @@ export interface RoomConfig {
   link_end_a?: number;
   link_start_b?: number;
   link_end_b?: number;
+  custom_card_pool_enabled?: boolean;
+  custom_card_pool_compressed?: string;
 }
 
 export interface EditorPreset {

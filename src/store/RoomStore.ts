@@ -7,10 +7,13 @@ import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/
 import { local } from "@/utils/Storage";
 import Config from "@/config";
 import { useRoute, useRouter } from "vue-router";
+import { useCustomCardPoolStore } from "@/store/CustomCardPoolStore";
+import pako from "pako";
 
 export const useRoomStore = defineStore("room", () => {
   const localStore = useLocalStore();
   const router = useRouter();
+  const customCardPoolStore = useCustomCardPoolStore();
 
   const roomId = ref<string>("");
   watch(roomId, (id) => {
@@ -97,6 +100,8 @@ export const useRoomStore = defineStore("room", () => {
     cdModifierB: 0, // 右侧选手CD修正值
     format: 1,
     checkList: ["6", "7", "8", "10", "11", "12", "13", "14", "15", "16", "17", "18"],
+    systemCardPoolCheckList: ["6", "7", "8", "10", "11", "12", "13", "14", "15", "16", "17", "18"],
+    customCardPoolCheckList: ["6", "7", "8", "10", "11", "12", "13", "14", "15", "16", "17", "18"],
     rankList: ["L", "EX"],
     difficulty: 3,
     bgmMuted: false,
@@ -152,6 +157,7 @@ export const useRoomStore = defineStore("room", () => {
       5: defaultLinkBoardSettingsForBoard(5),
       6: defaultLinkBoardSettingsForBoard(6),
     } as Record<number, LinkBoardSettings>,
+    custom_card_pool_enabled: false,
   });
 
   //加载本地设置
@@ -169,6 +175,18 @@ export const useRoomStore = defineStore("room", () => {
     if (roomSettings.link_level_coefficient === undefined) roomSettings.link_level_coefficient = 15;
     if (roomSettings.link_fastest_coefficient === undefined) roomSettings.link_fastest_coefficient = 0;
     if (roomSettings.link_connectivity === undefined) roomSettings.link_connectivity = 8;
+    if (roomSettings.custom_card_pool_enabled === undefined) roomSettings.custom_card_pool_enabled = false;
+    if (!Array.isArray(roomSettings.systemCardPoolCheckList)) {
+      roomSettings.systemCardPoolCheckList = [...roomSettings.checkList];
+    }
+    if (!Array.isArray(roomSettings.customCardPoolCheckList)) {
+      roomSettings.customCardPoolCheckList = [...roomSettings.checkList];
+    }
+    roomSettings.checkList = [
+      ...(roomSettings.custom_card_pool_enabled
+        ? roomSettings.customCardPoolCheckList
+        : roomSettings.systemCardPoolCheckList),
+    ];
     normalizeBoardSizeCaches(savedSettings || {});
     normalizeLinkBoardSettingsCache(savedSettings || {});
     normalizeLinkSettings();
@@ -380,6 +398,47 @@ export const useRoomStore = defineStore("room", () => {
     local.set("roomSettings", roomSettings);
   };
 
+  const customCardPoolActive = computed(() => roomSettings.custom_card_pool_enabled && !!customCardPoolStore.selectedPayload);
+
+  const syncActiveCardPoolGameSelection = () => {
+    if (roomSettings.custom_card_pool_enabled) {
+      roomSettings.customCardPoolCheckList = [...roomSettings.checkList];
+    } else {
+      roomSettings.systemCardPoolCheckList = [...roomSettings.checkList];
+    }
+  };
+
+  const setCustomCardPoolEnabled = (enabled: boolean) => {
+    if (roomSettings.custom_card_pool_enabled === enabled) return;
+    syncActiveCardPoolGameSelection();
+    roomSettings.custom_card_pool_enabled = enabled;
+    roomSettings.checkList = [
+      ...(enabled ? roomSettings.customCardPoolCheckList : roomSettings.systemCardPoolCheckList),
+    ];
+    applyCustomCardPoolSelection();
+  };
+
+  const applyCustomCardPoolSelection = () => {
+    if (!customCardPoolActive.value) return;
+    roomSettings.gamebp = false;
+    roomSettings.matchbp = false;
+    roomSettings.use_ai = false;
+    roomSettings.ai_preference = {};
+  };
+
+  const customCardPoolSpells = () =>
+    customCardPoolActive.value ? customCardPoolStore.selectedSpells(roomSettings.type === BingoType.BP) : [];
+
+  const compressedCustomCardPool = () => {
+    const json = JSON.stringify(customCardPoolSpells());
+    const compressed = pako.deflate(json);
+    let binary = "";
+    for (let i = 0; i < compressed.byteLength; i++) {
+      binary += String.fromCharCode(compressed[i]);
+    }
+    return btoa(binary);
+  };
+
   const aiPracticeAvailableForSettings = () => {
     if (!practiceMode.value) return false;
     if (!Config.spellListWithTimer.includes(roomSettings.spell_version)) return false;
@@ -392,7 +451,7 @@ export const useRoomStore = defineStore("room", () => {
   };
 
   const checkAIPracticeEnabled = () => {
-    if(!aiPracticeAvailableForSettings()){
+    if(customCardPoolActive.value || !aiPracticeAvailableForSettings()){
       roomSettings.use_ai = false;
     }
   }
@@ -438,6 +497,7 @@ export const useRoomStore = defineStore("room", () => {
     link_end_a: 24,
     link_start_b: 4,
     link_end_b: 20,
+    custom_card_pool_enabled: false,
   });
 
   const getRoomConfig = () => {
@@ -450,6 +510,7 @@ export const useRoomStore = defineStore("room", () => {
   });
 
   const normalizeRoomSettingsForGameType = () => {
+    applyCustomCardPoolSelection();
     if (roomSettings.type === BingoType.LINK) {
       roomSettings.dual_board = 0;
       roomSettings.blind_setting = 1;
@@ -487,9 +548,12 @@ export const useRoomStore = defineStore("room", () => {
       | "game_weight" | "ai_preference" | "custom_level_count"
       | "board_size" | "extra_line_count" | "hidden_select_threshold_a" | "hidden_select_threshold_b"
       | "link_level_coefficient" | "link_fastest_coefficient" | "link_connectivity"
-      | "link_disabled_idx" | "link_start_a" | "link_end_a" | "link_start_b" | "link_end_b",
+      | "link_disabled_idx" | "link_start_a" | "link_end_a" | "link_start_b" | "link_end_b"
+      | "custom_card_pool_enabled" | "custom_card_pool",
   ) => {
     normalizeRoomSettingsForGameType();
+    syncActiveCardPoolGameSelection();
+    applyCustomCardPoolSelection();
     normalizeLinkSettings();
     saveRoomSettings();
     const allParams = {
@@ -531,6 +595,7 @@ export const useRoomStore = defineStore("room", () => {
       link_end_a: roomSettings.link_end_a,
       link_start_b: roomSettings.link_start_b,
       link_end_b: roomSettings.link_end_b,
+      custom_card_pool_enabled: customCardPoolActive.value,
     };
     const params: any = {};
     if (key) {
@@ -540,11 +605,14 @@ export const useRoomStore = defineStore("room", () => {
         params.type = allParams.type
         params.game_time = allParams.game_time
         params.countdown = allParams.countdown
+        params.games = allParams.games
+        params.ranks = allParams.ranks
         params.extra_line_count = allParams.extra_line_count
         params.dual_board = allParams.dual_board
         params.blind_setting = allParams.blind_setting
         params.board_size = allParams.board_size
         params.use_ai = allParams.use_ai
+        params.custom_card_pool_enabled = allParams.custom_card_pool_enabled
       }else if(key === "board_size"){
         params.board_size = allParams.board_size
         params.extra_line_count = allParams.extra_line_count
@@ -601,6 +669,8 @@ export const useRoomStore = defineStore("room", () => {
   };
   const createRoom = (rid: string, soloMode: boolean, addRobot: boolean) => {
     normalizeRoomSettingsForGameType();
+    syncActiveCardPoolGameSelection();
+    applyCustomCardPoolSelection();
     return ws
       .send(WebSocketActionType.CREATE_ROOM, {
         room_config: {
@@ -642,6 +712,7 @@ export const useRoomStore = defineStore("room", () => {
           link_end_a: roomSettings.link_end_a,
           link_start_b: roomSettings.link_start_b,
           link_end_b: roomSettings.link_end_b,
+          custom_card_pool_enabled: customCardPoolActive.value,
         },
         solo: soloMode,
         add_robot: addRobot,
@@ -893,5 +964,10 @@ export const useRoomStore = defineStore("room", () => {
     activeCustomLevelCount,
     activeExtraLineCount,
     updateExtraLineCountCache,
+    customCardPoolActive,
+    setCustomCardPoolEnabled,
+    applyCustomCardPoolSelection,
+    customCardPoolSpells,
+    compressedCustomCardPool,
   };
 });
