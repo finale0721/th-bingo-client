@@ -128,7 +128,7 @@
                         <el-radio :value="6" :disabled="roomSettings.type === BingoType.BP">6×6</el-radio>
                       </el-radio-group>
                     </el-form-item>
-                    <el-form-item label="比赛时长：" v-if="roomData.type !== BingoType.LINK">
+                    <el-form-item label="比赛时长：">
                       <el-input-number
                         class="input-number"
                         v-model="currentGameTime"
@@ -934,13 +934,24 @@ const gameTypeList = computed(() => {
 const roomSettings = computed(() => roomStore.roomSettings);
 const roomData = computed(() => roomStore.roomData);
 const currentBoardSize = computed(() => roomSettings.value.board_size || 5);
+const useBoardSizeTimeSettings = computed(() =>
+  roomSettings.value.type === BingoType.STANDARD || roomSettings.value.type === BingoType.LINK
+);
 const currentGameTime = computed({
-  get: () => roomSettings.value.type === BingoType.STANDARD
-    ? roomSettings.value.gameTimeByBoardSize[currentBoardSize.value]
-    : roomSettings.value.gameTimeLimit[roomSettings.value.type],
+  get: () => {
+    if (roomSettings.value.type === BingoType.STANDARD) {
+      return roomSettings.value.gameTimeByBoardSize[currentBoardSize.value];
+    }
+    if (roomSettings.value.type === BingoType.LINK) {
+      return roomSettings.value.linkGameTimeByBoardSize[currentBoardSize.value];
+    }
+    return roomSettings.value.gameTimeLimit[roomSettings.value.type];
+  },
   set: (value) => {
     if (roomSettings.value.type === BingoType.STANDARD) {
       roomSettings.value.gameTimeByBoardSize[currentBoardSize.value] = value;
+    } else if (roomSettings.value.type === BingoType.LINK) {
+      roomSettings.value.linkGameTimeByBoardSize[currentBoardSize.value] = value;
     } else {
       roomSettings.value.gameTimeLimit[roomSettings.value.type] = value;
     }
@@ -963,12 +974,20 @@ const aiPracticeDisabled = computed(() =>
 );
 
 const currentCountdown = computed({
-  get: () => roomSettings.value.type === BingoType.STANDARD
-    ? roomSettings.value.countdownByBoardSize[currentBoardSize.value]
-    : roomSettings.value.countdownTime[roomSettings.value.type],
+  get: () => {
+    if (roomSettings.value.type === BingoType.STANDARD) {
+      return roomSettings.value.countdownByBoardSize[currentBoardSize.value];
+    }
+    if (roomSettings.value.type === BingoType.LINK) {
+      return roomSettings.value.linkCountdownByBoardSize[currentBoardSize.value];
+    }
+    return roomSettings.value.countdownTime[roomSettings.value.type];
+  },
   set: (value) => {
     if (roomSettings.value.type === BingoType.STANDARD) {
       roomSettings.value.countdownByBoardSize[currentBoardSize.value] = value;
+    } else if (roomSettings.value.type === BingoType.LINK) {
+      roomSettings.value.linkCountdownByBoardSize[currentBoardSize.value] = value;
     } else {
       roomSettings.value.countdownTime[roomSettings.value.type] = value;
     }
@@ -1203,6 +1222,10 @@ const onBoardSizeChange = async (value) => {
       : 0;
   roomSettings.value.custom_level_count = roomSettings.value.customLevelCountByBoardSize[value] || roomStore.defaultCustomCountsForBoard(value);
   await roomStore.updateRoomConfig();
+  if (useBoardSizeTimeSettings.value) {
+    await roomStore.updateRoomConfig("game_time");
+    await roomStore.updateRoomConfig("countdown");
+  }
 };
 const standUp = () => {
   roomStore.standUp();

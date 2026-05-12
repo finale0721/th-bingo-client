@@ -50,6 +50,8 @@ export const useRoomStore = defineStore("room", () => {
   const boardSizeDefaults = {
     gameTime: { 4: 20, 5: 30, 6: 42 },
     countdown: { 4: 60, 5: 90, 6: 120 },
+    linkGameTime: { 4: 30, 5: 50, 6: 75 },
+    linkCountdown: { 4: 225, 5: 300, 6: 420 },
     portalCount: { 4: 3, 5: 5, 6: 6 },
     hiddenThreshold: { 4: 3, 5: 5, 6: 7 },
     extraLineCount: { 4: 0, 5: 0, 6: 2 },
@@ -79,6 +81,8 @@ export const useRoomStore = defineStore("room", () => {
     countdownTime,
     gameTimeByBoardSize: { ...boardSizeDefaults.gameTime },
     countdownByBoardSize: { ...boardSizeDefaults.countdown },
+    linkGameTimeByBoardSize: { ...boardSizeDefaults.linkGameTime },
+    linkCountdownByBoardSize: { ...boardSizeDefaults.linkCountdown },
     portalCountByBoardSize: { ...boardSizeDefaults.portalCount },
     hiddenThresholdAByBoardSize: { ...boardSizeDefaults.hiddenThreshold },
     hiddenThresholdBByBoardSize: { ...boardSizeDefaults.hiddenThreshold },
@@ -185,6 +189,18 @@ export const useRoomStore = defineStore("room", () => {
       boardSizeDefaults.countdown,
       boardSize,
       savedSettings.countdownTime?.[BingoType.STANDARD]
+    );
+    roomSettings.linkGameTimeByBoardSize = normalizeBoardSizeCache(
+      roomSettings.linkGameTimeByBoardSize,
+      boardSizeDefaults.linkGameTime,
+      boardSize,
+      savedSettings.gameTimeLimit?.[BingoType.LINK]
+    );
+    roomSettings.linkCountdownByBoardSize = normalizeBoardSizeCache(
+      roomSettings.linkCountdownByBoardSize,
+      boardSizeDefaults.linkCountdown,
+      boardSize,
+      savedSettings.countdownTime?.[BingoType.LINK]
     );
     roomSettings.portalCountByBoardSize = normalizeBoardSizeCache(
       roomSettings.portalCountByBoardSize,
@@ -319,13 +335,17 @@ export const useRoomStore = defineStore("room", () => {
 
   const activeCustomLevelCount = () => roomSettings.customLevelCountByBoardSize[roomSettings.board_size] || defaultCustomCountsForBoard(roomSettings.board_size);
 
-  const activeGameTime = () => roomSettings.type === BingoType.STANDARD
-    ? roomSettings.gameTimeByBoardSize[roomSettings.board_size]
-    : roomSettings.gameTimeLimit?.[roomSettings.type];
+  const activeGameTime = () => {
+    if (roomSettings.type === BingoType.STANDARD) return roomSettings.gameTimeByBoardSize[roomSettings.board_size];
+    if (roomSettings.type === BingoType.LINK) return roomSettings.linkGameTimeByBoardSize[roomSettings.board_size];
+    return roomSettings.gameTimeLimit?.[roomSettings.type];
+  };
 
-  const activeCountdown = () => roomSettings.type === BingoType.STANDARD
-    ? roomSettings.countdownByBoardSize[roomSettings.board_size]
-    : roomSettings.countdownTime?.[roomSettings.type];
+  const activeCountdown = () => {
+    if (roomSettings.type === BingoType.STANDARD) return roomSettings.countdownByBoardSize[roomSettings.board_size];
+    if (roomSettings.type === BingoType.LINK) return roomSettings.linkCountdownByBoardSize[roomSettings.board_size];
+    return roomSettings.countdownTime?.[roomSettings.type];
+  };
 
   const activePortalCount = () => roomSettings.portalCountByBoardSize[roomSettings.board_size];
   const activeHiddenThresholdA = () => roomSettings.hiddenThresholdAByBoardSize[roomSettings.board_size];
