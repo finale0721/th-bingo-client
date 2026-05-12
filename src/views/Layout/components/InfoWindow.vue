@@ -267,15 +267,26 @@
                             :value="item.type"
                         ></el-option>
                       </el-select>
-                      <el-button
-                        v-else
-                        size="small"
-                        type="primary"
-                        :disabled="inGame"
-                        @click="customCardPoolDialogVisible = true"
-                      >
-                        自定义卡池
-                      </el-button>
+                      <template v-else>
+                        <el-select
+                          v-model="customCardPoolSelectedId"
+                          style="width: 160px"
+                          placeholder="选择卡池"
+                          clearable
+                          :disabled="inGame"
+                          @change="onCustomCardPoolChange"
+                        >
+                          <el-option
+                            v-for="slot in customCardPoolOptions"
+                            :key="slot.id"
+                            :label="customCardPoolTitle(slot)"
+                            :value="slot.id"
+                          />
+                        </el-select>
+                        <el-button size="small" :disabled="inGame" @click="customCardPoolDialogVisible = true">
+                          管理
+                        </el-button>
+                      </template>
                     </el-form-item>
                     <el-form-item label="AI练习：" v-if="aiPracticeVisible">
                       <el-checkbox
@@ -952,6 +963,12 @@ const showTypeInput = ref(false);
 const gameList = computed( () => Config.gameOptionList(roomStore.roomConfig.spell_version));
 const customCardPoolActive = computed(() => roomStore.customCardPoolActive);
 const activeGameList = computed(() => customCardPoolActive.value ? customCardPoolStore.selectedGames : gameList.value);
+const customCardPoolOptions = computed(() => customCardPoolStore.slots.filter((slot) => Boolean(slot)));
+const customCardPoolSelectedId = computed<number | null>({
+  get: () => customCardPoolStore.selectedId,
+  set: (value) => customCardPoolStore.selectSlot(value),
+});
+const customCardPoolTitle = (slot: any) => slot.note || slot.fileName || `槽位 ${slot.id + 1}`;
 const cardPoolMode = computed({
   get: () => customCardPoolActive.value ? "custom" : "system",
   set: (value: string) => {
@@ -1360,6 +1377,11 @@ const onCardPoolModeChange = () => {
   if (roomSettings.value.custom_card_pool_enabled && !customCardPoolStore.selectedSlot) {
     customCardPoolDialogVisible.value = true;
   }
+  roomStore.updateRoomConfig();
+};
+
+const onCustomCardPoolChange = () => {
+  roomStore.applyCustomCardPoolSelection();
   roomStore.updateRoomConfig();
 };
 

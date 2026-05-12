@@ -57,7 +57,6 @@ export const useCustomCardPoolStore = defineStore("customCardPool", () => {
       updatedAt: Date.now(),
       payload,
     };
-    selectedId.value = slotId;
     persist();
     return slots.value[slotId]!;
   };

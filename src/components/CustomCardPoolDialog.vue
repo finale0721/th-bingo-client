@@ -1,13 +1,21 @@
 <template>
   <el-dialog v-model="dialogVisible" title="自定义卡池" width="920px">
     <div class="pool-toolbar">
+      <el-select
+        v-model="selectedPoolId"
+        size="small"
+        class="pool-select"
+        placeholder="选择自定义卡池"
+        clearable
+        @change="onSelectedPoolChange"
+      >
+        <el-option v-for="slot in availableSlots" :key="slot.id" :label="slotTitle(slot)" :value="slot.id" />
+      </el-select>
       <el-select v-model="systemPoolVersion" size="small" class="version-select">
         <el-option v-for="item in Config.spellVersionList" :key="item.type" :label="item.name" :value="item.type" />
       </el-select>
       <el-button size="small" @click="downloadSystemPool">下载系统卡池</el-button>
       <el-button size="small" @click="downloadTemplate">下载模板</el-button>
-      <el-tag v-if="selectedSlot" type="success">已选择：{{ slotTitle(selectedSlot) }}</el-tag>
-      <el-tag v-else type="info">未选择自定义卡池</el-tag>
     </div>
 
     <el-table :data="slotRows" size="small" border height="360">
@@ -50,7 +58,7 @@
           </el-upload>
           <el-button link type="primary" size="small" :disabled="!row.slot" @click="previewSlot(row.id)">预览</el-button>
           <el-button link type="primary" size="small" :disabled="!row.slot" @click="poolStore.exportSlot(row.id)">导出</el-button>
-          <el-button link type="success" size="small" :disabled="!row.slot" @click="selectSlot(row.id)">选中</el-button>
+          <el-button link type="primary" size="small" :disabled="!row.slot" @click="renameSlot(row.id)">重命名</el-button>
           <el-button link type="danger" size="small" :disabled="!row.slot" @click="deleteSlot(row.id)">删除</el-button>
         </template>
       </el-table-column>
@@ -103,6 +111,11 @@ const previewVisible = ref(false);
 const systemPoolVersion = ref(roomStore.roomSettings.spell_version);
 const selectedSlot = computed(() => poolStore.selectedSlot);
 const slotRows = computed(() => poolStore.slots.map((slot, id) => ({ id, slot })));
+const availableSlots = computed(() => poolStore.slots.filter((slot): slot is CustomCardPoolSlot => Boolean(slot)));
+const selectedPoolId = computed<number | null>({
+  get: () => poolStore.selectedId,
+  set: (value) => poolStore.selectSlot(value),
+});
 
 watch(() => props.visible, (value) => {
   dialogVisible.value = value;
@@ -119,7 +132,6 @@ const importSlot = async (slotId: number, file?: File) => {
   try {
     const slot = await poolStore.importFileToSlot(slotId, file);
     previewSlotData.value = slot;
-    applySelectedPoolToRoom();
     ElMessage.success("卡池已格式化并保存");
   } catch (e: any) {
     ElMessage.error(e?.message || "卡池导入失败");
@@ -131,10 +143,20 @@ const previewSlot = (slotId: number) => {
   previewVisible.value = Boolean(previewSlotData.value);
 };
 
-const selectSlot = (slotId: number) => {
-  poolStore.selectSlot(slotId);
+const onSelectedPoolChange = () => {
   applySelectedPoolToRoom();
   ElMessage.success("已选中自定义卡池");
+};
+
+const renameSlot = async (slotId: number) => {
+  const slot = poolStore.slots[slotId];
+  if (!slot) return;
+  const { value } = await ElMessageBox.prompt("请输入新的卡池名称", "重命名卡池", {
+    inputValue: slot.note || slot.fileName || "",
+    inputPattern: /\S/,
+    inputErrorMessage: "名称不能为空",
+  });
+  poolStore.updateNote(slotId, value.trim());
 };
 
 const deleteSlot = async (slotId: number) => {
@@ -210,6 +232,10 @@ const configName = (code: string, version: number) => {
 
 .version-select {
   width: 140px;
+}
+
+.pool-select {
+  width: 220px;
 }
 
 .inline-upload {
