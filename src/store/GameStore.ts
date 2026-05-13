@@ -617,14 +617,6 @@ export const useGameStore = defineStore("game", () => {
     const oldSkip = oldData[skipKey] || 0;
     const newSkip = newData[skipKey] || 0;
 
-    if (newRoute.length > oldRoute.length) {
-      const index = newRoute[newRoute.length - 1];
-      gameLogs.push(`${player}将${linkCellText(index)}的符卡${linkSpellName(index)}加入路线`);
-    } else if (newRoute.length < oldRoute.length) {
-      const index = oldRoute[oldRoute.length - 1];
-      gameLogs.push(`${player}撤回${linkCellText(index)}的符卡${linkSpellName(index)}`);
-    }
-
     if (!oldData[confirmedKey] && newData[confirmedKey]) {
       gameLogs.push(`${player}确认路线`);
     } else if (oldData[confirmedKey] && !newData[confirmedKey]) {
