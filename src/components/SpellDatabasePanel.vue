@@ -14,6 +14,7 @@
         <el-radio-group v-model="activeTab" size="small">
           <el-radio-button label="local">收藏夹</el-radio-button>
           <el-radio-button label="customPool">自定义卡池</el-radio-button>
+          <el-radio-button label="onlinePool">在线卡池</el-radio-button>
           <el-radio-button label="server">服务器库</el-radio-button>
         </el-radio-group>
         <el-button v-if="activeTab === 'local'" size="small" type="success" @click="openDbDialog('create')">
@@ -28,6 +29,19 @@
               :value="item.id"
             />
           </el-select>
+        </template>
+        <template v-if="activeTab === 'onlinePool'">
+          <el-select v-model="onlinePoolMd5" size="small" style="width: 240px" placeholder="选择在线卡池" clearable>
+            <el-option
+              v-for="item in onlinePoolOptions"
+              :key="item.md5"
+              :label="item.label"
+              :value="item.md5"
+            />
+          </el-select>
+          <el-button size="small" type="primary" :loading="onlineCustomPoolStore.loading" @click="onlineCustomPoolStore.fetchPoolList()">
+            刷新列表
+          </el-button>
         </template>
         <template v-if="activeTab === 'server'">
           <el-select v-model="roomStore.roomConfig.spell_version" size="small" style="width: 120px">
@@ -48,7 +62,7 @@
         <el-button size="small" @click="clearFilters">重置</el-button>
       </div>
 
-      <el-table :data="paginatedSpells" size="small" border stripe height="470" @sort-change="handleSortChange">
+      <el-table :data="paginatedSpells" size="small" border stripe height="470" v-loading="onlinePoolLoading" @sort-change="handleSortChange">
         <el-table-column prop="game" label="作品" width="80" sortable="custom" show-overflow-tooltip />
         <el-table-column prop="name" label="符卡名" min-width="170" sortable="custom" show-overflow-tooltip />
         <el-table-column prop="rank" label="分类" width="70" sortable="custom" />
@@ -116,6 +130,7 @@ import { Close } from "@element-plus/icons-vue";
 import { useRoomStore } from "@/store/RoomStore";
 import { useEditorStore } from "@/store/EditorStore";
 import { useCustomCardPoolStore } from "@/store/CustomCardPoolStore";
+import { useOnlineCustomPoolStore } from "@/store/OnlineCustomPoolStore";
 import { customPoolToSpells } from "@/utils/CustomCardPool";
 import { Spell } from "@/types";
 import Config from "@/config";
@@ -123,7 +138,8 @@ import Config from "@/config";
 const roomStore = useRoomStore();
 const editorStore = useEditorStore();
 const customCardPoolStore = useCustomCardPoolStore();
-const activeTab = ref<"local" | "customPool" | "server">("local");
+const onlineCustomPoolStore = useOnlineCustomPoolStore();
+const activeTab = ref<"local" | "customPool" | "server" | "onlinePool">("local");
 const currentPage = ref(1);
 const pageSize = ref(12);
 const sortState = reactive({ prop: "", order: "" });
@@ -147,11 +163,52 @@ watch(customPoolOptions, (options) => {
 
 watch(customPoolSlotId, () => (currentPage.value = 1));
 
+const onlinePoolMd5 = ref<string | null>(null);
+const onlinePoolSpellCache = ref<Map<string, Spell[]>>(new Map());
+const onlinePoolLoading = ref(false);
+
+const onlinePoolOptions = computed(() =>
+  onlineCustomPoolStore.poolList.map((p) => ({
+    md5: p.md5,
+    label: `${p.file_name} (${p.row_count}条/${p.uploader_name})`,
+  }))
+);
+
+watch(activeTab, (tab) => {
+  if (tab === "onlinePool" && onlineCustomPoolStore.poolList.length === 0) {
+    onlineCustomPoolStore.fetchPoolList();
+  }
+});
+
+watch(() => onlineCustomPoolStore.poolList, (list) => {
+  if (onlinePoolMd5.value && !list.some((p) => p.md5 === onlinePoolMd5.value)) {
+    onlinePoolMd5.value = list[0]?.md5 ?? null;
+  }
+});
+
+watch(onlinePoolMd5, async (md5) => {
+  currentPage.value = 1;
+  if (!md5 || onlinePoolSpellCache.value.has(md5)) return;
+  onlinePoolLoading.value = true;
+  try {
+    const spells = await onlineCustomPoolStore.getSpells(md5);
+    onlinePoolSpellCache.value.set(md5, spells);
+  } catch (e: any) {
+    ElMessage.error(e?.msg || e?.message || "加载在线卡池失败");
+  } finally {
+    onlinePoolLoading.value = false;
+  }
+});
+
 const currentSource = computed(() => {
   if (activeTab.value === "local") return editorStore.localSpellDatabase;
   if (activeTab.value === "customPool") {
     const slot = customPoolSlotId.value == null ? null : customCardPoolStore.slots[customPoolSlotId.value];
     return slot ? customPoolToSpells(slot.payload, false) : [];
+  }
+  if (activeTab.value === "onlinePool") {
+    if (!onlinePoolMd5.value) return [];
+    return onlinePoolSpellCache.value.get(onlinePoolMd5.value) || [];
   }
   const version = roomStore.roomConfig.spell_version;
   const cache = editorStore.serverSpellCache.get(version);
