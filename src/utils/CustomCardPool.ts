@@ -227,21 +227,34 @@ const payloadToAoA = (payload: CustomCardPoolPayload, sampleOnly = false) => {
 
 const buildWorkbook = (payload: CustomCardPoolPayload, sampleOnly = false) => {
   const worksheet = XLSX.utils.aoa_to_sheet(payloadToAoA(payload, sampleOnly));
+
+  worksheet["!cols"] = [
+    { wch: 8 }, // A: 编号
+    { wch: 8 }, // B: 作品代号
+    { wch: 16 }, // C: 作品名称
+    { wch: 54 }, // D: 题目
+    { wch: 12 }, // E: 描述
+    { wch: 8 }, // F: 符卡难度
+    { wch: 8 }, // G: 评分（标准）
+    { wch: 8 }, // H: 评分（BP）
+    { wch: 8 }, // I: 符卡编号
+  ];
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
   return workbook;
 };
 
 export const exportCustomCardPool = (payload: CustomCardPoolPayload, fileName: string) => {
-  XLSX.writeFile(buildWorkbook(payload), fileName, { bookType: "xlsx", compression: true });
+  XLSX.writeFile(buildWorkbook(payload), fileName, { bookType: "xlsx", compression: true, cellStyles: true });
 };
 
 export const exportCustomCardPoolTemplate = (payload: CustomCardPoolPayload) => {
-  XLSX.writeFile(buildWorkbook(payload, true), "自定义卡池模板.xlsx", { bookType: "xlsx", compression: true });
+  XLSX.writeFile(buildWorkbook(payload, true), "自定义卡池模板.xlsx", { bookType: "xlsx", compression: true, cellStyles: true });
 };
 
 export const payloadToXlsxBase64 = (payload: CustomCardPoolPayload): string => {
-  const wbout = XLSX.write(buildWorkbook(payload), { bookType: "xlsx", type: "array", compression: true });
+  const wbout = XLSX.write(buildWorkbook(payload), { bookType: "xlsx", type: "array", compression: true, cellStyles: true });
   let binary = "";
   const bytes = new Uint8Array(wbout);
   for (let i = 0; i < bytes.byteLength; i++) {
