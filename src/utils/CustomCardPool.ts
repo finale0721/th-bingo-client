@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import pako from "pako";
 import { Spell } from "@/types";
 
 export interface CustomCardPoolRow {
@@ -232,15 +233,15 @@ const buildWorkbook = (payload: CustomCardPoolPayload, sampleOnly = false) => {
 };
 
 export const exportCustomCardPool = (payload: CustomCardPoolPayload, fileName: string) => {
-  XLSX.writeFile(buildWorkbook(payload), fileName, { bookType: "xlsx" });
+  XLSX.writeFile(buildWorkbook(payload), fileName, { bookType: "xlsx", compression: true });
 };
 
 export const exportCustomCardPoolTemplate = (payload: CustomCardPoolPayload) => {
-  XLSX.writeFile(buildWorkbook(payload, true), "自定义卡池模板.xlsx", { bookType: "xlsx" });
+  XLSX.writeFile(buildWorkbook(payload, true), "自定义卡池模板.xlsx", { bookType: "xlsx", compression: true });
 };
 
 export const payloadToXlsxBase64 = (payload: CustomCardPoolPayload): string => {
-  const wbout = XLSX.write(buildWorkbook(payload), { bookType: "xlsx", type: "array", cellStyles: true });
+  const wbout = XLSX.write(buildWorkbook(payload), { bookType: "xlsx", type: "array", compression: true });
   let binary = "";
   const bytes = new Uint8Array(wbout);
   for (let i = 0; i < bytes.byteLength; i++) {
@@ -273,4 +274,17 @@ export const getCustomPoolGames = (payload?: CustomCardPoolPayload | null) => {
   const map = new Map<string, string>();
   payload.rows.forEach((row) => map.set(String(row.gameCode), row.gameName));
   return Array.from(map.entries()).map(([code, name]) => ({ code, name }));
+};
+
+export const deflateToBase64 = (data: string): string => {
+  const compressed = pako.deflate(data);
+  let binary = "";
+  for (let i = 0; i < compressed.byteLength; i++) {
+    binary += String.fromCharCode(compressed[i]);
+  }
+  return btoa(binary);
+};
+
+export const ungzipFromBase64 = (base64: string): string => {
+  return pako.ungzip(Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)), { to: "string" });
 };

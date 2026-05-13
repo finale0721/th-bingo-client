@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType } from "@/utils/webSocket/types";
 import { Spell } from "@/types";
+import { deflateToBase64, ungzipFromBase64 } from "@/utils/CustomCardPool";
 
 export interface GameInfo {
   code: string;
@@ -51,7 +52,12 @@ export const useOnlineCustomPoolStore = defineStore("onlineCustomPool", () => {
   }
 
   async function fetchPoolDetail(md5: string): Promise<OnlinePoolDetail> {
-    return await ws.send(WebSocketActionType.GET_CUSTOM_POOL, { md5 });
+    const response = await ws.send(WebSocketActionType.GET_CUSTOM_POOL, { md5 });
+    if (response.spells_compressed) {
+      const json = ungzipFromBase64(response.spells_compressed);
+      return { metadata: response.metadata, spells: JSON.parse(json) };
+    }
+    return response;
   }
 
   async function uploadPool(
@@ -65,8 +71,8 @@ export const useOnlineCustomPoolStore = defineStore("onlineCustomPool", () => {
       xlsx_base64: xlsxBase64,
       file_name: fileName,
       note,
-      spells_json: spellsJson,
-      games_json: gamesJson,
+      spells_compressed: deflateToBase64(spellsJson),
+      games_compressed: deflateToBase64(gamesJson),
     });
   }
 
