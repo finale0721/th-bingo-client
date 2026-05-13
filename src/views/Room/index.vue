@@ -408,9 +408,9 @@
                 >开始收卡</el-button
               >
             </template>
-            <template v-if="isBingoLink && linkPhase === 1 && (isPlayer || (isTakeoverActive && isOwner))">
-              <el-button type="primary" @click="linkUndo" :disabled="myLinkRouteConfirmed">撤回路线</el-button>
-            </template>
+          </template>
+          <template v-if="isBingoLink && linkPhase === 1 && (isPlayer || (isTakeoverActive && isOwner))">
+            <el-button type="primary" @click="linkUndo" :disabled="myLinkRouteConfirmed">撤回路线</el-button>
           </template>
         </div>
       </template>
