@@ -226,37 +226,27 @@ const payloadToAoA = (payload: CustomCardPoolPayload, sampleOnly = false) => {
 
 const buildWorkbook = (payload: CustomCardPoolPayload, sampleOnly = false) => {
   const worksheet = XLSX.utils.aoa_to_sheet(payloadToAoA(payload, sampleOnly));
-  worksheet["!cols"] = [
-    { wch: 8 },
-    { wch: 10 },
-    { wch: 16 },
-    { wch: 28 },
-    { wch: 24 },
-    { wch: 10 },
-    { wch: 12 },
-    { wch: 10 },
-    { wch: 10 },
-  ];
-  for (let col = 1; col <= 6; col++) {
-    const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: col })];
-    if (cell) {
-      cell.s = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "4472C4" } },
-      };
-    }
-  }
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
   return workbook;
 };
 
 export const exportCustomCardPool = (payload: CustomCardPoolPayload, fileName: string) => {
-  XLSX.writeFile(buildWorkbook(payload), fileName, { bookType: "xlsx", cellStyles: true });
+  XLSX.writeFile(buildWorkbook(payload), fileName, { bookType: "xlsx" });
 };
 
 export const exportCustomCardPoolTemplate = (payload: CustomCardPoolPayload) => {
-  XLSX.writeFile(buildWorkbook(payload, true), "自定义卡池模板.xlsx", { bookType: "xlsx", cellStyles: true });
+  XLSX.writeFile(buildWorkbook(payload, true), "自定义卡池模板.xlsx", { bookType: "xlsx" });
+};
+
+export const payloadToXlsxBase64 = (payload: CustomCardPoolPayload): string => {
+  const wbout = XLSX.write(buildWorkbook(payload), { bookType: "xlsx", type: "array", cellStyles: true });
+  let binary = "";
+  const bytes = new Uint8Array(wbout);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 };
 
 export const customPoolRowToSpell = (row: CustomCardPoolRow, useBpStar = false): Spell => ({

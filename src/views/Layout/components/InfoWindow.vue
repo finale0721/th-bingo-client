@@ -247,14 +247,13 @@
                         v-model="cardPoolMode"
                         :disabled="inGame"
                         size="small"
-                        @change="onCardPoolModeChange"
                         style="margin-right: 8px"
                       >
                         <el-radio-button label="system">系统</el-radio-button>
                         <el-radio-button label="custom">自定义</el-radio-button>
                       </el-radio-group>
                       <el-select
-                          v-if="!customCardPoolActive"
+                          v-if="!roomSettings.custom_card_pool_enabled"
                           v-model="roomSettings.spell_version"
                           style="width: 120px"
                           @change="roomStore.updateRoomConfig()"
@@ -268,24 +267,46 @@
                         ></el-option>
                       </el-select>
                       <template v-else>
-                        <el-select
-                          v-model="customCardPoolSelectedId"
-                          style="width: 160px"
-                          placeholder="选择卡池"
-                          clearable
+                        <el-radio-group
+                          v-model="customPoolSource"
+                          size="small"
                           :disabled="inGame"
-                          @change="onCustomCardPoolChange"
+                          style="margin-right: 8px"
                         >
-                          <el-option
-                            v-for="slot in customCardPoolOptions"
-                            :key="slot.id"
-                            :label="customCardPoolTitle(slot)"
-                            :value="slot.id"
-                          />
-                        </el-select>
-                        <el-button size="small" :disabled="inGame" @click="customCardPoolDialogVisible = true">
-                          管理
-                        </el-button>
+                          <el-radio-button label="local">本地</el-radio-button>
+                          <el-radio-button label="online">在线</el-radio-button>
+                        </el-radio-group>
+                        <template v-if="customPoolSource === 'local'">
+                          <el-select
+                            v-model="customCardPoolSelectedId"
+                            style="width: 160px"
+                            placeholder="选择卡池"
+                            clearable
+                            :disabled="inGame"
+                            @change="onCustomCardPoolChange"
+                          >
+                            <el-option
+                              v-for="slot in customCardPoolOptions"
+                              :key="slot.id"
+                              :label="customCardPoolTitle(slot)"
+                              :value="slot.id"
+                            />
+                          </el-select>
+                          <el-button size="small" :disabled="inGame" @click="customCardPoolDialogVisible = true">
+                            管理
+                          </el-button>
+                        </template>
+                        <template v-else>
+                          <el-button size="small" :disabled="inGame" @click="onlinePoolDialogVisible = true">
+                            管理
+                          </el-button>
+                          <span v-if="onlineCustomPoolStore.selectedPool" style="margin-left: 8px; font-size: 13px; color: #67c23a;">
+                            已选：{{ onlineCustomPoolStore.selectedPool.file_name }}
+                          </span>
+                          <span v-else style="margin-left: 8px; font-size: 13px; color: #909399;">
+                            未选择在线卡池
+                          </span>
+                        </template>
                       </template>
                     </el-form-item>
                     <el-form-item label="AI练习：" v-if="aiPracticeVisible">
@@ -843,6 +864,11 @@
       @selected="roomStore.updateRoomConfig()"
     />
 
+    <OnlinePoolBrowserDialog
+      v-model:visible="onlinePoolDialogVisible"
+      @selected="onOnlinePoolSelected"
+    />
+
     <el-dialog v-model="linkBoardDialogVisible" title="Link 赛特殊格设置" width="640px" class="link-board-dialog">
       <div class="link-board-config">
         <div
@@ -935,7 +961,9 @@ import { QuestionFilled } from '@element-plus/icons-vue'
 import { useEditorStore } from "@/store/EditorStore";
 import PresetManager from "@/components/PresetManager.vue";
 import CustomCardPoolDialog from "@/components/CustomCardPoolDialog.vue";
+import OnlinePoolBrowserDialog from "@/components/OnlinePoolBrowserDialog.vue";
 import { useCustomCardPoolStore } from "@/store/CustomCardPoolStore";
+import { useOnlineCustomPoolStore } from "@/store/OnlineCustomPoolStore";
 
 const roomStore = useRoomStore();
 const localStore = useLocalStore();
@@ -948,6 +976,9 @@ const weightBalancerVisible = ref(false);
 const aiPreferenceVisible = ref(false);
 const customLevelBalancerVisible = ref(false);
 const customCardPoolDialogVisible = ref(false);
+const onlinePoolDialogVisible = ref(false);
+const onlineCustomPoolStore = useOnlineCustomPoolStore();
+const customPoolSource = ref<"local" | "online">("local");
 const linkBoardDialogVisible = ref(false);
 const linkBoardEditMode = ref<"disabled" | "startA" | "endA" | "startB" | "endB">("disabled");
 const linkBoardDraft = ref({
@@ -962,7 +993,13 @@ const tabIndex = ref(0);
 const showTypeInput = ref(false);
 const gameList = computed( () => Config.gameOptionList(roomStore.roomConfig.spell_version));
 const customCardPoolActive = computed(() => roomStore.customCardPoolActive);
-const activeGameList = computed(() => customCardPoolActive.value ? customCardPoolStore.selectedGames : gameList.value);
+const activeGameList = computed(() => {
+  if (!customCardPoolActive.value) return gameList.value;
+  if (customPoolSource.value === "online" && onlineCustomPoolStore.selectedGames.length > 0) {
+    return onlineCustomPoolStore.selectedGames;
+  }
+  return customCardPoolStore.selectedGames;
+});
 const customCardPoolOptions = computed(() => customCardPoolStore.slots.filter((slot) => Boolean(slot)));
 const customCardPoolSelectedId = computed<number | null>({
   get: () => customCardPoolStore.selectedId,
@@ -970,9 +1007,10 @@ const customCardPoolSelectedId = computed<number | null>({
 });
 const customCardPoolTitle = (slot: any) => slot.note || slot.fileName || `槽位 ${slot.id + 1}`;
 const cardPoolMode = computed({
-  get: () => customCardPoolActive.value ? "custom" : "system",
+  get: () => roomSettings.value.custom_card_pool_enabled ? "custom" : "system",
   set: (value: string) => {
     roomStore.setCustomCardPoolEnabled(value === "custom");
+    roomStore.updateRoomConfig();
   },
 });
 const rankList = Config.rankList;
@@ -1373,16 +1411,17 @@ const showWeightBalancer = () => {
   weightBalancerVisible.value = true
 }
 
-const onCardPoolModeChange = () => {
-  if (roomSettings.value.custom_card_pool_enabled && !customCardPoolStore.selectedSlot) {
-    customCardPoolDialogVisible.value = true;
-  }
+const onCustomCardPoolChange = () => {
+  onlineCustomPoolStore.selectPool(null);
+  roomStore.applyCustomCardPoolSelection();
   roomStore.updateRoomConfig();
 };
 
-const onCustomCardPoolChange = () => {
+const onOnlinePoolSelected = () => {
+  customCardPoolStore.selectSlot(null);
+  roomStore.setOnlinePoolMd5(onlineCustomPoolStore.selectedMd5);
   roomStore.applyCustomCardPoolSelection();
-  roomStore.updateRoomConfig();
+  if (roomStore.roomId) roomStore.updateRoomConfig().catch(() => {});
 };
 
 // 处理权重确认

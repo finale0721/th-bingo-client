@@ -8,12 +8,14 @@ import { local } from "@/utils/Storage";
 import Config from "@/config";
 import { useRoute, useRouter } from "vue-router";
 import { useCustomCardPoolStore } from "@/store/CustomCardPoolStore";
+import { useOnlineCustomPoolStore } from "@/store/OnlineCustomPoolStore";
 import pako from "pako";
 
 export const useRoomStore = defineStore("room", () => {
   const localStore = useLocalStore();
   const router = useRouter();
   const customCardPoolStore = useCustomCardPoolStore();
+  const onlineCustomPoolStore = useOnlineCustomPoolStore();
 
   const roomId = ref<string>("");
   watch(roomId, (id) => {
@@ -398,7 +400,18 @@ export const useRoomStore = defineStore("room", () => {
     local.set("roomSettings", roomSettings);
   };
 
-  const customCardPoolActive = computed(() => roomSettings.custom_card_pool_enabled && !!customCardPoolStore.selectedPayload);
+  const customCardPoolActive = computed(
+    () => roomSettings.custom_card_pool_enabled &&
+      (!!customCardPoolStore.selectedPayload || !!onlineCustomPoolStore.selectedMd5)
+  );
+
+  const isLocalPoolActive = computed(
+    () => roomSettings.custom_card_pool_enabled && !!customCardPoolStore.selectedPayload
+  );
+
+  const isOnlinePoolActive = computed(
+    () => roomSettings.custom_card_pool_enabled && !!onlineCustomPoolStore.selectedMd5
+  );
 
   const syncActiveCardPoolGameSelection = () => {
     if (roomSettings.custom_card_pool_enabled) {
@@ -424,6 +437,26 @@ export const useRoomStore = defineStore("room", () => {
     roomSettings.matchbp = false;
     roomSettings.use_ai = false;
     roomSettings.ai_preference = {};
+  };
+
+  const setOnlinePoolMd5 = (md5: string | null) => {
+    onlineCustomPoolStore.selectPool(md5);
+    if (md5) {
+      customCardPoolStore.selectSlot(null);
+    }
+    roomSettings.custom_card_pool_enabled = md5 !== null;
+    applyCustomCardPoolSelection();
+    saveRoomSettings();
+  };
+
+  const getStartGameCustomPoolData = () => {
+    if (isOnlinePoolActive.value) {
+      return { custom_pool_md5: onlineCustomPoolStore.selectedMd5 };
+    }
+    if (isLocalPoolActive.value) {
+      return { custom_card_pool_compressed: compressedCustomCardPool() };
+    }
+    return {};
   };
 
   const customCardPoolSpells = () =>
@@ -965,9 +998,13 @@ export const useRoomStore = defineStore("room", () => {
     activeExtraLineCount,
     updateExtraLineCountCache,
     customCardPoolActive,
+    isLocalPoolActive,
+    isOnlinePoolActive,
     setCustomCardPoolEnabled,
+    setOnlinePoolMd5,
     applyCustomCardPoolSelection,
     customCardPoolSpells,
     compressedCustomCardPool,
+    getStartGameCustomPoolData,
   };
 });

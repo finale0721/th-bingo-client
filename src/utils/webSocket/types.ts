@@ -83,6 +83,10 @@ export enum WebSocketActionType {
   LINK_AI_SPEEDRUN = "link_ai_speedrun",
   LINK_TAKEOVER_ROUTE = "link_takeover_route",
   LINK_RELEASE_TAKEOVER = "link_release_takeover",
+  UPLOAD_CUSTOM_POOL = "upload_custom_pool",
+  LIST_CUSTOM_POOLS = "list_custom_pools",
+  GET_CUSTOM_POOL = "get_custom_pool",
+  DELETE_CUSTOM_POOL = "delete_custom_pool",
 }
 
 export enum WebSocketPushActionType {

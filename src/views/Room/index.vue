@@ -1571,7 +1571,7 @@ const startGame = () => {
     startBP();
   } else {
     roomStore.applyCustomCardPoolSelection();
-    gameStore.startGame(roomStore.customCardPoolActive ? { custom_card_pool_compressed: roomStore.compressedCustomCardPool() } : {}).then(() => {
+    gameStore.startGame(roomStore.getStartGameCustomPoolData()).then(() => {
       roomStore.updateChangeCardCount(roomData.value.names[0], roomSettings.value.playerA.changeCardCount);
       roomStore.updateChangeCardCount(roomData.value.names[1], roomSettings.value.playerB.changeCardCount);
       if (isBingoLink.value) gameStore.linkSetPhase(1);
@@ -1587,7 +1587,7 @@ const startGame = () => {
 };
 const drawSpellCard = () => {
   roomStore.applyCustomCardPoolSelection();
-  gameStore.startGame(roomStore.customCardPoolActive ? { custom_card_pool_compressed: roomStore.compressedCustomCardPool() } : {}).then(() => {
+  gameStore.startGame(roomStore.getStartGameCustomPoolData()).then(() => {
     roomStore.updateChangeCardCount(roomData.value.names[0], roomSettings.value.playerA.changeCardCount);
     roomStore.updateChangeCardCount(roomData.value.names[1], roomSettings.value.playerB.changeCardCount);
     layoutRef.value?.hideAlert();

@@ -45,7 +45,7 @@
       <el-table-column label="更新时间" width="150">
         <template #default="{ row }">{{ row.slot ? formatTime(row.slot.updatedAt) : "-" }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="300" fixed="right">
+      <el-table-column label="操作" width="420" fixed="right">
         <template #default="{ row }">
           <el-upload
             class="inline-upload"
@@ -59,6 +59,7 @@
           <el-button link type="primary" size="small" :disabled="!row.slot" @click="previewSlot(row.id)">预览</el-button>
           <el-button link type="primary" size="small" :disabled="!row.slot" @click="poolStore.exportSlot(row.id)">导出</el-button>
           <el-button link type="primary" size="small" :disabled="!row.slot" @click="renameSlot(row.id)">重命名</el-button>
+          <el-button link type="success" size="small" :disabled="!row.slot" @click="uploadToServer(row.id)">上传</el-button>
           <el-button link type="danger" size="small" :disabled="!row.slot" @click="deleteSlot(row.id)">删除</el-button>
         </template>
       </el-table-column>
@@ -89,7 +90,8 @@ import {
   ElUpload,
 } from "element-plus";
 import { useCustomCardPoolStore } from "@/store/CustomCardPoolStore";
-import { CustomCardPoolSlot, getCustomPoolGames } from "@/utils/CustomCardPool";
+import { useOnlineCustomPoolStore } from "@/store/OnlineCustomPoolStore";
+import { CustomCardPoolSlot, customPoolToSpells, getCustomPoolGames, payloadToXlsxBase64 } from "@/utils/CustomCardPool";
 import { useRoomStore } from "@/store/RoomStore";
 import { WebSocketActionType } from "@/utils/webSocket/types";
 import ws from "@/utils/webSocket/WebSocketBingo";
@@ -104,6 +106,7 @@ const props = defineProps<{ visible: boolean }>();
 const emit = defineEmits<{ (e: "update:visible", value: boolean): void; (e: "selected"): void }>();
 
 const poolStore = useCustomCardPoolStore();
+const onlinePoolStore = useOnlineCustomPoolStore();
 const roomStore = useRoomStore();
 const dialogVisible = ref(false);
 const previewSlotData = ref<CustomCardPoolSlot | null>(null);
@@ -172,6 +175,20 @@ const deleteSlot = async (slotId: number) => {
 const applySelectedPoolToRoom = () => {
   roomStore.applyCustomCardPoolSelection();
   if (roomStore.roomId) roomStore.updateRoomConfig().catch(() => {});
+};
+
+const uploadToServer = async (slotId: number) => {
+  const slot = poolStore.slots[slotId];
+  if (!slot) return;
+  try {
+    const xlsxBase64 = payloadToXlsxBase64(slot.payload);
+    const spells = customPoolToSpells(slot.payload);
+    const games = getCustomPoolGames(slot.payload);
+    await onlinePoolStore.uploadPool(slot.fileName, slot.note, xlsxBase64, JSON.stringify(spells), JSON.stringify(games));
+    ElMessage.success("已上传到服务器");
+  } catch (e: any) {
+    ElMessage.error(e?.msg || e?.message || "上传失败");
+  }
 };
 
 const confirmSelected = () => {
