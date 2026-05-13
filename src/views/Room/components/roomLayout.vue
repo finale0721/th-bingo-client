@@ -361,6 +361,11 @@ const selectSpellCard = (index: number) => {
     return;
   }
   if (isBingoLink.value) {
+    const takeover = gameStore.linkGameData.takeover_player_index;
+    if (takeover >= 0) {
+      if (takeover === 0 && isPlayerA.value) return;
+      if (takeover === 1 && isPlayerB.value) return;
+    }
     if (gameStore.linkGameData.route_confirmed_a && isPlayerA.value) return;
     if (gameStore.linkGameData.route_confirmed_b && isPlayerB.value) return;
     if (gameStore.linkGameData.event_a > 0 || gameStore.linkGameData.event_b > 0) return;

@@ -50,6 +50,13 @@
           <el-button size="small" @click="forceLinkSkip(0)" :disabled="linkPlayerFinished(0) || linkCdLeftA > 0">强制跳过</el-button>
           <el-button size="small" @click="undoLinkFinish(0)" :disabled="linkData.current_step_a <= 0">撤销收取</el-button>
         </div>
+        <div v-if="isBingoLink && canTakeover && linkPhase === 1" class="link-manage-buttons" :key="'tk-ctrl-a-' + takeoverUiKey">
+          <el-button v-show="takeoverPlayerIndex !== 0" size="small" @click="takeoverRoute(0)">接管路线</el-button>
+          <el-button v-show="takeoverPlayerIndex === 0" size="small" type="warning" @click="releaseTakeover">释放接管</el-button>
+        </div>
+        <div v-if="isBingoLink && linkPhase === 1 && takeoverPlayerIndex === 0 && !isOwner" class="link-manage-buttons" :key="'tk-lock-a-' + takeoverUiKey">
+          <span style="color: #e6a23c; font-size: 12px;">路线已被接管</span>
+        </div>
         <el-button
           class="alert-button"
           type="primary"
@@ -111,6 +118,13 @@
         <div v-if="isBingoLink && canManageLinkB && linkPhase === 2" class="link-manage-buttons">
           <el-button size="small" @click="forceLinkSkip(1)" :disabled="linkPlayerFinished(1) || linkCdLeftB > 0">强制跳过</el-button>
           <el-button size="small" @click="undoLinkFinish(1)" :disabled="linkData.current_step_b <= 0">撤销收取</el-button>
+        </div>
+        <div v-if="isBingoLink && canTakeover && linkPhase === 1" class="link-manage-buttons" :key="'tk-ctrl-b-' + takeoverUiKey">
+          <el-button v-show="takeoverPlayerIndex !== 1" size="small" @click="takeoverRoute(1)">接管路线</el-button>
+          <el-button v-show="takeoverPlayerIndex === 1" size="small" type="warning" @click="releaseTakeover">释放接管</el-button>
+        </div>
+        <div v-if="isBingoLink && linkPhase === 1 && takeoverPlayerIndex === 1 && !isOwner" class="link-manage-buttons" :key="'tk-lock-b-' + takeoverUiKey">
+          <span style="color: #e6a23c; font-size: 12px;">路线已被接管</span>
         </div>
         <div v-if="showLinkAiSpeedrun" class="link-manage-buttons">
           <el-button size="small" type="warning" @click="linkAiSpeedrun" :disabled="linkPlayerFinished(1)">速通</el-button>
@@ -320,6 +334,19 @@
             </el-button>
           </template>
 
+          <template v-if="isBingoLink && isTakeoverActive && isOwner && !isPlayer">
+            <template v-if="inGame">
+              <el-button
+                type="primary"
+                @click="confirmLinkRoute"
+                :disabled="!linkRouteComplete"
+                v-if="linkPhase === 1"
+                :key="'tk-confirm-' + takeoverUiKey"
+                >{{ myLinkRouteConfirmed ? "取消确认" : "确认路线" }}</el-button
+              >
+            </template>
+          </template>
+
           <!-- <template v-if="isBingoLink">
           <el-button type="primary" v-if="!inGame">开始比赛</el-button>
           <el-button type="primary" v-else>结束比赛</el-button>
@@ -377,11 +404,11 @@
               <el-button
                 size="small"
                 @click="startLinkRun"
-                :disabled="!inGame || linkPhase !== 1 || !bothLinkRoutesConfirmed"
+                :disabled="!inGame || linkPhase !== 1 || !bothLinkRoutesConfirmed || isTakeoverActive"
                 >开始收卡</el-button
               >
             </template>
-            <template v-if="isBingoLink && linkPhase === 1 && isPlayer">
+            <template v-if="isBingoLink && linkPhase === 1 && (isPlayer || (isTakeoverActive && isOwner))">
               <el-button type="primary" @click="linkUndo" :disabled="myLinkRouteConfirmed">撤回路线</el-button>
             </template>
           </template>
@@ -472,6 +499,7 @@ const soloMode = computed(() => {
 });
 const isHost = computed(() => roomStore.isHost);
 const isPlayer = computed(() => roomStore.isPlayer);
+const showLinkPlayerControls = computed(() => isPlayer.value || (isBingoLink.value && isTakeoverActive.value && isOwner.value));
 const isPlayerA = computed(() => roomStore.isPlayerA);
 const isPlayerB = computed(() => roomStore.isPlayerB);
 const isOwner = computed(() => (soloMode.value ? isPlayerA.value : isHost.value));
@@ -1166,12 +1194,27 @@ const linkRouteFastestA = computed(() => linkRouteFastest(routeA.value));
 const linkRouteFastestB = computed(() => linkRouteFastest(routeB.value));
 const linkEndA = computed(() => roomStore.roomConfig.link_end_a ?? boardSpec.value.area - 1);
 const linkEndB = computed(() => roomStore.roomConfig.link_end_b ?? boardSpec.value.index(boardSpec.value.size - 1, 0));
-const myLinkRoute = computed(() => (isPlayerA.value ? routeA.value : routeB.value));
-const myLinkRouteConfirmed = computed(() =>
-  isPlayerA.value ? linkData.value.route_confirmed_a : linkData.value.route_confirmed_b
-);
+const myLinkRoute = computed(() => {
+  const idx = myEffectivePlayerIndex.value;
+  if (idx !== null) return linkRouteForPlayer(idx);
+  return isPlayerA.value ? routeA.value : routeB.value;
+});
+const myLinkRouteConfirmed = computed(() => {
+  const idx = myEffectivePlayerIndex.value;
+  if (idx !== null) return linkConfirmedForPlayer(idx);
+  return isPlayerA.value ? linkData.value.route_confirmed_a : linkData.value.route_confirmed_b;
+});
 const controlledLinkPlayer = computed<0 | 1 | null>(() => {
+  const takeover = takeoverPlayerIndex.value;
+  if (takeover >= 0 && isOwner.value) return takeover as 0 | 1;
   if (isHost.value) return null;
+  if (isPlayerA.value) return 0;
+  if (isPlayerB.value) return 1;
+  return null;
+});
+const myEffectivePlayerIndex = computed<0 | 1 | null>(() => {
+  const takeover = takeoverPlayerIndex.value;
+  if (takeover >= 0 && isOwner.value) return takeover as 0 | 1;
   if (isPlayerA.value) return 0;
   if (isPlayerB.value) return 1;
   return null;
@@ -1185,8 +1228,9 @@ const linkRouteCompleteForPlayer = (playerIndex: 0 | 1) => {
   return route.length > 0 && route[route.length - 1] === linkEndForPlayer(playerIndex);
 };
 const linkRouteComplete = computed(() => {
-  const route = myLinkRoute.value;
-  const end = isPlayerA.value ? linkEndA.value : linkEndB.value;
+  const idx = myEffectivePlayerIndex.value ?? (isPlayerA.value ? 0 : 1);
+  const route = linkRouteForPlayer(idx);
+  const end = linkEndForPlayer(idx);
   return route.length > 0 && route[route.length - 1] === end;
 });
 const bothLinkRoutesConfirmed = computed(() => linkData.value.route_confirmed_a && linkData.value.route_confirmed_b);
@@ -1199,6 +1243,30 @@ const linkSkipRemainA = computed(() => Math.max(0, linkSkipLimit(routeA.value) -
 const linkSkipRemainB = computed(() => Math.max(0, linkSkipLimit(routeB.value) - (linkData.value.skip_used_b || 0)));
 const canManageLinkA = computed(() => isBingoLink.value && (isHost.value || (!roomData.value.host && isPlayerA.value)));
 const canManageLinkB = computed(() => isBingoLink.value && (isHost.value || (!roomData.value.host && isPlayerB.value)));
+// Use ref+watch instead of computed to avoid Vue computed caching issues with reactive object properties
+const takeoverPlayerIndex = ref(gameStore.linkGameData.takeover_player_index ?? -1);
+const takeoverUiKey = ref(0);
+watch(
+  () => [
+    gameStore.linkGameData.takeover_player_index,
+    gameStore.linkGameData.route_confirmed_a,
+    gameStore.linkGameData.route_confirmed_b,
+  ],
+  ([takeover, confirmedA, confirmedB]) => {
+    takeoverPlayerIndex.value = takeover ?? -1;
+    takeoverUiKey.value++;
+  }
+);
+const isTakeoverActive = computed(() => takeoverPlayerIndex.value >= 0);
+const canTakeover = computed(() => isBingoLink.value && linkPhase.value === 1 && isOwner.value);
+const canTakeoverPlayerA = computed(() => canTakeover.value && takeoverPlayerIndex.value !== 0);
+const canTakeoverPlayerB = computed(() => canTakeover.value && takeoverPlayerIndex.value !== 1);
+const isMyRouteLocked = computed(() => {
+  if (!isTakeoverActive.value) return false;
+  if (isHost.value || isWatcher.value) return false;
+  const myIdx = isPlayerA.value ? 0 : 1;
+  return takeoverPlayerIndex.value === myIdx;
+});
 const linkPlayerFinished = (playerIndex: 0 | 1) => playerIndex === 0 ? linkData.value.event_a === 3 : linkData.value.event_b === 3;
 const linkCurrentStepForPlayer = (playerIndex: 0 | 1) => playerIndex === 0 ? linkData.value.current_step_a || 0 : linkData.value.current_step_b || 0;
 const linkCurrentIndexForPlayer = (playerIndex: 0 | 1) => linkRouteForPlayer(playerIndex)[linkCurrentStepForPlayer(playerIndex)] ?? -1;
@@ -1380,6 +1448,12 @@ const setLinkSkipRemain = (playerIndex: 0 | 1, remain: number) => {
 };
 const linkAiSpeedrun = () => {
   gameStore.linkAiSpeedrun();
+};
+const takeoverRoute = (playerIndex: number) => {
+  gameStore.linkTakeoverRoute(playerIndex);
+};
+const releaseTakeover = () => {
+  gameStore.linkReleaseTakeover();
 };
 
 const lastLinkStepA = ref(0);

@@ -82,6 +82,7 @@ export const useGameStore = defineStore("game", () => {
     score_a: 0,
     score_b: 0,
     disabled_idx: [],
+    takeover_player_index: -1,
   });
   const linkGameData = reactive<LinkData>(createBlankLinkData());
   let linkLogSnapshot: LinkData | null = null;
@@ -582,6 +583,8 @@ export const useGameStore = defineStore("game", () => {
   const linkSetSkipUsed = (playerIndex: number, value: number) => ws.send(WebSocketActionType.LINK_SET_SKIP_USED, { player_index: playerIndex, value });
   const linkSetPhase = (phase: number) => ws.send(WebSocketActionType.LINK_SET_PHASE, { phase });
   const linkAiSpeedrun = () => ws.send(WebSocketActionType.LINK_AI_SPEEDRUN);
+  const linkTakeoverRoute = (playerIndex: number) => ws.send(WebSocketActionType.LINK_TAKEOVER_ROUTE, { player_index: playerIndex });
+  const linkReleaseTakeover = () => ws.send(WebSocketActionType.LINK_RELEASE_TAKEOVER);
 
   const linkPlayerName = (playerIndex: 0 | 1) => {
     const name = roomStore.roomData.names[playerIndex] || (playerIndex === 0 ? "A" : "B");
@@ -757,6 +760,8 @@ export const useGameStore = defineStore("game", () => {
     linkSetSkipUsed,
     linkSetPhase,
     linkAiSpeedrun,
+    linkTakeoverRoute,
+    linkReleaseTakeover,
     refreshSpell,
     resetGameData,
     setReplayMode,

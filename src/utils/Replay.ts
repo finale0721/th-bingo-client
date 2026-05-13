@@ -273,6 +273,7 @@ class Replay {
       score_a: 0,
       score_b: 0,
       disabled_idx: [],
+      takeover_player_index: -1,
     };
     const next: LinkData = {
       ...empty,
@@ -584,6 +585,7 @@ class Replay {
       score_a: Number(linkData.score_a || 0),
       score_b: Number(linkData.score_b || 0),
       disabled_idx: cleanRoute(linkData.disabled_idx),
+      takeover_player_index: Number(linkData.takeover_player_index ?? -1),
     };
   };
 

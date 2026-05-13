@@ -111,6 +111,7 @@ export interface LinkData {
   score_a: number;
   score_b: number;
   disabled_idx: number[];
+  takeover_player_index: number;
 }
 
 export interface OneSpell{
