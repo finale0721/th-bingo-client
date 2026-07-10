@@ -200,7 +200,6 @@ import { WebSocketPushActionType } from "@/utils/webSocket/types";
 import { BingoType, GameStatus } from "@/types";
 import type { Spell } from "@/types";
 import { useEditorStore } from "@/store/EditorStore";
-import { BoardSpec } from "@/utils/board";
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
@@ -427,7 +426,7 @@ function canSelectBlindCard(status: number) {
   return status === 0x1000 || status === 0x1010 || status === 0x1011 || status === 0x1012;
 }
 
-const onMenuClick = ({ event, target, item }: any) => {
+const onMenuClick = ({ target, item }: any) => {
   const index = target.getAttribute("index");
   if (index === null || isNaN(index)) return;
 
