@@ -8,6 +8,7 @@ import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/
 import Config from "@/config"
 import pako from 'pako';
 import Replay from "@/utils/Replay";
+import { basicSpellStatus, hasBasicAttribute } from "@/utils/spellStatus";
 
 interface GameLog {
   index: number;
@@ -50,12 +51,11 @@ export const useGameStore = defineStore("game", () => {
     }
   });
 
-  const bothSelectedIndex = computed(() => spellStatus.value.indexOf(SpellStatus.BOTH_SELECTED));
   const playerASelectedIndex = computed(() =>
-    bothSelectedIndex.value === -1 ? spellStatus.value.indexOf(SpellStatus.A_SELECTED) : bothSelectedIndex.value
+    spellStatus.value.findIndex((status) => hasBasicAttribute(status, SpellStatus.LEFT_SELECT))
   );
   const playerBSelectedIndex = computed(() =>
-    bothSelectedIndex.value === -1 ? spellStatus.value.indexOf(SpellStatus.B_SELECTED) : bothSelectedIndex.value
+    spellStatus.value.findIndex((status) => hasBasicAttribute(status, SpellStatus.RIGHT_SELECT))
   );
 
   const createBlankLinkData = (): LinkData => ({
@@ -374,14 +374,28 @@ export const useGameStore = defineStore("game", () => {
     //考虑状态转换带来的事件
     //注意事件需要符合发起者身份，不符合则认为是直接设置
     //选卡两种情况
-    const actASelect = ((oldStatus === 0 && status === 1) || (oldStatus === 3 && status === 2)) && fromPlayerA;
-    const actBSelect = ((oldStatus === 0 && status === 3) || (oldStatus === 1 && status === 2)) && fromPlayerB;
+    const actASelect =
+      hasBasicAttribute(status, SpellStatus.LEFT_SELECT) &&
+      !hasBasicAttribute(oldStatus, SpellStatus.LEFT_SELECT) &&
+      fromPlayerA;
+    const actBSelect =
+      hasBasicAttribute(status, SpellStatus.RIGHT_SELECT) &&
+      !hasBasicAttribute(oldStatus, SpellStatus.RIGHT_SELECT) &&
+      fromPlayerB;
     //收卡只需要判断最终状态
-    const actAGet = status === 5 && fromPlayerA;
-    const actBGet = status === 7 && fromPlayerB;
+    const actAGet = hasBasicAttribute(status, SpellStatus.LEFT_GET) && fromPlayerA;
+    const actBGet = hasBasicAttribute(status, SpellStatus.RIGHT_GET) && fromPlayerB;
     //被抢卡只有自己可见
-    const actALost = (oldStatus === 1 || oldStatus === 2) && status === 7 && isPA && fromPlayerB;
-    const actBLost = (oldStatus === 3 || oldStatus === 2) && status === 5 && isPB && fromPlayerA;
+    const actALost =
+      hasBasicAttribute(oldStatus, SpellStatus.LEFT_SELECT) &&
+      hasBasicAttribute(status, SpellStatus.RIGHT_GET) &&
+      isPA &&
+      fromPlayerB;
+    const actBLost =
+      hasBasicAttribute(oldStatus, SpellStatus.RIGHT_SELECT) &&
+      hasBasicAttribute(status, SpellStatus.LEFT_GET) &&
+      isPB &&
+      fromPlayerA;
     //否则，为状态设置
     const isPlayerSet = !(actASelect || actBSelect || actAGet || actBGet || actALost || actBLost);
 
@@ -390,9 +404,13 @@ export const useGameStore = defineStore("game", () => {
     }
 
     if(isPlayerSet || fromHost){
-      if((oldStatus === 1 || oldStatus === 2) && status === 7 && isPA){
+      if (hasBasicAttribute(oldStatus, SpellStatus.LEFT_SELECT) && hasBasicAttribute(status, SpellStatus.RIGHT_GET) && isPA) {
         spellCardGrabbedFlag.value = true;
-      }else if((oldStatus === 3 || oldStatus === 2) && status === 5 && isPB){
+      } else if (
+        hasBasicAttribute(oldStatus, SpellStatus.RIGHT_SELECT) &&
+        hasBasicAttribute(status, SpellStatus.LEFT_GET) &&
+        isPB
+      ) {
         spellCardGrabbedFlag.value = true;
       }
     }
@@ -430,20 +448,25 @@ export const useGameStore = defineStore("game", () => {
 
       //如果是设置行为，先定位设置的是谁，再返回其所在面
       if (isPlayerSet) {
-        if (status === 1) {
+        const basicStatus = basicSpellStatus(status);
+        const oldBasicStatus = basicSpellStatus(oldStatus);
+        if (basicStatus === SpellStatus.LEFT_SELECT) {
           side = normalGameData.which_board_a;
-        } else if (status === 3) {
+        } else if (basicStatus === SpellStatus.RIGHT_SELECT) {
           side = normalGameData.which_board_b;
-        } else if (status === 5 || status === 7) {
+        } else if (
+          hasBasicAttribute(status, SpellStatus.LEFT_GET) ||
+          hasBasicAttribute(status, SpellStatus.RIGHT_GET)
+        ) {
           //设置收取同导播
           const get = normalGameData.get_on_which_board[index];
           if ((get === 0x2 || get === 0x20)) {
             side = 1;
           }
-        } else if (status === 2) {
-          if (oldStatus === 1) {
+        } else if (hasBasicAttribute(status, SpellStatus.LEFT_SELECT | SpellStatus.RIGHT_SELECT)) {
+          if (oldBasicStatus === SpellStatus.LEFT_SELECT) {
             side = normalGameData.which_board_b;
-          } else if (oldStatus === 3) {
+          } else if (oldBasicStatus === SpellStatus.RIGHT_SELECT) {
             side = normalGameData.which_board_a;
           }
           //其余情况不分人，只需要找到发起者
@@ -701,6 +724,7 @@ export const useGameStore = defineStore("game", () => {
       spells: preset.data.spells,
       spells2: preset.data.spells2,
       spell_status: preset.data.spellStatus,
+      spell_status_version: preset.data.spellStatusVersion ?? 1,
       initial_left_time: preset.data.initialLeftTime,
       initial_countdown: preset.data.initialCountDown,
       initial_cd_time_a: preset.data.initialCdTimeA,

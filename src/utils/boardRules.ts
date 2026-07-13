@@ -1,5 +1,6 @@
 import { BoardSpec } from "./board";
 import { SpellStatus } from "@/types";
+import { hasBasicAttribute } from "./spellStatus";
 
 export function getWinningLines(board: BoardSpec, extraLines: number[][] = []): number[][] {
   return board.winningLines(extraLines);
@@ -10,7 +11,7 @@ export function checkLineComplete(
   line: number[],
   playerFlag: SpellStatus
 ): boolean {
-  return line.every((idx) => spellStatus[idx] === playerFlag);
+  return line.every((idx) => hasBasicAttribute(spellStatus[idx], playerFlag));
 }
 
 export function countLineProgress(
@@ -18,7 +19,7 @@ export function countLineProgress(
   line: number[],
   playerFlag: SpellStatus
 ): number {
-  return line.filter((idx) => spellStatus[idx] === playerFlag).length;
+  return line.filter((idx) => hasBasicAttribute(spellStatus[idx], playerFlag)).length;
 }
 
 export function isGamePoint(

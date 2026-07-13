@@ -6,6 +6,23 @@ import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketActionType, WebSocketPushActionType } from "@/utils/webSocket/types";
 import Config from "@/config";
 import pako from "pako";
+import {
+  basicSpellStatus,
+  convertLegacySpellStatus,
+  hasBasicAttribute,
+  isGetStatus,
+  isSelectStatus,
+  normalizeSpellStatuses,
+  optionalSpellStatus,
+  SPELL_STATUS_VERSION,
+  withBasicSpellStatus,
+} from "@/utils/spellStatus";
+
+const getSetActionStatus = (actionType: string): number | null => {
+  if (!actionType.startsWith("set-")) return null;
+  const status = Number.parseInt(actionType.slice(4), 10);
+  return Number.isInteger(status) ? status : null;
+};
 
 export interface PlayerAction {
   playerName: string;
@@ -37,6 +54,7 @@ export interface GameLogData {
   initStatus: number[];
   isCustomGame: boolean | null;
   linkData?: LinkData | null;
+  spell_status_version?: number;
 }
 
 export interface ReplayPayload {
@@ -324,23 +342,32 @@ class Replay {
   // 处理选择操作
   private handleSelect(action: PlayerAction): void {
     const playerIndex = this.gameLogData?.players.indexOf(action.playerName) || 0;
+    const status = this.gameStore.spellStatus[action.spellIndex];
     if (playerIndex === 0) {
-      this.gameStore.spellStatus[action.spellIndex] =
-        this.gameStore.spellStatus[action.spellIndex] === SpellStatus.B_SELECTED
-          ? SpellStatus.BOTH_SELECTED
-          : SpellStatus.A_SELECTED;
+      this.gameStore.spellStatus[action.spellIndex] = withBasicSpellStatus(
+        status,
+        hasBasicAttribute(status, SpellStatus.RIGHT_SELECT)
+          ? SpellStatus.LEFT_SELECT | SpellStatus.RIGHT_SELECT
+          : SpellStatus.LEFT_SELECT
+      );
     } else {
-      this.gameStore.spellStatus[action.spellIndex] =
-        this.gameStore.spellStatus[action.spellIndex] === SpellStatus.A_SELECTED
-          ? SpellStatus.BOTH_SELECTED
-          : SpellStatus.B_SELECTED;
+      this.gameStore.spellStatus[action.spellIndex] = withBasicSpellStatus(
+        status,
+        hasBasicAttribute(status, SpellStatus.LEFT_SELECT)
+          ? SpellStatus.LEFT_SELECT | SpellStatus.RIGHT_SELECT
+          : SpellStatus.RIGHT_SELECT
+      );
     }
   }
 
   // 处理完成操作
   private handleFinish(action: PlayerAction): void {
     const playerIndex = this.gameLogData?.players.indexOf(action.playerName) || 0;
-    this.gameStore.spellStatus[action.spellIndex] = playerIndex === 0 ? SpellStatus.A_ATTAINED : SpellStatus.B_ATTAINED;
+    const status = this.gameStore.spellStatus[action.spellIndex];
+    this.gameStore.spellStatus[action.spellIndex] = withBasicSpellStatus(
+      status,
+      playerIndex === 0 ? SpellStatus.LEFT_GET : SpellStatus.RIGHT_GET
+    );
   }
 
   // 处理暂停操作
@@ -355,8 +382,8 @@ class Replay {
 
   // 处理设置spellStatus操作
   private handleSetSpellStatus(action: PlayerAction): void {
-    const status = parseInt(action.actionType.split("-")[1], 10);
-    this.gameStore.spellStatus[action.spellIndex] = status;
+    const status = getSetActionStatus(action.actionType);
+    if (status !== null) this.gameStore.spellStatus[action.spellIndex] = status;
   }
 
   // 结束回放
@@ -540,19 +567,19 @@ class Replay {
   private scoreFromStatus = (statuses: number[]): number[] => {
     return statuses.reduce(
       (score, status) => {
-        if (status === SpellStatus.A_ATTAINED) score[0]++;
-        else if (status === SpellStatus.B_ATTAINED) score[1]++;
-        else if (status === SpellStatus.BOTH_ATTAINED) {
-          score[0]++;
-          score[1]++;
-        }
+        if (hasBasicAttribute(status, SpellStatus.LEFT_GET)) score[0]++;
+        if (hasBasicAttribute(status, SpellStatus.RIGHT_GET)) score[1]++;
         return score;
       },
       [0, 0]
     );
   };
 
-  private normalizeLinkData = (linkData: Partial<LinkData> | undefined | null, area: number): LinkData | null => {
+  private normalizeLinkData = (
+    linkData: Partial<LinkData> | undefined | null,
+    area: number,
+    spellStatusVersion = SPELL_STATUS_VERSION
+  ): LinkData | null => {
     if (!linkData) return null;
     const fitNumbers = (source: unknown, fillValue = 0) =>
       this.fitArray(Array.isArray(source) ? (source as number[]) : [], area, fillValue);
@@ -574,8 +601,12 @@ class Replay {
       route_confirmed_b: Boolean(linkData.route_confirmed_b),
       current_step_a: Number(linkData.current_step_a || 0),
       current_step_b: Number(linkData.current_step_b || 0),
-      status_a: fitNumbers(linkData.status_a),
-      status_b: fitNumbers(linkData.status_b),
+      status_a: fitNumbers(linkData.status_a).map((status) =>
+        spellStatusVersion === 1 ? convertLegacySpellStatus(status, 1) : status
+      ),
+      status_b: fitNumbers(linkData.status_b).map((status) =>
+        spellStatusVersion === 1 ? convertLegacySpellStatus(status, 1) : status
+      ),
       last_get_time_a: Number(linkData.last_get_time_a || 0),
       last_get_time_b: Number(linkData.last_get_time_b || 0),
       skip_used_a: Number(linkData.skip_used_a || 0),
@@ -593,24 +624,33 @@ class Replay {
     actions: PlayerAction[] | undefined,
     players: string[],
     initStatus: number[],
-    area: number
+    area: number,
+    spellStatusVersion: number,
+    blindSetting: number
   ): PlayerAction[] => {
     const statuses = [...initStatus];
     let runningScore = this.scoreFromStatus(statuses);
 
     return (Array.isArray(actions) ? actions : []).map((rawAction) => {
       const action = { ...rawAction };
+      const legacySetStatus = getSetActionStatus(action.actionType);
+      if (spellStatusVersion === 1 && legacySetStatus !== null) {
+        action.actionType = `set-${convertLegacySpellStatus(legacySetStatus, blindSetting)}`;
+      }
       const spellIndex = Number.isInteger(action.spellIndex) ? action.spellIndex : -1;
       const playerIndex = players.indexOf(action.playerName);
 
       if (!Array.isArray(action.scoreNow) || action.scoreNow.length < 2) {
         if (spellIndex >= 0 && spellIndex < statuses.length) {
           if (action.actionType === "finish" || action.actionType === "contest_win") {
-            if (playerIndex === 0) statuses[spellIndex] = SpellStatus.A_ATTAINED;
-            else if (playerIndex === 1) statuses[spellIndex] = SpellStatus.B_ATTAINED;
+            if (playerIndex === 0) {
+              statuses[spellIndex] = withBasicSpellStatus(statuses[spellIndex], SpellStatus.LEFT_GET);
+            } else if (playerIndex === 1) {
+              statuses[spellIndex] = withBasicSpellStatus(statuses[spellIndex], SpellStatus.RIGHT_GET);
+            }
           } else if (action.actionType?.startsWith("set-")) {
-            const status = Number.parseInt(action.actionType.split("-")[1], 10);
-            if (Number.isInteger(status)) statuses[spellIndex] = status;
+            const status = getSetActionStatus(action.actionType);
+            if (status !== null) statuses[spellIndex] = status;
           }
           runningScore = this.scoreFromStatus(statuses);
         }
@@ -619,7 +659,7 @@ class Replay {
         action.scoreNow = this.fitArray(action.scoreNow, 2, 0);
         runningScore = [...action.scoreNow];
       }
-      action.linkData = this.normalizeLinkData(action.linkData, area);
+      action.linkData = this.normalizeLinkData(action.linkData, area, spellStatusVersion);
 
       return action;
     });
@@ -707,8 +747,20 @@ class Replay {
     const roomConfig = this.normalizeRoomConfig(logObject.roomConfig, logObject);
     const area = roomConfig.board_size * roomConfig.board_size;
     const players = this.normalizePlayers(logObject.players);
-    const initStatus = this.fitArray(logObject.initStatus, area, SpellStatus.NONE);
-    const normalizedActions = this.normalizeActions(logObject.actions, players, initStatus, area);
+    const spellStatusVersion = logObject.spell_status_version ?? 1;
+    const initStatus = normalizeSpellStatuses(
+      this.fitArray(logObject.initStatus, area, SpellStatus.NONE),
+      spellStatusVersion,
+      roomConfig.blind_setting
+    );
+    const normalizedActions = this.normalizeActions(
+      logObject.actions,
+      players,
+      initStatus,
+      area,
+      spellStatusVersion,
+      roomConfig.blind_setting
+    );
     const lastLinkAction = normalizedActions
       .slice()
       .reverse()
@@ -724,7 +776,8 @@ class Replay {
       score: this.fitArray(logObject.score, 2, 0),
       initStatus,
       isCustomGame: logObject.isCustomGame ?? false,
-      linkData: lastLinkAction?.linkData || this.normalizeLinkData(logObject.linkData, area),
+      linkData: lastLinkAction?.linkData || this.normalizeLinkData(logObject.linkData, area, spellStatusVersion),
+      spell_status_version: SPELL_STATUS_VERSION,
     };
 
     normalizedLog.actions.forEach((action) => {
@@ -790,19 +843,24 @@ class Replay {
   };
 
   public getSetStatusLabel = (status: number): string => {
-    if (status === SpellStatus.NONE) return "重置状态";
-    if (status === SpellStatus.A_SELECTED) return "左侧选择";
-    if (status === SpellStatus.B_SELECTED) return "右侧选择";
-    if (status === SpellStatus.BOTH_SELECTED) return "双方选择";
-    if (status === SpellStatus.A_ATTAINED) return "左侧收取";
-    if (status === SpellStatus.B_ATTAINED) return "右侧收取";
-    if (status === SpellStatus.BOTH_ATTAINED) return "双方收取";
-    if (status === SpellStatus.BANNED) return "禁用符卡";
-    if (status === SpellStatus.BOTH_HIDDEN) return "双方隐藏";
-    if (status === SpellStatus.ONLY_REVEAL_GAME) return "仅显示游戏";
-    if (status === SpellStatus.ONLY_REVEAL_GAME_STAGE) return "仅显示来源";
-    if (status === SpellStatus.ONLY_REVEAL_STAR) return "仅显示星级";
-    return `设置状态 ${status}`;
+    const labels: string[] = [];
+    const basicStatus = basicSpellStatus(status);
+    const optionalStatus = optionalSpellStatus(status);
+    if (basicStatus === SpellStatus.NONE) labels.push("重置基础属性");
+    if (hasBasicAttribute(status, SpellStatus.BANNED)) labels.push("禁用符卡");
+    if (hasBasicAttribute(status, SpellStatus.LEFT_SELECT | SpellStatus.RIGHT_SELECT)) labels.push("双方选择");
+    else if (hasBasicAttribute(status, SpellStatus.LEFT_SELECT)) labels.push("左侧选择");
+    else if (hasBasicAttribute(status, SpellStatus.RIGHT_SELECT)) labels.push("右侧选择");
+    if (hasBasicAttribute(status, SpellStatus.LEFT_GET | SpellStatus.RIGHT_GET)) labels.push("双方收取");
+    else if (hasBasicAttribute(status, SpellStatus.LEFT_GET)) labels.push("左侧收取");
+    else if (hasBasicAttribute(status, SpellStatus.RIGHT_GET)) labels.push("右侧收取");
+    if (optionalStatus === SpellStatus.LEFT_SEE_ONLY) labels.push("仅左侧可见");
+    else if (optionalStatus === SpellStatus.RIGHT_SEE_ONLY) labels.push("仅右侧可见");
+    else if (optionalStatus === (SpellStatus.LEFT_SEE_ONLY | SpellStatus.RIGHT_SEE_ONLY)) labels.push("双方可见");
+    if ((optionalStatus & SpellStatus.ONLY_REVEAL_GAME) !== 0) labels.push("仅显示游戏");
+    if ((optionalStatus & SpellStatus.ONLY_REVEAL_GAME_STAGE) !== 0) labels.push("仅显示来源");
+    if ((optionalStatus & SpellStatus.ONLY_REVEAL_STAR) !== 0) labels.push("仅显示星级");
+    return labels.join(" + ") || `设置状态 ${status}`;
   };
 
   public getActionTypeLabel = (actionType: string): string => {
@@ -812,7 +870,7 @@ class Replay {
     if (actionType === "pause") return "暂停比赛";
     if (actionType === "resume") return "恢复比赛";
     if (actionType.startsWith("set-")) {
-      return this.getSetStatusLabel(parseInt(actionType.split("-")[1], 10));
+      return this.getSetStatusLabel(getSetActionStatus(actionType) ?? SpellStatus.NONE);
     }
     return actionType;
   };
@@ -1275,26 +1333,8 @@ class Replay {
       } else if (action.actionType === "resume") {
         logLine += `${action.playerName} 恢复了游戏。`;
       } else if (action.actionType.startsWith("set-")) {
-        const status_string = action.actionType.split("-")[1];
-        const status = parseInt(status_string, 10);
-        let status_name = "";
-        if (status === SpellStatus.NONE) {
-          status_name = "置空";
-        } else if (status === SpellStatus.A_SELECTED) {
-          status_name = "左侧玩家选择";
-        } else if (status === SpellStatus.B_SELECTED) {
-          status_name = "右侧玩家选择";
-        } else if (status === SpellStatus.BOTH_SELECTED) {
-          status_name = "双方玩家选择";
-        } else if (status === SpellStatus.A_ATTAINED) {
-          status_name = "左侧玩家收取";
-        } else if (status === SpellStatus.B_ATTAINED) {
-          status_name = "右侧玩家收取";
-        } else if (status === SpellStatus.BOTH_ATTAINED) {
-          status_name = "双方玩家收取";
-        } else {
-          status_name = "未知";
-        }
+        const status = getSetActionStatus(action.actionType) ?? SpellStatus.NONE;
+        const status_name = this.getSetStatusLabel(status);
         logLine += `${action.playerName} 将 "${action.spellName}" 设置为 ${status_name} 状态。当前比分：${formatScoreNow(action)}。`;
       } else {
         logLine += `玩家 ${action.playerName} ${boardInfo}`;
@@ -1409,14 +1449,13 @@ class Replay {
       if (action.actionType === "select") {
         stats.selectStack.push(action);
       } else if (action.actionType.startsWith("set-")) {
-        const status_string = action.actionType.split("-")[1];
-        const status = parseInt(status_string, 10);
+        const status = getSetActionStatus(action.actionType) ?? SpellStatus.NONE;
 
         // New Rule: If this set action overwrites an opponent's selection, it's a steal.
         const opponentLastSelect = opponentStats.selectStack[opponentStats.selectStack.length - 1];
         if (opponentLastSelect && opponentLastSelect.spellIndex === action.spellIndex) {
-          const isPlayerAStealing = playerIndex === 0 && status === SpellStatus.A_ATTAINED;
-          const isPlayerBStealing = playerIndex === 1 && status === SpellStatus.B_ATTAINED;
+          const isPlayerAStealing = playerIndex === 0 && hasBasicAttribute(status, SpellStatus.LEFT_GET);
+          const isPlayerBStealing = playerIndex === 1 && hasBasicAttribute(status, SpellStatus.RIGHT_GET);
 
           if (isPlayerAStealing || isPlayerBStealing) {
             opponentStats.selectStack.pop(); // Remove the stolen selection
@@ -1447,16 +1486,16 @@ class Replay {
         }
 
         // 1) set-X as a selection
-        const isPlayerASelect = status === SpellStatus.A_SELECTED || status === SpellStatus.BOTH_SELECTED;
-        const isPlayerBSelect = status === SpellStatus.B_SELECTED || status === SpellStatus.BOTH_SELECTED;
+        const isPlayerASelect = hasBasicAttribute(status, SpellStatus.LEFT_SELECT);
+        const isPlayerBSelect = hasBasicAttribute(status, SpellStatus.RIGHT_SELECT);
         if (isPlayerASelect || isPlayerBSelect) {
           stats.selectStack.push(action);
         }
 
         // 2) set-X as a collection
         // Here, we regard opponent-set get as INVALID
-        const isPlayerAAttain = playerIndex === 0 && status === SpellStatus.A_ATTAINED;
-        const isPlayerBAttain = playerIndex === 1 && status === SpellStatus.B_ATTAINED;
+        const isPlayerAAttain = playerIndex === 0 && hasBasicAttribute(status, SpellStatus.LEFT_GET);
+        const isPlayerBAttain = playerIndex === 1 && hasBasicAttribute(status, SpellStatus.RIGHT_GET);
         if (isPlayerAAttain || isPlayerBAttain) {
           const lastSelect = stats.selectStack.length > 0 ? stats.selectStack[stats.selectStack.length - 1] : undefined;
           if (lastSelect && lastSelect.spellIndex === action.spellIndex) {
@@ -1605,8 +1644,7 @@ class Replay {
           if (
             act.actionType === "finish" ||
             act.actionType === "contest_win" ||
-            act.actionType === "set-5" ||
-            act.actionType === "set-7"
+            isGetStatus(getSetActionStatus(act.actionType) ?? SpellStatus.NONE)
           ) {
             lastScoreTime = act.timestamp;
             break;
@@ -1626,8 +1664,7 @@ class Replay {
           if (
             act.actionType === "finish" ||
             act.actionType === "contest_win" ||
-            act.actionType === "set-5" ||
-            act.actionType === "set-7"
+            isGetStatus(getSetActionStatus(act.actionType) ?? SpellStatus.NONE)
           ) {
             lastScoreTime -= Math.min(Math.max(0, lastScoreTime - act.timestamp), playerCdMs);
             break;
@@ -1635,9 +1672,7 @@ class Replay {
           //如果是选择，就扣除一个cd（已经等完了）
           if (
             act.actionType === "select" ||
-            act.actionType === "set-1" ||
-            act.actionType === "set-2" ||
-            act.actionType === "set-3"
+            isSelectStatus(getSetActionStatus(act.actionType) ?? SpellStatus.NONE)
           ) {
             lastScoreTime -= playerCdMs;
             break;

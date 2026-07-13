@@ -90,6 +90,7 @@
                   :preview-get-on-which-board="logData.normalData?.get_on_which_board || []"
                   :preview-viewer-is-player-a="false"
                   :preview-viewer-is-player-b="false"
+                  :preview-blind-setting="logData.roomConfig.blind_setting"
                   :link-marker="linkMarker(index)"
                   :link-status-a="simulation.linkData?.status_a?.[index] || 0"
                   :link-status-b="simulation.linkData?.status_b?.[index] || 0"
@@ -188,6 +189,7 @@ import { ElButton, ElEmpty, ElOption, ElSelect, ElSlider, ElTag } from "element-
 import Replay, { type GameLogData, type PlayerAction } from "@/utils/Replay";
 import SpellCardCell from "@/components/spell-card-cell.vue";
 import { local } from "@/utils/Storage";
+import { hasBasicAttribute, withBasicSpellStatus } from "@/utils/spellStatus";
 
 const props = defineProps<{
   gameLog: GameLogData | null;
@@ -453,35 +455,7 @@ const getActionTypeLabel = (actionType: string) => {
   if (actionType === "link_finish_run") return "结束竞速";
   if (actionType === "link_ai_speedrun") return "AI速通";
   if (actionType.startsWith("set-")) {
-    const status = Number(actionType.split("-")[1] || 0);
-    switch (status) {
-      case SpellStatus.NONE:
-        return "重置状态";
-      case SpellStatus.A_SELECTED:
-        return "设置为左侧已选";
-      case SpellStatus.BOTH_SELECTED:
-        return "设置为双方已选";
-      case SpellStatus.B_SELECTED:
-        return "设置为右侧已选";
-      case SpellStatus.A_ATTAINED:
-        return "设置为左侧收取";
-      case SpellStatus.BOTH_ATTAINED:
-        return "设置为双方收取";
-      case SpellStatus.B_ATTAINED:
-        return "设置为右侧收取";
-      case SpellStatus.BANNED:
-        return "设置为禁用";
-      case SpellStatus.BOTH_HIDDEN:
-        return "设置为双方隐藏";
-      case SpellStatus.ONLY_REVEAL_GAME:
-        return "设置为仅显示作品";
-      case SpellStatus.ONLY_REVEAL_GAME_STAGE:
-        return "设置为仅显示作品面";
-      case SpellStatus.ONLY_REVEAL_STAR:
-        return "设置为仅显示星级";
-      default:
-        return `设置状态 ${status}`;
-    }
+    return Replay.getSetStatusLabel(Number(actionType.slice(4) || 0));
   }
   return actionType;
 };
@@ -557,19 +531,7 @@ const syncLinkSpellStatus = () => {
   for (let i = 0; i < area; i += 1) {
     const a = simulation.linkData.status_a?.[i] || 0;
     const b = simulation.linkData.status_b?.[i] || 0;
-    if (a === SpellStatus.A_ATTAINED && b === SpellStatus.B_ATTAINED) {
-      status[i] = SpellStatus.BOTH_ATTAINED;
-    } else if (a === SpellStatus.A_SELECTED && b === SpellStatus.B_SELECTED) {
-      status[i] = SpellStatus.BOTH_SELECTED;
-    } else if (a === SpellStatus.A_ATTAINED) {
-      status[i] = SpellStatus.A_ATTAINED;
-    } else if (b === SpellStatus.B_ATTAINED) {
-      status[i] = SpellStatus.B_ATTAINED;
-    } else if (a === SpellStatus.A_SELECTED) {
-      status[i] = SpellStatus.A_SELECTED;
-    } else if (b === SpellStatus.B_SELECTED) {
-      status[i] = SpellStatus.B_SELECTED;
-    }
+    status[i] = a | b;
   }
   simulation.spellStatus = status;
 };
@@ -596,20 +558,28 @@ const applyAction = (action: PlayerAction) => {
   }
 
   if (actionType === "select" && spellIndex >= 0) {
+    const status = simulation.spellStatus[spellIndex];
     if (playerIndex === 0) {
-      simulation.spellStatus[spellIndex] =
-        simulation.spellStatus[spellIndex] === SpellStatus.B_SELECTED
-          ? SpellStatus.BOTH_SELECTED
-          : SpellStatus.A_SELECTED;
+      simulation.spellStatus[spellIndex] = withBasicSpellStatus(
+        status,
+        hasBasicAttribute(status, SpellStatus.RIGHT_SELECT)
+          ? SpellStatus.LEFT_SELECT | SpellStatus.RIGHT_SELECT
+          : SpellStatus.LEFT_SELECT
+      );
     } else {
-      simulation.spellStatus[spellIndex] =
-        simulation.spellStatus[spellIndex] === SpellStatus.A_SELECTED
-          ? SpellStatus.BOTH_SELECTED
-          : SpellStatus.B_SELECTED;
+      simulation.spellStatus[spellIndex] = withBasicSpellStatus(
+        status,
+        hasBasicAttribute(status, SpellStatus.LEFT_SELECT)
+          ? SpellStatus.LEFT_SELECT | SpellStatus.RIGHT_SELECT
+          : SpellStatus.RIGHT_SELECT
+      );
     }
     simulation.gameStatus = GameStatus.STARTED;
   } else if ((actionType === "finish" || actionType === "contest_win") && spellIndex >= 0) {
-    simulation.spellStatus[spellIndex] = playerIndex === 0 ? SpellStatus.A_ATTAINED : SpellStatus.B_ATTAINED;
+    simulation.spellStatus[spellIndex] = withBasicSpellStatus(
+      simulation.spellStatus[spellIndex],
+      playerIndex === 0 ? SpellStatus.LEFT_GET : SpellStatus.RIGHT_GET
+    );
     maybeSwitchBoard(playerIndex, spellIndex);
     simulation.gameStatus = GameStatus.STARTED;
   } else if (actionType === "pause") {
@@ -617,12 +587,12 @@ const applyAction = (action: PlayerAction) => {
   } else if (actionType === "resume") {
     simulation.gameStatus = GameStatus.STARTED;
   } else if (actionType === "set" && spellIndex >= 0) {
-    const nextStatus = Number(action.actionType.split("-")[1] || 0);
+    const nextStatus = Number(action.actionType.slice(4) || 0);
     simulation.spellStatus[spellIndex] = nextStatus;
-    if (nextStatus === SpellStatus.A_ATTAINED) {
+    if (hasBasicAttribute(nextStatus, SpellStatus.LEFT_GET)) {
       maybeSwitchBoard(0, spellIndex);
     }
-    if (nextStatus === SpellStatus.B_ATTAINED) {
+    if (hasBasicAttribute(nextStatus, SpellStatus.RIGHT_GET)) {
       maybeSwitchBoard(1, spellIndex);
     }
   }

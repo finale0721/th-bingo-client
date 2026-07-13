@@ -48,9 +48,9 @@
       <div class="section-title">盘面设定</div>
       <el-row :gutter="15">
         <el-col :span="14">
-          <el-form-item label="初始状态">
-            <el-select v-model="formData.status" placeholder="选择状态" style="width: 100%">
-              <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value">
+          <el-form-item label="基础属性">
+            <el-select v-model="formData.basicStatus" placeholder="选择基础属性" style="width: 100%">
+              <el-option v-for="item in basicStatusOptions" :key="item.value" :label="item.label" :value="item.value">
                 <span style="float: left">{{ item.label }}</span>
               </el-option>
             </el-select>
@@ -67,6 +67,11 @@
           </el-form-item>
         </el-col>
       </el-row>
+      <el-form-item label="可选属性">
+        <el-select v-model="formData.optionalStatus" placeholder="选择可选属性" style="width: 100%">
+          <el-option v-for="item in optionalStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+      </el-form-item>
     </el-form>
 
     <template #footer>
@@ -85,7 +90,9 @@
 import { ref, watch } from "vue";
 import { Spell, SpellStatus } from "@/types";
 import { useRoomStore } from "@/store/RoomStore";
-import { Edit, FolderAdd, Delete, Check } from '@element-plus/icons-vue';
+import { useEditorStore } from "@/store/EditorStore";
+import { basicSpellStatus, optionalSpellStatus } from "@/utils/spellStatus";
+import { Edit, FolderAdd, Delete, Check } from "@element-plus/icons-vue";
 
 // --- 显式引入 Element Plus 组件 ---
 import {
@@ -105,6 +112,7 @@ import {
 } from "element-plus";
 
 const roomStore = useRoomStore();
+const editorStore = useEditorStore();
 
 const props = defineProps<{
   spell: Spell;
@@ -121,25 +129,31 @@ const formData = ref({
   rank: "",
   star: 1,
   desc: "",
-  status: SpellStatus.NONE,
+  basicStatus: SpellStatus.NONE,
+  optionalStatus: SpellStatus.BOTH_HIDDEN,
   isPortal: false,
 });
 
-const statusMenu = [
+const basicStatusOptions = [
   { label: "置空", value: SpellStatus.NONE },
-  { label: "左侧玩家选择", value: SpellStatus.A_SELECTED },
-  { label: "右侧玩家选择", value: SpellStatus.B_SELECTED },
-  { label: "两侧玩家选择", value: SpellStatus.BOTH_SELECTED },
-  { label: "左侧玩家收取", value: SpellStatus.A_ATTAINED },
-  { label: "右侧玩家收取", value: SpellStatus.B_ATTAINED },
+  { label: "左侧玩家选择", value: SpellStatus.LEFT_SELECT },
+  { label: "右侧玩家选择", value: SpellStatus.RIGHT_SELECT },
+  { label: "两侧玩家选择", value: SpellStatus.LEFT_SELECT | SpellStatus.RIGHT_SELECT },
+  { label: "左侧玩家收取", value: SpellStatus.LEFT_GET },
+  { label: "右侧玩家收取", value: SpellStatus.RIGHT_GET },
+  { label: "两侧玩家收取", value: SpellStatus.LEFT_GET | SpellStatus.RIGHT_GET },
   { label: "禁用", value: SpellStatus.BANNED },
-  { label: "双方隐藏", value: SpellStatus.BOTH_HIDDEN },
-  { label: "仅显示游戏", value: SpellStatus.ONLY_REVEAL_GAME },
-  { label: "仅显示来源", value: SpellStatus.ONLY_REVEAL_GAME_STAGE },
-  //{ label: "仅显示星级", value: SpellStatus.ONLY_REVEAL_STAR },
 ];
 
-const statusOptions = statusMenu;
+const optionalStatusOptions = [
+  { label: "双方隐藏", value: SpellStatus.BOTH_HIDDEN },
+  { label: "仅左侧可见", value: SpellStatus.LEFT_SEE_ONLY },
+  { label: "仅右侧可见", value: SpellStatus.RIGHT_SEE_ONLY },
+  { label: "双方可见", value: SpellStatus.LEFT_SEE_ONLY | SpellStatus.RIGHT_SEE_ONLY },
+  { label: "仅显示游戏", value: SpellStatus.ONLY_REVEAL_GAME },
+  { label: "仅显示来源", value: SpellStatus.ONLY_REVEAL_GAME_STAGE },
+  { label: "仅显示星级", value: SpellStatus.ONLY_REVEAL_STAR },
+];
 
 watch(
   () => props.spell,
@@ -150,7 +164,8 @@ watch(
       formData.value.rank = newSpell.rank;
       formData.value.star = newSpell.star || 0;
       formData.value.desc = newSpell.desc;
-      formData.value.status = props.status;
+      formData.value.basicStatus = basicSpellStatus(props.status);
+      formData.value.optionalStatus = optionalSpellStatus(props.status);
       formData.value.isPortal = props.isPortal;
     }
   },
@@ -166,7 +181,7 @@ const onConfirm = () => {
       star: formData.value.star,
       desc: formData.value.desc,
     },
-    status: formData.value.status,
+    status: formData.value.basicStatus | formData.value.optionalStatus,
     isPortal: formData.value.isPortal,
   });
 };

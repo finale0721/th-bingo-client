@@ -1,15 +1,15 @@
-import { BingoType } from "@/types";
+import { BingoType, SpellStatus } from "@/types";
 import type { RoomModeMenuContext, RoomModePageConfig } from "../types";
 import BpRoomLayout from "./BpRoomLayout.vue";
 
 const getMenu = ({ isHost }: RoomModeMenuContext) => isHost ? [
-  { label: "收取失败", value: 0, isReset: false },
-  { label: "禁用", value: -1 },
-  { label: "置空", value: 0, isReset: true },
-  { label: "左侧选择", value: 1, tag: "playerA" },
-  { label: "右侧选择", value: 3, tag: "playerB" },
-  { label: "左侧收取", value: 5, tag: "playerA" },
-  { label: "右侧收取", value: 7, tag: "playerB" },
+  { label: "收取失败", value: SpellStatus.NONE, isReset: false },
+  { label: "禁用", value: SpellStatus.BANNED },
+  { label: "置空", value: SpellStatus.NONE, isReset: true },
+  { label: "左侧选择", value: SpellStatus.LEFT_SELECT, tag: "playerA" },
+  { label: "右侧选择", value: SpellStatus.RIGHT_SELECT, tag: "playerB" },
+  { label: "左侧收取", value: SpellStatus.LEFT_GET, tag: "playerA" },
+  { label: "右侧收取", value: SpellStatus.RIGHT_GET, tag: "playerB" },
   { label: "刷新", value: 0x100 },
 ] : [];
 

@@ -9,6 +9,7 @@ import { WebSocketActionType } from "@/utils/webSocket/types";
 import { BoardSpec } from "@/utils/board";
 import pako from "pako";
 import { useCustomCardPoolStore } from "@/store/CustomCardPoolStore";
+import { normalizeSpellStatuses, SPELL_STATUS_VERSION } from "@/utils/spellStatus";
 
 // 创建一个默认的空白Spell对象
 const createBlankSpell = (): Spell => ({
@@ -203,13 +204,19 @@ export const useEditorStore = defineStore("editor", () => {
     const area = boardSize * boardSize;
     const roomConfig = normalizeRoomConfig(data?.roomConfig, boardSize);
     const normalizedSpells2 = resizeArray(data?.spells2, area, () => createBlankSpell()).map(normalizeSpell);
+    const normalizedSpellStatus = normalizeSpellStatuses(
+      resizeArray(data?.spellStatus, area, () => SpellStatus.NONE),
+      data?.spellStatusVersion ?? 1,
+      roomConfig.blind_setting
+    );
     if (normalizedSpells2.some((spell) => spell.name || spell.game || spell.rank)) {
       roomConfig.dual_board = Math.max(1, roomConfig.dual_board || 0) as any;
     }
     return {
       spells: resizeArray(data?.spells, area, () => createBlankSpell()).map(normalizeSpell),
       spells2: normalizedSpells2,
-      spellStatus: resizeArray(data?.spellStatus, area, () => SpellStatus.NONE),
+      spellStatus: normalizedSpellStatus,
+      spellStatusVersion: SPELL_STATUS_VERSION,
       roomConfig,
       initialLeftTime: Number.isFinite(Number(data?.initialLeftTime)) ? Number(data?.initialLeftTime) : roomConfig.game_time * 60,
       initialCountDown: Number.isFinite(Number(data?.initialCountDown)) ? Number(data?.initialCountDown) : 0,
@@ -524,6 +531,7 @@ export const useEditorStore = defineStore("editor", () => {
         spells: deepClone(spells.value),
         spells2: deepClone(spells2.value),
         spellStatus: [...spellStatus.value],
+        spellStatusVersion: SPELL_STATUS_VERSION,
         roomConfig: JSON.parse(JSON.stringify(roomStore.roomConfig)), // 直接保存当前 roomStore 的配置
         initialLeftTime: initialLeftTime.value,
         initialCountDown: initialCountDown.value,
@@ -600,6 +608,7 @@ export const useEditorStore = defineStore("editor", () => {
         spells: deepClone(spells.value),
         spells2: deepClone(spells2.value),
         spellStatus: [...spellStatus.value],
+        spellStatusVersion: SPELL_STATUS_VERSION,
         roomConfig: deepClone(roomStore.roomConfig) as unknown as RoomConfig,
         initialLeftTime: initialLeftTime.value,
         initialCountDown: initialCountDown.value,
@@ -833,6 +842,7 @@ export const useEditorStore = defineStore("editor", () => {
         spells: data.spells,
         spells2: data.spells2,
         spellStatus: data.initStatus || data.spellStatus,
+        spellStatusVersion: data.spellStatusVersion ?? data.spell_status_version ?? 1,
         roomConfig: {
           ...(data.roomConfig || {}),
           extra_line_count: data.roomConfig?.extra_line_count ?? data.normalData?.extra_lines?.length ?? 0,

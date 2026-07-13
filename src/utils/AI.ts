@@ -1,7 +1,8 @@
 import GameTime from "./GameTime";
 import Mit from "@/mitt";
-import { Spell } from "@/types";
+import { Spell, SpellStatus } from "@/types";
 import { local } from "./Storage";
+import { hasBasicAttribute } from "./spellStatus";
 
 // DEPRECATED: This module is not used. AI logic lives in server-side AIAgent.kt.
 
@@ -67,7 +68,10 @@ export class MaoYu {
     const arr = new Array(25);
     let onFiagonal = 99;
     for (let i = 0; i < 25; i++) {
-      if (this.spellCardList[i].status === 5 || this.spellCardList[i].status === 7) {
+      if (
+        hasBasicAttribute(this.spellCardList[i].status, SpellStatus.LEFT_GET) ||
+        hasBasicAttribute(this.spellCardList[i].status, SpellStatus.RIGHT_GET)
+      ) {
         arr[i] = null;
         continue;
       }
@@ -83,7 +87,7 @@ export class MaoYu {
         arr[i] += this.diagonalWeight[1];
         onFiagonal = 1;
       }
-      if (this.spellCardList[i].status === 1) {
+      if (hasBasicAttribute(this.spellCardList[i].status, SpellStatus.LEFT_SELECT)) {
         if (this.rowWeight[rowId] == 30 || this.colWeight[colId] === 30 || this.diagonalWeight[onFiagonal] === 30) {
           arr[i] = 15;
         } else {
@@ -112,7 +116,7 @@ export class MaoYu {
         time: debugTime[i],
         level: item.star,
       });
-      if (status[i] === 3) {
+      if (hasBasicAttribute(status[i], SpellStatus.RIGHT_SELECT)) {
         this.selectedSepllCardIndex = i;
       }
     }
@@ -127,8 +131,8 @@ export class MaoYu {
     let countA = 0;
     let countB = 0;
     for (let i = 0; i < status.length; i++) {
-      if (status[i] === 5) ++countA;
-      if (status[i] === 7) ++countB;
+      if (hasBasicAttribute(status[i], SpellStatus.LEFT_GET)) ++countA;
+      if (hasBasicAttribute(status[i], SpellStatus.RIGHT_GET)) ++countB;
     }
 
     if (countA === 0) {
@@ -210,7 +214,7 @@ export class MaoYu {
     //   const oldStatus = this.spellCardList[data.index].status;
     //   this.spellCardList[data.index].status = data.status;
     //   this.refreshLineWeights();
-    //   if (data.status === 5 && (oldStatus === 2 || oldStatus === 3)) {
+    //   if (hasBasicAttribute(data.status, SpellStatus.LEFT_GET) && isSelectStatus(oldStatus)) {
     //     this.onSpellCardGrabbed();
     //   }
     // });

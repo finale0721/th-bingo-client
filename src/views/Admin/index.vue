@@ -469,35 +469,7 @@ const actionTypeLabel = (actionType: string) => {
   if (actionType === "pause") return "暂停比赛";
   if (actionType === "resume") return "恢复比赛";
   if (actionType.startsWith("set-")) {
-    const status = Number(actionType.split("-")[1] || 0);
-    switch (status) {
-      case 0:
-        return "重置状态";
-      case 1:
-        return "设置为左侧已选";
-      case 2:
-        return "设置为双方已选";
-      case 3:
-        return "设置为右侧已选";
-      case 5:
-        return "设置为左侧收取";
-      case 6:
-        return "设置为双方收取";
-      case 7:
-        return "设置为右侧收取";
-      case -1:
-        return "设置为禁用";
-      case 0x1000:
-        return "设置为双方隐藏";
-      case 0x1010:
-        return "设置为仅显示作品";
-      case 0x1011:
-        return "设置为仅显示作品面";
-      case 0x1012:
-        return "设置为仅显示星级";
-      default:
-        return `设置状态 ${status}`;
-    }
+    return Replay.getSetStatusLabel(Number(actionType.slice(4) || 0));
   }
   return actionType;
 };

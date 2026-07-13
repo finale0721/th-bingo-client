@@ -11,14 +11,14 @@
       <div class="desc">
         <!-- 使用split方法截取破折号前的内容 -->
         {{
-          status === SpellStatus.ONLY_REVEAL_GAME
+          hasOptionalAttribute(SpellStatus.ONLY_REVEAL_GAME)
             ? desc?.split("-")[0] || ""
             : desc + (level > 100 ? "" : `-${levelStarString(level)}`)
         }}
       </div>
       <div class="name">{{ name }}</div>
-      <div class="fail-count-a" v-if="failCountA && status < 5">失败：{{ failCountA }}</div>
-      <div class="fail-count-b" v-if="failCountB && status < 5">失败：{{ failCountB }}</div>
+      <div class="fail-count-a" v-if="failCountA && !attained">失败：{{ failCountA }}</div>
+      <div class="fail-count-b" v-if="failCountB && !attained">失败：{{ failCountB }}</div>
       <div class="link-marker" v-if="linkMarker">{{ linkMarker }}</div>
     </div>
   </div>
@@ -30,6 +30,14 @@ import { ElIcon } from "element-plus";
 import { SpellStatus } from "@/types";
 import { useRoomStore } from "@/store/RoomStore";
 import { useGameStore } from "@/store/GameStore";
+import {
+  defaultOptionalSpellStatusParser,
+  hasBasicAttribute,
+  isFullyHiddenStatus,
+  isGetStatus,
+  optionalSpellStatus,
+  VISIBILITY_STATUS_MASK,
+} from "@/utils/spellStatus";
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
@@ -56,6 +64,7 @@ const props = withDefaults(
     previewGetOnWhichBoard?: number[] | null;
     previewViewerIsPlayerA?: boolean | null;
     previewViewerIsPlayerB?: boolean | null;
+    previewBlindSetting?: number | null;
     linkMarker?: string;
     linkStatusA?: number;
     linkStatusB?: number;
@@ -83,6 +92,7 @@ const props = withDefaults(
     previewGetOnWhichBoard: null,
     previewViewerIsPlayerA: null,
     previewViewerIsPlayerB: null,
+    previewBlindSetting: null,
     linkMarker: "",
     linkStatusA: 0,
     linkStatusB: 0,
@@ -102,6 +112,8 @@ const resolvedGetOnWhichBoard = computed(
 );
 const isPlayerA = computed(() => props.previewViewerIsPlayerA ?? roomStore.isPlayerA);
 const isPlayerB = computed(() => props.previewViewerIsPlayerB ?? roomStore.isPlayerB);
+const viewerIndex = computed<0 | 1 | null>(() => (isPlayerA.value ? 0 : isPlayerB.value ? 1 : null));
+const blindSetting = computed(() => props.previewBlindSetting ?? roomStore.roomConfig.blind_setting);
 
 const playerAOnCurBoard = computed(
   () => resolvedDualBoard.value == 0 || resolvedCurrentBoard.value == resolvedPlayerABoard.value
@@ -118,45 +130,57 @@ const playerBAttainOnCurBoard = computed(
     resolvedDualBoard.value == 0 ||
     resolvedGetOnWhichBoard.value?.[props.spellIndex] == 0x10 << resolvedCurrentBoard.value
 );
-const leftSelected = computed(() => props.linkStatusA === 1 || props.status === SpellStatus.A_SELECTED);
-const rightSelected = computed(() => props.linkStatusB === 3 || props.status === SpellStatus.B_SELECTED);
-const leftAttained = computed(() => props.linkStatusA === 5 || props.status === SpellStatus.A_ATTAINED);
-const rightAttained = computed(() => props.linkStatusB === 7 || props.status === SpellStatus.B_ATTAINED);
+const leftSelected = computed(
+  () => hasBasicAttribute(props.linkStatusA, SpellStatus.LEFT_SELECT) || hasBasicAttribute(props.status, SpellStatus.LEFT_SELECT)
+);
+const rightSelected = computed(
+  () =>
+    hasBasicAttribute(props.linkStatusB, SpellStatus.RIGHT_SELECT) || hasBasicAttribute(props.status, SpellStatus.RIGHT_SELECT)
+);
+const leftAttained = computed(
+  () => hasBasicAttribute(props.linkStatusA, SpellStatus.LEFT_GET) || hasBasicAttribute(props.status, SpellStatus.LEFT_GET)
+);
+const rightAttained = computed(
+  () => hasBasicAttribute(props.linkStatusB, SpellStatus.RIGHT_GET) || hasBasicAttribute(props.status, SpellStatus.RIGHT_GET)
+);
+const bothSelected = computed(() => hasBasicAttribute(props.status, SpellStatus.LEFT_SELECT | SpellStatus.RIGHT_SELECT));
+const bothAttained = computed(() => hasBasicAttribute(props.status, SpellStatus.LEFT_GET | SpellStatus.RIGHT_GET));
+const attained = computed(() => isGetStatus(props.status));
+const visibilityStatus = computed(() => optionalSpellStatus(props.status) & VISIBILITY_STATUS_MASK);
+const hasOptionalAttribute = (attribute: number) => defaultOptionalSpellStatusParser.hasAttribute(props.status, attribute);
 
 const cellClass = computed(() => ({
   "spell-card-cell": true,
-  banned: props.status === SpellStatus.BANNED,
-  "A-selected": leftSelected.value || (props.status === SpellStatus.BOTH_SELECTED && playerAOnCurBoard.value),
-  "A-attained": leftAttained.value || (props.status === SpellStatus.BOTH_ATTAINED && playerAAttainOnCurBoard.value),
-  "B-selected": rightSelected.value || (props.status === SpellStatus.BOTH_SELECTED && playerBOnCurBoard.value),
-  "B-attained": rightAttained.value || (props.status === SpellStatus.BOTH_ATTAINED && playerBAttainOnCurBoard.value),
+  banned: hasBasicAttribute(props.status, SpellStatus.BANNED),
+  "A-selected": leftSelected.value && (!bothSelected.value || playerAOnCurBoard.value),
+  "A-attained": leftAttained.value && (!bothAttained.value || playerAAttainOnCurBoard.value),
+  "B-selected": rightSelected.value && (!bothSelected.value || playerBOnCurBoard.value),
+  "B-attained": rightAttained.value && (!bothAttained.value || playerBAttainOnCurBoard.value),
   "A-skipped": props.linkSkippedA,
   "B-skipped": props.linkSkippedB,
   "A-local-selected": props.selected && isPlayerA.value,
   "B-local-selected": props.selected && isPlayerB.value,
   //see-only为非选手的视觉效果
-  "A-see-only": props.status === SpellStatus.LEFT_SEE_ONLY,
-  "B-see-only": props.status === SpellStatus.RIGHT_SEE_ONLY,
+  "A-see-only": visibilityStatus.value === SpellStatus.LEFT_SEE_ONLY,
+  "B-see-only": visibilityStatus.value === SpellStatus.RIGHT_SEE_ONLY,
   //完全隐藏
-  Hidden: props.status === SpellStatus.BOTH_HIDDEN,
+  Hidden: isFullyHiddenStatus(props.status, blindSetting.value, viewerIndex.value),
   //只显示TH[0-9]+
-  "Only-reveal-game": props.status === SpellStatus.ONLY_REVEAL_GAME,
+  "Only-reveal-game": hasOptionalAttribute(SpellStatus.ONLY_REVEAL_GAME),
   //只显示完整的游戏信息
-  "Only-reveal-game-stage": props.status === SpellStatus.ONLY_REVEAL_GAME_STAGE,
+  "Only-reveal-game-stage": hasOptionalAttribute(SpellStatus.ONLY_REVEAL_GAME_STAGE),
   //只显示星级
-  "Only-reveal-star": props.status === SpellStatus.ONLY_REVEAL_STAR,
+  "Only-reveal-star": hasOptionalAttribute(SpellStatus.ONLY_REVEAL_STAR),
 
   "is-portal": (props.isPortalA && props.isACurrentBoard) || (props.isPortalB && props.isBCurrentBoard),
   "A-selected-other-board":
-    (props.status === SpellStatus.A_SELECTED || props.status === SpellStatus.BOTH_SELECTED) && !playerAOnCurBoard.value,
+    leftSelected.value && !playerAOnCurBoard.value,
   "B-selected-other-board":
-    (props.status === SpellStatus.B_SELECTED || props.status === SpellStatus.BOTH_SELECTED) && !playerBOnCurBoard.value,
+    rightSelected.value && !playerBOnCurBoard.value,
   "A-attained-other-board":
-    (props.status === SpellStatus.A_ATTAINED || props.status === SpellStatus.BOTH_ATTAINED) &&
-    !playerAAttainOnCurBoard.value,
+    leftAttained.value && !playerAAttainOnCurBoard.value,
   "B-attained-other-board":
-    (props.status === SpellStatus.B_ATTAINED || props.status === SpellStatus.BOTH_ATTAINED) &&
-    !playerBAttainOnCurBoard.value,
+    rightAttained.value && !playerBAttainOnCurBoard.value,
 }));
 const levelClass = computed(() => `level${props.level}`);
 

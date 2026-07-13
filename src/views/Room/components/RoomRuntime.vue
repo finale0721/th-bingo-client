@@ -221,7 +221,7 @@
 <script lang="ts" setup>
 import { computed, h, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import type { Component } from "vue";
-import { BingoType, BpStatus, GameStatus, SpellStatus } from "@/types";
+import { BingoType, BpStatus, GameStatus } from "@/types";
 import RoomLayout from "./roomLayout.vue";
 import CountDown from "@/components/count-down.vue";
 import { ElButton, ElMessage, ElMessageBox, ElRadio, ElRadioGroup, ElSlider } from "element-plus";
@@ -238,6 +238,7 @@ import PresetManager from "@/components/PresetManager.vue";
 import { BoardSpec } from "@/utils/board";
 import Config from "@/config";
 import type { RoomModeMenuContext, RoomMenuItem } from "../modes/types";
+import { isGetStatus } from "@/utils/spellStatus";
 
 const props = defineProps<{
   mode: BingoType;
@@ -305,12 +306,7 @@ const currentBoardLevelTotal = computed(() =>
   currentBoardSpells.value.reduce((sum, spell) => sum + (spell?.star || 0), 0)
 );
 const isCurrentBoardCellCaptured = (index: number) => {
-  const status = gameStore.spellStatus[index];
-  return (
-    status === SpellStatus.A_ATTAINED ||
-    status === SpellStatus.B_ATTAINED ||
-    status === SpellStatus.BOTH_ATTAINED
-  );
+  return isGetStatus(gameStore.spellStatus[index]);
 };
 const currentBoardRemainingLevel = computed(() =>
   currentBoardSpells.value.reduce((sum, spell, index) => {

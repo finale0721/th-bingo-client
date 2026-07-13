@@ -19,22 +19,22 @@ export const enum BpStatus {
   BP_FINISH = 5,
 }
 
-export const enum SpellStatus {
-    BANNED = -1,
-    NONE = 0,
-    A_SELECTED = 1,
-    BOTH_SELECTED = 2,
-    B_SELECTED = 3,
-    A_ATTAINED = 5,
-    BOTH_ATTAINED = 6,
-    B_ATTAINED = 7,
-    BOTH_HIDDEN = 0x1000,
-    LEFT_SEE_ONLY = 0x1001,
-    RIGHT_SEE_ONLY = 0x1002,
-    ONLY_REVEAL_GAME = 0x1010,
-    ONLY_REVEAL_GAME_STAGE = 0x1011,
-    ONLY_REVEAL_STAR = 0x1012,
-}
+export const SpellStatus = {
+  NONE: 0x0,
+  BANNED: 0x1,
+  LEFT_SELECT: 0x2,
+  RIGHT_SELECT: 0x4,
+  LEFT_GET: 0x8,
+  RIGHT_GET: 0x10,
+  BOTH_HIDDEN: 0x0,
+  LEFT_SEE_ONLY: 0x1 << 16,
+  RIGHT_SEE_ONLY: 0x2 << 16,
+  ONLY_REVEAL_GAME: 0x4 << 16,
+  ONLY_REVEAL_GAME_STAGE: 0x8 << 16,
+  ONLY_REVEAL_STAR: 0x10 << 16,
+} as const;
+
+export type SpellStatus = number;
 
 export const enum GameStatus {
   NOT_STARTED = 0,
@@ -173,6 +173,7 @@ export interface EditorPreset {
     spells: Spell[];
     spells2: Spell[];
     spellStatus: SpellStatus[];
+    spellStatusVersion?: number;
     roomConfig: RoomConfig;
     initialLeftTime: number;
     initialCountDown: number;

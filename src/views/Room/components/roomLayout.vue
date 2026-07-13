@@ -197,9 +197,10 @@ import { useRoomStore } from "@/store/RoomStore";
 import { useGameStore } from "@/store/GameStore";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { WebSocketPushActionType } from "@/utils/webSocket/types";
-import { BingoType, GameStatus } from "@/types";
+import { BingoType, GameStatus, SpellStatus } from "@/types";
 import type { Spell } from "@/types";
 import { useEditorStore } from "@/store/EditorStore";
+import { basicSpellStatus, hasBasicAttribute, isEmptyStatus } from "@/utils/spellStatus";
 
 const roomStore = useRoomStore();
 const gameStore = useGameStore();
@@ -378,14 +379,13 @@ const selectSpellCard = (index: number) => {
     selectedSpellIndex.value = -1;
   } else {
     if (props.multiple) {
-      if (gameStore.spellStatus[index] === 0 || canSelectBlindCard(gameStore.spellStatus[index]))
-        selectedSpellIndex.value = index;
+      if (isEmptyStatus(gameStore.spellStatus[index])) selectedSpellIndex.value = index;
     } else {
+      const status = gameStore.spellStatus[index];
       if (
-        gameStore.spellStatus[index] === 0 ||
-        (isPlayerB.value && gameStore.spellStatus[index] === 1) ||
-        (isPlayerA.value && gameStore.spellStatus[index] === 3) ||
-        canSelectBlindCard(gameStore.spellStatus[index])
+        isEmptyStatus(status) ||
+        (isPlayerB.value && basicSpellStatus(status) === SpellStatus.LEFT_SELECT) ||
+        (isPlayerA.value && basicSpellStatus(status) === SpellStatus.RIGHT_SELECT)
       ) {
         selectedSpellIndex.value = index;
       }
@@ -396,12 +396,10 @@ const selectSpellCard = (index: number) => {
 const displayStatus = (index: number) => {
   if (!isBingoLink.value) return dataSource.value.spellStatus[index];
   const linkData = gameStore.linkGameData;
-  if (linkData.disabled_idx?.includes(index)) return -1;
+  if (linkData.disabled_idx?.includes(index)) return SpellStatus.BANNED;
   const a = linkData.status_a?.[index] || 0;
   const b = linkData.status_b?.[index] || 0;
-  if (a === 5 && b === 7) return 6;
-  if (a === 1 && b === 3) return 2;
-  return a || b || 0;
+  return a | b;
 };
 const linkStatusA = (index: number) => (isBingoLink.value ? gameStore.linkGameData.status_a?.[index] || 0 : 0);
 const linkStatusB = (index: number) => (isBingoLink.value ? gameStore.linkGameData.status_b?.[index] || 0 : 0);
@@ -422,10 +420,6 @@ const linkMarker = (index: number) => {
   return markers.join(" ");
 };
 
-function canSelectBlindCard(status: number) {
-  return status === 0x1000 || status === 0x1010 || status === 0x1011 || status === 0x1012;
-}
-
 const onMenuClick = ({ target, item }: any) => {
   const index = target.getAttribute("index");
   if (index === null || isNaN(index)) return;
@@ -440,7 +434,11 @@ const onMenuClick = ({ target, item }: any) => {
     }
   } else {
     if (item.isReset != null && item.isReset == false) {
-      gameStore.finishSpell(parseInt(index), false, gameStore.spellStatus[index] === 5 ? 0 : 1);
+      gameStore.finishSpell(
+        parseInt(index),
+        false,
+        hasBasicAttribute(gameStore.spellStatus[index], SpellStatus.LEFT_GET) ? 0 : 1
+      );
     } else {
       if (item.value == 0x100) {
         gameStore.refreshSpell(parseInt(index));
