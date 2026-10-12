@@ -17,9 +17,21 @@
     <div class="layout-inner">
       <div class="layout-main-window">
         <router-view />
-        <div class="conn-status" :class="localStore.connStatus" :title="connStatusTip">
-          <el-icon><Connection /></el-icon>
-          <span>{{ connStatusText }}</span>
+        <div class="conn-status-group" :class="{ stale: localStore.connStatus !== 'online' }">
+          <div
+            v-for="p in roomStore.remotePlayerStatuses"
+            :key="p.name"
+            class="conn-status player-conn"
+            :class="p.online ? 'player-online' : 'player-offline'"
+            :title="p.online ? `「${p.name}」与服务器连接正常` : `「${p.name}」已断开连接`"
+          >
+            <span class="player-name">{{ p.name }}</span>
+            <span class="dot"></span>
+          </div>
+          <div class="conn-status" :class="localStore.connStatus" :title="connStatusTip">
+            <el-icon><Connection /></el-icon>
+            <span>{{ connStatusText }}</span>
+          </div>
         </div>
       </div>
       <div class="layout-info-window">
@@ -96,11 +108,22 @@ const getDarkColor = (color: string) => {
       position: relative;
       background-color: #ffffffdd;
 
-      .conn-status {
+      .conn-status-group {
         position: absolute;
         top: 2px;
         right: 2px;
         z-index: 200;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        // 自身连接异常时远端状态可能已过期，灰显以示不确定
+        &.stale .player-conn {
+          opacity: 0.55;
+        }
+      }
+
+      .conn-status {
         display: flex;
         align-items: center;
         gap: 4px;
@@ -130,6 +153,30 @@ const getDarkColor = (color: string) => {
         &.offline {
           background-color: var(--el-color-danger);
           animation: conn-status-pulse 1.2s ease-in-out infinite;
+        }
+
+        &.player-conn {
+          background-color: #303133cc;
+          max-width: 160px;
+
+          .player-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .dot {
+            flex-shrink: 0;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--el-color-success);
+          }
+
+          &.player-offline .dot {
+            background-color: var(--el-color-danger);
+            animation: conn-status-pulse 1.2s ease-in-out infinite;
+          }
         }
       }
     }

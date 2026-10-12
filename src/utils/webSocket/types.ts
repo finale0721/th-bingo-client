@@ -109,6 +109,7 @@ export enum WebSocketPushActionType {
   PUSH_GET_ROOM_LIST = "push_get_room_list",
   PUSH_NORMAL_DUAL_BOARD_CHANGE = "push_normal_dual_board_change",
   PUSH_LINK_DATA = "push_link_data",
+  PUSH_PLAYER_STATUS = "push_player_status",
 
   //bp赛
   PUSH_BP_GAME_NEXT_ROUND = "push_bp_game_next_round",

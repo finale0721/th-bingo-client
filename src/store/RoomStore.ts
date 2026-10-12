@@ -11,6 +11,8 @@ import { useCustomCardPoolStore } from "@/store/CustomCardPoolStore";
 import { useOnlineCustomPoolStore } from "@/store/OnlineCustomPoolStore";
 import pako from "pako";
 
+const ROBOT_NAME = "训练用毛玉";
+
 export const useRoomStore = defineStore("room", () => {
   const localStore = useLocalStore();
   const router = useRouter();
@@ -44,7 +46,29 @@ export const useRoomStore = defineStore("room", () => {
   });
   const soloMode = computed(() => !roomData.host);
   //const practiceMode = computed(() => !roomData.host && roomData.names[1] === "训练用毛玉");
-  const practiceMode = computed(() => roomData.names[1] === "训练用毛玉");
+  const practiceMode = computed(() => roomData.names[1] === ROBOT_NAME);
+
+  //远端选手的连接状态（自己由 connStatus 指示器负责）：选手只看对方，导播/观众看双方；机器人没有连接状态不显示
+  type RemotePlayerStatus = { name: string; online: boolean };
+  const remotePlayerStatuses = computed<RemotePlayerStatus[]>(() => {
+    if (!inRoom.value) return [];
+    const onlineMap = roomData.players_online || {};
+    const toEntry = (index: number): RemotePlayerStatus | null => {
+      const name = roomData.names[index];
+      if (!name || name === ROBOT_NAME) return null;
+      //缺少条目视为在线：能出现在座位上说明刚执行过操作
+      return { name, online: onlineMap[name] ?? true };
+    };
+    if (isPlayer.value) {
+      const opponentIndex = roomData.names[0] === localStore.username ? 1 : 0;
+      const entry = toEntry(opponentIndex);
+      return entry ? [entry] : [];
+    }
+    if (isHost.value || isWatcher.value) {
+      return [toEntry(0), toEntry(1)].filter((entry): entry is RemotePlayerStatus => !!entry);
+    }
+    return [];
+  });
 
   const gameTimeLimit = {};
   const countdownTime = {};
@@ -680,6 +704,7 @@ export const useRoomStore = defineStore("room", () => {
     score: [0, 0], // 比分，一定有2个，和上面的names一一对应
     watchers: [] as string[], // 观众名字列表，有几个就是几个
     last_winner: -1, // 上一场是谁赢，0或1，-1表示没有上一场
+    players_online: {} as { [name: string]: boolean }, // 两位选手到服务器的连接状态，key为玩家名
   });
   const setRoomData = (data) => {
     if (data.room_config) {
@@ -770,6 +795,7 @@ export const useRoomStore = defineStore("room", () => {
     roomData.score = [0, 0];
     roomData.watchers = [] as string[];
     roomData.last_winner = -1;
+    roomData.players_online = {};
   };
   const getRoomData = () => {
     return ws
@@ -874,6 +900,10 @@ export const useRoomStore = defineStore("room", () => {
     roomData.change_card_count[index] = count;
   });
 
+  ws.on<{ players_online: { [name: string]: boolean } }>(WebSocketPushActionType.PUSH_PLAYER_STATUS, (data) => {
+    roomData.players_online = data!.players_online || {};
+  });
+
   //赛前bp
   const banPick = reactive({
     who_first: 0, // 谁是第一个操作的，0-左边，1-右边
@@ -963,6 +993,7 @@ export const useRoomStore = defineStore("room", () => {
     roomId,
     soloMode,
     practiceMode,
+    remotePlayerStatuses,
     roomSettings,
     roomData,
     roomConfig,
