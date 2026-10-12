@@ -867,6 +867,7 @@ class Replay {
       };
       actions.forEach((action) => {
         if (action.playerName !== player || action.spellIndex < 0) return;
+        // if (action.playerName !== players[0] && action.playerName !== players[1]) return;
         if (action.actionType === "link_start_run" || action.actionType === "link_next_card") {
           stats.selectActionByIndex.set(action.spellIndex, action);
           return;

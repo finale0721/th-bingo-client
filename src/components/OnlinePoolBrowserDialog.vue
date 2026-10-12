@@ -28,9 +28,10 @@
       <el-table-column label="过期时间" width="150">
         <template #default="{ row }">{{ formatTime(row.expires_at) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="240" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="previewPool(row)">预览</el-button>
+          <el-button link type="primary" size="small" :loading="downloadingMd5s.has(row.md5)" @click="downloadPool(row)">下载</el-button>
           <el-button link type="danger" size="small" :disabled="row.uploader_name !== currentUserName" @click="deletePool(row.md5)">删除</el-button>
           <el-button link type="primary" size="small" @click="selectPool(row.md5)">使用</el-button>
         </template>
@@ -58,6 +59,7 @@ import {
   CustomCardPoolPayload,
   CustomCardPoolSlot,
   customPoolToSpells,
+  exportCustomCardPool,
   getCustomPoolGames,
   readCustomCardPoolFile,
 } from "@/utils/CustomCardPool";
@@ -72,6 +74,7 @@ const localStore = useLocalStore();
 const dialogVisible = ref(false);
 const previewVisible = ref(false);
 const previewSlotData = ref<CustomCardPoolSlot | null>(null);
+const downloadingMd5s = ref(new Set<string>());
 
 const currentUserName = computed(() => localStore.username);
 
@@ -141,6 +144,25 @@ const previewPool = async (meta: OnlinePoolMetadata) => {
     previewVisible.value = true;
   } catch (e: any) {
     ElMessage.error(e?.msg || e?.message || "加载失败");
+  }
+};
+
+const downloadPool = async (meta: OnlinePoolMetadata) => {
+  if (downloadingMd5s.value.has(meta.md5)) return;
+  downloadingMd5s.value.add(meta.md5);
+  try {
+    const { metadata, spells } = await onlineStore.fetchPoolDetail(meta.md5);
+    const payload = spellsToPayload(spells);
+    const gameNames = new Map(metadata.games.map((game) => [String(game.code), game.name]));
+    payload.rows.forEach((row) => {
+      row.gameName = gameNames.get(String(row.gameCode)) || row.gameName;
+    });
+    const fileName = (metadata.file_name || "自定义卡池").replace(/\.xlsx?$/i, "");
+    exportCustomCardPool(payload, `${fileName}.xlsx`);
+  } catch (e: any) {
+    ElMessage.error(e?.msg || e?.message || "下载失败");
+  } finally {
+    downloadingMd5s.value.delete(meta.md5);
   }
 };
 

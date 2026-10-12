@@ -235,12 +235,12 @@ const gameTypeList = [
 
 const spellVersionList = [
   {
-    name: "S7卡池",
-    type: 2
+    name: "S8卡池",
+    type: 3
   },
   {
-    name: "S8-preview",
-    type: 3
+    name: "S7卡池",
+    type: 2
   },
   {
     name: "S6卡池",
