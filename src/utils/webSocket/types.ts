@@ -28,6 +28,7 @@ export enum WebSocketEventType {
   RECONNECT = "reconnect",
   DISCONNECT = "disconnect",
   ERROR = "error",
+  OFFLINE = "offline",
 }
 
 export enum WebSocketActionType {

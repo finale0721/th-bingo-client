@@ -17,6 +17,10 @@
     <div class="layout-inner">
       <div class="layout-main-window">
         <router-view />
+        <div class="conn-status" :class="localStore.connStatus" :title="connStatusTip">
+          <el-icon><Connection /></el-icon>
+          <span>{{ connStatusText }}</span>
+        </div>
       </div>
       <div class="layout-info-window">
         <info-window></info-window>
@@ -29,8 +33,23 @@
 import { computed } from "vue";
 import InfoWindow from "./components/InfoWindow.vue";
 import { useRoomStore } from "@/store/RoomStore";
+import { useLocalStore } from "@/store/LocalStore";
+import { ElIcon } from "element-plus";
+import { Connection } from "@element-plus/icons-vue";
 
 const roomStore = useRoomStore();
+const localStore = useLocalStore();
+const connStatusText = computed(
+  () => ({ online: "已连接", connecting: "连接中", offline: "已断开" }[localStore.connStatus])
+);
+const connStatusTip = computed(
+  () =>
+    ({
+      online: "与服务器连接正常",
+      connecting: "正在建立连接或掉线后自动重连中",
+      offline: "多次重连失败，请检查网络后刷新页面",
+    }[localStore.connStatus])
+);
 const roomSettings = computed(() => roomStore.roomSettings);
 const boardSize = computed(() => roomStore.inRoom ? roomStore.roomConfig.board_size || roomSettings.value.board_size || 5 : 5);
 const layoutInnerWidth = computed(() => boardSize.value === 6 ? "1508px" : "1320px");
@@ -76,6 +95,43 @@ const getDarkColor = (color: string) => {
       box-sizing: border-box;
       position: relative;
       background-color: #ffffffdd;
+
+      .conn-status {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        z-index: 200;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 14px;
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1;
+        color: #fff;
+        user-select: none;
+        box-shadow: 0 1px 4px #0003;
+        transition: background-color 0.3s;
+
+        .el-icon {
+          font-size: 15px;
+        }
+
+        &.online {
+          background-color: var(--el-color-success);
+        }
+
+        &.connecting {
+          background-color: var(--el-color-warning);
+          animation: conn-status-pulse 1.2s ease-in-out infinite;
+        }
+
+        &.offline {
+          background-color: var(--el-color-danger);
+          animation: conn-status-pulse 1.2s ease-in-out infinite;
+        }
+      }
     }
 
     .layout-info-window {
@@ -123,6 +179,12 @@ const getDarkColor = (color: string) => {
     position: absolute;
     top: 0;
     left: 0;
+  }
+}
+
+@keyframes conn-status-pulse {
+  50% {
+    opacity: 0.5;
   }
 }
 </style>

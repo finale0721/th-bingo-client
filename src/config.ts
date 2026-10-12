@@ -1,8 +1,8 @@
 class WebSocketConfig {
   public static readonly url = process.env.VUE_APP_WS_API || ""; //webSocket地址
-  public static readonly heartBeatInterval = 120; //发送心跳间隔秒数
+  public static readonly heartBeatInterval = 30; //发送心跳间隔秒数
   public static readonly maxRetryTimes = 3; //连接失败后尝试重新连接的最大次数
-  public static readonly timeOutSeconds = 20; //发出心跳后多少秒没收到消息判断掉线
+  public static readonly timeOutSeconds = 10; //发出心跳后多少秒没收到消息判断掉线
   public static readonly heartBeatMaxFailureTimes = 3;
 }
 

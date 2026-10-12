@@ -9,6 +9,7 @@ export default abstract class WS {
     [WebSocketEventType.RECONNECT]: [],
     [WebSocketEventType.DISCONNECT]: [],
     [WebSocketEventType.ERROR]: [],
+    [WebSocketEventType.OFFLINE]: [],
   };
   protected eventStack: Array<{ (): void }> = [];
   protected heartBeatTimer = 0;
@@ -64,18 +65,16 @@ export default abstract class WS {
         this.ws = new WebSocket(url);
         this.autoReconnect = true; //连接以后开启自动重连
         this.ws.onopen = (event) => {
-          if (this.retryTime > 1) {
-            resolve(event);
-            return;
-          }
           this.retryTime = 0;
+          // 先执行 connect 回调（内含重连后的重新登录），再发送断线期间堆积的请求。
+          // 服务端登录态绑定在连接上，堆积的请求必须先经过 login 才会被受理
+          for (const callback of this.eventList.connect) {
+            callback();
+          }
           for (const func of this.eventStack) {
             func();
           }
           this.eventStack = [];
-          for (const callback of this.eventList.connect) {
-            callback();
-          }
           if (this.autoSendHeartBeat) this.startHeartBeat();
           console.log("ws已连接");
           resolve(event);
@@ -123,6 +122,10 @@ export default abstract class WS {
       }
     }).catch((e: Error) => {
       ElMessage.error(e.message);
+      // 走到这里说明重试已耗尽(或配置错误)，不会再自动重连
+      for (const callback of this.eventList[WebSocketEventType.OFFLINE]) {
+        callback({});
+      }
     });
   }
 

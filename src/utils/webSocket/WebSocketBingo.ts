@@ -6,6 +6,7 @@ import {
   WebSocketCallBack,
   HeartBeatOption,
   WebSocketPushActionType,
+  WebSocketEventType,
 } from "./types";
 import { v4 } from "uuid";
 import { ElMessage } from "element-plus";
@@ -93,7 +94,10 @@ export class WebSocketBingo extends WS {
     super.once(action, callback);
   }
 
-  on<T = any>(action: WebSocketActionType | WebSocketPushActionType, callback: WebSocketCallBack<T>) {
+  on<T = any>(
+    action: WebSocketActionType | WebSocketPushActionType | WebSocketEventType,
+    callback: WebSocketCallBack<T>
+  ) {
     super.on(action, callback);
   }
 
