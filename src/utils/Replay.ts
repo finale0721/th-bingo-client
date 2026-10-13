@@ -114,6 +114,7 @@ class Replay {
     this.cleanupPreviousReplay();
     this.gameLogData = this.normalizeGameLog(this.gameLogData);
     this.gameStore.setReplayMode(true);
+    this.roomStore.setReplayActive(true);
 
     //  备份当前房间配置和玩家名称
     for (const i in this.roomStore.roomConfig) {
@@ -364,6 +365,7 @@ class Replay {
     this.pauseReplay(); // 先暂停并清理计时器
     this.state.isReplayFinished = false;
     this.gameStore.setReplayMode(false);
+    this.roomStore.setReplayActive(false);
     this.roomStore.roomData.started = false;
 
     // 恢复原始房间配置和玩家名称

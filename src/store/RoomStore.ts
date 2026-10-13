@@ -28,7 +28,11 @@ export const useRoomStore = defineStore("room", () => {
     }
   });
 
-  const inRoom = computed(() => isHost.value || isPlayer.value || isWatcher.value);
+  const isReplayActive = ref(false);
+  const setReplayActive = (active: boolean) => {
+    isReplayActive.value = active;
+  };
+  const inRoom = computed(() => isReplayActive.value || isHost.value || isPlayer.value || isWatcher.value);
   const inGame = computed(() => roomData.started);
   const isPlayerA = computed(() => roomData.names[0] === localStore.username);
   const isPlayerB = computed(() => roomData.names[1] === localStore.username);
@@ -51,7 +55,8 @@ export const useRoomStore = defineStore("room", () => {
   //远端选手的连接状态（自己由 connStatus 指示器负责）：选手只看对方，导播/观众看双方；机器人没有连接状态不显示
   type RemotePlayerStatus = { name: string; online: boolean };
   const remotePlayerStatuses = computed<RemotePlayerStatus[]>(() => {
-    if (!inRoom.value) return [];
+    // 回放中的选手是历史记录，实时连接状态没有意义，隐藏指示器
+    if (!inRoom.value || isReplayActive.value) return [];
     const onlineMap = roomData.players_online || {};
     const toEntry = (index: number): RemotePlayerStatus | null => {
       const name = roomData.names[index];
@@ -1015,6 +1020,8 @@ export const useRoomStore = defineStore("room", () => {
     roomData,
     roomConfig,
     inRoom,
+    isReplayActive,
+    setReplayActive,
     inGame,
     isPlayer,
     isPlayerA,
