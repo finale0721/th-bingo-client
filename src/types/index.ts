@@ -164,6 +164,7 @@ export interface RoomConfig {
   link_end_b?: number;
   custom_card_pool_enabled?: boolean;
   custom_card_pool_compressed?: string;
+  pick_guarantee_count?: number;
 }
 
 export interface EditorPreset {

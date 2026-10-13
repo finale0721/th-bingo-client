@@ -614,6 +614,20 @@
                     设置权重
                   </el-button>
                 </el-form-item>
+                <el-form-item label="保底数量：" v-if="roomSettings.type === BingoType.BP || roomSettings.gamebp">
+                  <el-input-number
+                      class="input-number"
+                      v-model="roomSettings.pick_guarantee_count"
+                      :min="0"
+                      :max="Math.floor(roomSettings.board_size * roomSettings.board_size * 20 / 100)"
+                      :step="1"
+                      :disabled="inGame"
+                      size="small"
+                      controls-position="right"
+                      @change="roomStore.updateRoomConfig('pick_guarantee_count')"
+                  />
+                  <span class="input-number-text">张</span>
+                </el-form-item>
                 <el-form-item label="bingo难度：">
                   <el-radio-group
                     v-model="roomSettings.difficulty"

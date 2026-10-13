@@ -184,6 +184,7 @@ export const useRoomStore = defineStore("room", () => {
       6: defaultLinkBoardSettingsForBoard(6),
     } as Record<number, LinkBoardSettings>,
     custom_card_pool_enabled: false,
+    pick_guarantee_count: 0,
   });
 
   //加载本地设置
@@ -202,6 +203,7 @@ export const useRoomStore = defineStore("room", () => {
     if (roomSettings.link_fastest_coefficient === undefined) roomSettings.link_fastest_coefficient = 0;
     if (roomSettings.link_connectivity === undefined) roomSettings.link_connectivity = 8;
     if (roomSettings.custom_card_pool_enabled === undefined) roomSettings.custom_card_pool_enabled = false;
+    if (roomSettings.pick_guarantee_count === undefined) roomSettings.pick_guarantee_count = 0;
     if (!Array.isArray(roomSettings.systemCardPoolCheckList)) {
       roomSettings.systemCardPoolCheckList = [...roomSettings.checkList];
     }
@@ -555,6 +557,7 @@ export const useRoomStore = defineStore("room", () => {
     link_start_b: 4,
     link_end_b: 20,
     custom_card_pool_enabled: false,
+    pick_guarantee_count: 0,
   });
 
   const getRoomConfig = () => {
@@ -606,12 +609,16 @@ export const useRoomStore = defineStore("room", () => {
       | "board_size" | "extra_line_count" | "hidden_select_threshold_a" | "hidden_select_threshold_b"
       | "link_level_coefficient" | "link_fastest_coefficient" | "link_connectivity"
       | "link_disabled_idx" | "link_start_a" | "link_end_a" | "link_start_b" | "link_end_b"
-      | "custom_card_pool_enabled" | "custom_card_pool",
+      | "custom_card_pool_enabled" | "custom_card_pool" | "pick_guarantee_count",
   ) => {
     normalizeRoomSettingsForGameType();
     syncActiveCardPoolGameSelection();
     applyCustomCardPoolSelection();
     normalizeLinkSettings();
+    const maxPickGuarantee = Math.floor((roomSettings.board_size * roomSettings.board_size * 20) / 100);
+    if (roomSettings.pick_guarantee_count > maxPickGuarantee) {
+      roomSettings.pick_guarantee_count = maxPickGuarantee;
+    }
     saveRoomSettings();
     const allParams = {
       rid: roomId.value,
@@ -653,6 +660,7 @@ export const useRoomStore = defineStore("room", () => {
       link_start_b: roomSettings.link_start_b,
       link_end_b: roomSettings.link_end_b,
       custom_card_pool_enabled: customCardPoolActive.value,
+      pick_guarantee_count: roomSettings.pick_guarantee_count,
     };
     const params: any = {};
     if (key) {
@@ -670,10 +678,12 @@ export const useRoomStore = defineStore("room", () => {
         params.board_size = allParams.board_size
         params.use_ai = allParams.use_ai
         params.custom_card_pool_enabled = allParams.custom_card_pool_enabled
+        params.pick_guarantee_count = allParams.pick_guarantee_count
       }else if(key === "board_size"){
         params.board_size = allParams.board_size
         params.extra_line_count = allParams.extra_line_count
         params.use_ai = allParams.use_ai
+        params.pick_guarantee_count = allParams.pick_guarantee_count
       }else{
         params[key] = allParams[key];
       }
@@ -771,6 +781,7 @@ export const useRoomStore = defineStore("room", () => {
           link_start_b: roomSettings.link_start_b,
           link_end_b: roomSettings.link_end_b,
           custom_card_pool_enabled: customCardPoolActive.value,
+          pick_guarantee_count: roomSettings.pick_guarantee_count,
         },
         solo: soloMode,
         add_robot: addRobot,
