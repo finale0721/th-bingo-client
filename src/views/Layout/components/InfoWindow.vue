@@ -567,11 +567,12 @@
                 <el-form-item label="作品BP：">
                   <el-checkbox
                       v-model="roomSettings.gamebp"
-                      :disabled="inMatch || customCardPoolActive"
+                      :disabled="inMatch || customCardPoolActive || roomStore.practiceMode"
                       @change="saveRoomSettings"
                       style="margin-right: 0"
                   ></el-checkbox>
                 </el-form-item>
+                <!--
                 <el-form-item label="全局BP：" v-if="roomSettings.gamebp">
                   <el-checkbox
                       v-model="roomSettings.matchbp"
@@ -580,6 +581,7 @@
                       style="margin-right: 0"
                   ></el-checkbox>
                 </el-form-item>
+                -->
                 <el-form-item label="题目：" v-if="!roomSettings.gamebp">
                   <el-checkbox-group
                       v-model="roomSettings.checkList"

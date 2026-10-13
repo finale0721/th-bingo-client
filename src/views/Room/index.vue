@@ -320,7 +320,7 @@
             <template v-if="isBpPhase">
               <el-button
                 type="primary"
-                v-if="banPick.phase < 11"
+                v-if="banPick.phase > 0 && banPick.phase < 11"
                 :disabled="!(isPlayerA && playerACanBP) && !(isPlayerB && playerBCanBP)"
                 @click="playerBanPick"
                 >确定</el-button
@@ -435,6 +435,25 @@
     />
     <spell-database-panel v-if="editorStore.isEditorMode" />
     <preset-manager />
+    <el-dialog
+      :model-value="forceBanExVoteVisible"
+      title="强制BanEX"
+      width="440px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+      align-center
+    >
+      <div class="force-ban-ex-content">
+        <p>双方选择是否强制BanEX。</p>
+        <p>选择强制BanEX：你将跳过本次BP的剩余环节，且本局EX关闭，由对方独立完成剩余BP；双方都选择时，本局变为无EX的正常BP，双方正常完成。</p>
+        <p v-if="myForceBanExVote !== 0" class="force-ban-ex-waiting">已选择，等待对方…</p>
+      </div>
+      <template #footer>
+        <el-button type="danger" :plain="myForceBanExVote !== 1" :disabled="bpSubmitting" @click="confirmForceBanEx">强制BanEX</el-button>
+        <el-button type="primary" :plain="myForceBanExVote !== -1" :disabled="bpSubmitting" @click="submitBpCard('-1')">继续正常BP</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -446,7 +465,7 @@ import ScoreBoard from "@/components/score-board.vue";
 import CountDown from "@/components/count-down.vue";
 import GameBp from "@/components/game-bp.vue";
 import ConfirmSelectButton from "@/components/button-with-cooldown.vue";
-import { ElButton, ElMessage, ElMessageBox, ElRadio, ElRadioGroup, ElSlider } from "element-plus";
+import { ElButton, ElDialog, ElMessage, ElMessageBox, ElRadio, ElRadioGroup, ElSlider } from "element-plus";
 import ws from "@/utils/webSocket/WebSocketBingo";
 import { useRoomStore } from "@/store/RoomStore";
 import { useGameStore } from "@/store/GameStore";
@@ -791,7 +810,7 @@ onMounted(() => {
   }
 });
 const isBpPhase = computed(
-  () => roomStore.banPick.phase > 0 && (roomStore.banPick.phase < 99 || gameStore.gameStatus === GameStatus.NOT_STARTED)
+  () => roomStore.banPick.phase !== 0 && (roomStore.banPick.phase < 99 || gameStore.gameStatus === GameStatus.NOT_STARTED)
 );
 watch(
   isBpPhase,
@@ -847,10 +866,33 @@ watch(
 const bpCode = ref("");
 const banPick = computed(() => roomStore.banPick);
 const bpStatus = computed(() => roomStore.bpStatus);
+const forceBanExVoteVisible = computed(() => banPick.value.phase === -1 && (isPlayerA.value || isPlayerB.value));
+const myForceBanExVote = computed(() =>
+  isPlayerA.value ? banPick.value.a_force_ban_ex : isPlayerB.value ? banPick.value.b_force_ban_ex : 0
+);
 
 const startBP = () => {
   roomStore.startBanPick();
 };
+// 在途防重：请求发出至响应/推送到达期间忽略重复提交
+const bpSubmitting = ref(false);
+const submitBpCard = (selection: string) => {
+  if (bpSubmitting.value) return;
+  bpSubmitting.value = true;
+  roomStore
+    .banPickCard(selection)
+    .catch(() => {})
+    .finally(() => {
+      bpSubmitting.value = false;
+    });
+};
+watch(
+  banPick,
+  () => {
+    bpSubmitting.value = false;
+  },
+  { deep: true }
+);
 const playerBanPick = () => {
   if (!bpCode.value) {
     ElMessageBox.confirm("你没有选择作品，是否确认不选择？", "提示", {
@@ -859,19 +901,30 @@ const playerBanPick = () => {
       type: "warning",
     })
       .then(() => {
-        roomStore.banPickCard("");
+        submitBpCard("");
       })
       .catch(() => {});
   } else {
-    roomStore.banPickCard(bpCode.value);
+    submitBpCard(bpCode.value);
   }
 };
 const confirmOpenEX = (flag: boolean) => {
-  if (flag) {
-    roomStore.banPickCard("1");
-  } else {
-    roomStore.banPickCard("-1");
-  }
+  submitBpCard(flag ? "1" : "-1");
+};
+const confirmForceBanEx = () => {
+  ElMessageBox.confirm(
+    "选择强制BanEX后，你将跳过本次BP的剩余环节。是否确认？",
+    "强制BanEX",
+    {
+      confirmButtonText: "确认",
+      cancelButtonText: "取消",
+      type: "warning",
+    }
+  )
+    .then(() => {
+      submitBpCard("1");
+    })
+    .catch(() => {});
 };
 
 //标准赛
@@ -1567,7 +1620,7 @@ watch(
 
 //方法
 const startGame = () => {
-  if (roomSettings.value.gamebp && (!roomSettings.value.matchbp || !inMatch.value)) {
+  if (roomSettings.value.gamebp && !roomStore.practiceMode && (!roomSettings.value.matchbp || !inMatch.value)) {
     startBP();
   } else {
     roomStore.applyCustomCardPoolSelection();
@@ -2092,6 +2145,17 @@ const handleShuffleSpells = () => {
 </script>
 
 <style lang="scss" scoped>
+.force-ban-ex-content {
+  p {
+    margin: 0 0 8px;
+    line-height: 1.6;
+  }
+
+  .force-ban-ex-waiting {
+    color: #e6a23c;
+    margin-bottom: 0;
+  }
+}
 .link-board-summary {
   display: flex;
   flex-direction: column;

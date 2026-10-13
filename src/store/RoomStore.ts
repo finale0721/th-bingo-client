@@ -914,11 +914,15 @@ export const useRoomStore = defineStore("room", () => {
     b_ban: [] as string[], // 右玩家ban了哪些作品
     a_open_ex: 0, // 左玩家是否选EX难度
     b_open_ex: 0, // 右玩家是否选EX难度
+    a_force_ban_ex: 0, // 左玩家的强制BanEX投票：0-未投，1-强制BanEX，-1-继续正常BP
+    b_force_ban_ex: 0, // 右玩家的强制BanEX投票：同上
   });
 
   const bpStatus = computed(() => {
     if (!banPick.phase) return null;
     switch (banPick.phase) {
+      case -1:
+        return BpStatus.FORCE_BAN_EX;
       case 1:
       case 3:
         return banPick.who_first === 0 ? BpStatus.IS_A_PICK : BpStatus.IS_B_PICK;
@@ -951,6 +955,8 @@ export const useRoomStore = defineStore("room", () => {
     banPick.b_ban = [];
     banPick.a_open_ex = 0;
     banPick.b_open_ex = 0;
+    banPick.a_force_ban_ex = 0;
+    banPick.b_force_ban_ex = 0;
   };
 
   const startBanPick = () => {

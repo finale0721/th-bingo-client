@@ -18,7 +18,7 @@
           <img class="game-icon" :src="getGameIcon(game.code)" alt="" />
         </div>
         <div
-          v-if="phase < 3"
+          v-if="phase >= 1 && phase < 3 && !forceBanExLocked"
           :class="{
             'game-item': true,
             'current-select-A': isPlayerA && code === 'EX',
@@ -100,6 +100,7 @@ const phase = computed(() => roomStore.banPick.phase);
 const openEX = computed(() => roomStore.banPick.a_open_ex === 1 && roomStore.banPick.b_open_ex === 1);
 const isHost = computed(() => roomStore.isHost);
 const bpStatus = computed(() => roomStore.bpStatus);
+const forceBanExLocked = computed(() => roomStore.banPick.a_force_ban_ex === 1 || roomStore.banPick.b_force_ban_ex === 1);
 const tooltipText = computed(() => {
   switch (bpStatus.value) {
     case BpStatus.IS_A_PICK:
@@ -153,12 +154,23 @@ const tooltipText = computed(() => {
       if (isPlayerA.value || isPlayerB.value) {
         return "请选择是否开启EX";
       }
+      break;
+    case BpStatus.FORCE_BAN_EX:
+      if (isHost.value) {
+        return "等待玩家选择是否强制BanEX";
+      }
+      if (isPlayerA.value) {
+        return roomStore.banPick.a_force_ban_ex ? "已选择，等待对手选择" : "请选择是否强制BanEX";
+      }
+      if (isPlayerB.value) {
+        return roomStore.banPick.b_force_ban_ex ? "已选择，等待对手选择" : "请选择是否强制BanEX";
+      }
   }
   return "";
 });
 
 const selectGame = (c: string) => {
-  if (phase.value > 99) return;
+  if (phase.value > 99 || phase.value < 1) return;
   const list = [...ASelectedList.value, ...BSelectedList.value, ...ABannedList.value, ...BBannedList.value];
   if (list.includes(c)) return;
   if (code.value) {
