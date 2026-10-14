@@ -446,7 +446,7 @@
     >
       <div class="force-ban-ex-content">
         <p>双方选择是否强制BanEX。</p>
-        <p>选择强制BanEX：你将跳过本次BP的剩余环节，且本局EX关闭，由对方独立完成剩余BP；双方都选择时，本局变为无EX的正常BP，双方正常完成。</p>
+        <p>选择强制BanEX：你将跳过本次BP的剩余环节，且本局EX关闭，由对方独立完成剩余BP；双方都选择时，直接结束BP阶段，本局不保不ban且EX关闭。</p>
         <p v-if="myForceBanExVote !== 0" class="force-ban-ex-waiting">已选择，等待对方…</p>
       </div>
       <template #footer>

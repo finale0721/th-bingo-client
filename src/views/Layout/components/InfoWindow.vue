@@ -614,7 +614,7 @@
                     设置权重
                   </el-button>
                 </el-form-item>
-                <el-form-item label="保底数量：" v-if="roomSettings.type === BingoType.BP || roomSettings.gamebp">
+                <el-form-item label="保作保底：" v-if="roomSettings.type === BingoType.BP || roomSettings.gamebp">
                   <el-input-number
                       class="input-number"
                       v-model="roomSettings.pick_guarantee_count"
