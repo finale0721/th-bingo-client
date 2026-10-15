@@ -947,7 +947,9 @@ const selectCooldown = computed(() => {
 });
 
 const setCdTime = () => {
-  gameStore.leftCdTime = -1;
+  // CD结束后归零（0=无CD剩余）。不能用-1，否则selectCooldown会回退成"完整CD长度"，
+  // 使得按钮下次挂载（例如右键取消选卡）时又凭空开始一次倒计时
+  gameStore.leftCdTime = 0;
 };
 
 const getStandardSpellStar = (index: number, playerIndex: 0 | 1) => {

@@ -397,6 +397,12 @@ export const useGameStore = defineStore("game", () => {
       }
     }
 
+    // 选卡CD只由"自己收卡"触发：服务端只在收卡者身上更新 lastGetTime
+    // 不能依赖选卡按钮重新挂载来推断CD，否则取消选卡（按钮同样会重新挂载）也会错误进入倒计时
+    if((isPA && actAGet) || (isPB && actBGet)){
+      leftCdTime.value = isPA ? roomStore.actualCdTimeA : roomStore.actualCdTimeB;
+    }
+
       //如果是收卡行为，检查在哪一面收卡
       //导播直接覆盖
       if (fromHost && (actAGet || actBGet)) {
